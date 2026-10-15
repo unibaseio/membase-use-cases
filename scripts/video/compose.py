@@ -6,7 +6,9 @@ the step label and the wait badge. ffmpeg writes the files.
 from __future__ import annotations
 
 import bisect
+import copy
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -14,11 +16,17 @@ import imageio_ffmpeg
 from playwright.async_api import async_playwright
 
 HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent.parent
+ICONS = HERE / "icons"  # Lucide (ISC), see icons/LICENSE
 FPS = 25
 INTRO, SLIDE, OUTRO = 2.8, 0.6, 2.4  # seconds
 ARCH = 6.5  # seconds the architecture card stays, when a demo has one
 EASE = 1.6  # seconds a camera move takes
 BRIDGE = 3.0  # a return to the whole page this close before the next focus is skipped
+# the explainer: actors appear, then each beat plays its flows in order
+X_IN, X_OUT = 0.8, 0.6  # seconds before the first beat and after the last
+# seconds: a token on its arrow; Membase's inside step; a beat's last look
+TRAVEL, INSIDE, HOLD = 0.75, 1.0, 0.8
 FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
 PANELS = {"hosted": "#3e61ff", "local": "#1b2551"}
 BASES = {"hosted": "Hosted Membase", "local": "Local engine"}
@@ -27,6 +35,128 @@ BASES = {"hosted": "Hosted Membase", "local": "Local engine"}
 def smooth(x: float) -> float:
     x = max(0.0, min(1.0, x))
     return x * x * (3 - 2 * x)
+
+
+def icon_svg(icon: str) -> str:
+    """A Lucide icon by name (vendored under icons/), or an inline <svg> as given."""
+    if icon.lstrip().startswith("<svg"):
+        return icon
+    path = ICONS / f"{icon}.svg"
+    if not path.exists():
+        raise SystemExit(f"no icon {icon!r}: vendor it from lucide-static into {ICONS}")
+    return re.sub(r"<!--.*?-->", "", path.read_text(), flags=re.S).strip()
+
+
+def plan_explain(spec: dict) -> dict:
+    """META["explain"] made ready for compose.html: icons inlined, tokens as dicts, and every
+    beat, flow and Membase inside step given its start and end (seconds into the explainer).
+
+    Flows play one after another; a flow with "par": true travels with the one before it. In a
+    "learn" beat, Membase's inside step plays as soon as a flow reaches it; in a "recall" beat,
+    just before the first flow leaves it. A flow endpoint "mb.mara" is the slot "mara" of the
+    Membase actor "mb"."""
+    x = copy.deepcopy(spec)
+    mb = next((a for a in x["actors"] if a.get("kind") == "membase"), None)
+    if mb is None:
+        raise SystemExit('explain: one actor must be {"kind": "membase"}')
+    mb.setdefault("slots", [{"id": "", "label": mb.get("memory", "Memory")}])
+    slots = {s["id"] for s in mb["slots"]}
+    for a in x["actors"]:
+        if a.get("icon"):
+            a["svg"] = icon_svg(a["icon"])
+        for s in a.get("slots", []):
+            if s.get("icon"):
+                s["svg"] = icon_svg(s["icon"])
+    ids = {a["id"] for a in x["actors"]}
+
+    def slot_of(end: str) -> str | None:
+        """The Membase slot an endpoint names, or None when it is not Membase."""
+        head, _, slot = end.partition(".")
+        if head != mb["id"]:
+            if end not in ids:
+                raise SystemExit(f"explain: unknown actor {end!r}")
+            return None
+        if slot not in slots:
+            slot = slot or mb["slots"][0]["id"]
+            if slot not in slots:
+                raise SystemExit(f"explain: {mb['id']} has no slot {slot!r}")
+        return slot
+
+    # the icons compose.html draws on its own: Membase's tab, its steps, the key, the chips
+    x["ui"] = {
+        n: icon_svg(n)
+        for n in (
+            "cloud",
+            "cpu",
+            "sparkles",
+            "search",
+            "folder",
+            "file-text",
+            "key-round",
+            "check",
+            "x",
+        )
+    }
+    t = X_IN
+    for b in x["beats"]:
+        b["t0"] = round(t, 3)
+        steps: list[list[dict]] = []
+        for f in b["flows"]:
+            tok = f.get("token") or {}
+            f["token"] = {"label": tok} if isinstance(tok, str) else dict(tok)
+            if f["token"].get("icon"):
+                f["token"]["svg"] = icon_svg(f["token"]["icon"])
+            f["fromSlot"], f["toSlot"] = slot_of(f["from"]), slot_of(f["to"])
+            if f.get("par") and steps:
+                steps[-1].append(f)
+            else:
+                steps.append([f])
+        kind, inside = b.get("membase"), None
+        for step in steps:
+            outs = [f["fromSlot"] for f in step if f["fromSlot"] is not None]
+            if kind == "recall" and inside is None and outs:
+                inside = {
+                    "kind": kind,
+                    "slots": outs,
+                    "t0": round(t, 3),
+                    "t1": round(t + INSIDE, 3),
+                }
+                t += INSIDE
+            for f in step:
+                f["t0"], f["t1"] = round(t, 3), round(t + TRAVEL, 3)
+            t += TRAVEL
+            ins = [f["toSlot"] for f in step if f["toSlot"] is not None]
+            if kind == "learn" and inside is None and ins:
+                inside = {"kind": kind, "slots": ins, "t0": round(t, 3), "t1": round(t + INSIDE, 3)}
+                t += INSIDE
+        if kind and inside is None:
+            raise SystemExit(f"explain: beat {b['say']!r} is a {kind} but no flow touches Membase")
+        if inside and kind == "learn":
+            facts = b.get("facts", 3)
+            inside["facts"] = facts if isinstance(facts, list) else [""] * facts
+        if inside and kind == "recall":
+            inside["hit"] = b.get("hit")
+        b["inside"] = inside
+        t += HOLD
+        b["t1"] = round(t, 3)
+    x["length"] = round(t + X_OUT, 3)
+    return x
+
+
+async def resolve_art(page, spec: dict) -> None:
+    """An actor drawn by the demo's own art: "art": [module, export, *args] calls that export of
+    the demo's ES module (a path from the repository root) for its SVG."""
+    for a in spec["actors"]:
+        if a.get("art") and not a.get("svg"):
+            module, export, *args = a["art"]
+            source = (ROOT / module).read_text()
+            a["svg"] = await page.evaluate(
+                """async ([src, name, args]) => {
+                  const url = 'data:text/javascript;base64,' + btoa(unescape(encodeURIComponent(src)));
+                  return (await import(url))[name](...args);
+                }""",
+                [source, export, args],
+            )
 
 
 class Clock:
@@ -92,6 +222,7 @@ async def render_video(rec_dir: Path, meta: dict, out_mp4: Path) -> list[float]:
         "panel": PANELS[base],
         "title": meta["title_html"],
         "pitch": meta["pitch"],
+        "line": meta.get("line"),  # one short line; the intro shows the pitch when there is none
         "kick": f"Membase use cases · {meta['n']:02d}",
         "base": BASES[base],
         "corner": f"use cases · {meta['n']:02d} {meta['title']}",
@@ -143,7 +274,23 @@ async def render_video(rec_dir: Path, meta: dict, out_mp4: Path) -> list[float]:
             introShot=meta.get("intro_shot") and str(meta["intro_shot"]),
         )
         states.append(st)
-    if meta.get("arch"):  # the architecture card, between the intro and the recording
+    explain = plan_explain(meta["explain"]) if meta.get("explain") else None
+    if explain:  # the animated explainer, between the intro and the recording
+        for i in range(int(explain["length"] * FPS)):
+            x = i / FPS
+            fade = min(1.0, x / 0.35, (explain["length"] - x) / 0.35)
+            states.append(
+                dict(
+                    common,
+                    mode="video",
+                    frame=intro_frame,
+                    box=None,
+                    explain=explain,  # one dict for every frame: resolve_art fills it in once
+                    explainT=round(x, 3),
+                    explainFade=smooth(fade),
+                )
+            )
+    elif meta.get("arch"):  # the architecture card, between the intro and the recording
         a = meta["arch"]
         for i in range(int(ARCH * FPS)):
             x = i / FPS
@@ -214,6 +361,8 @@ async def render_video(rec_dir: Path, meta: dict, out_mp4: Path) -> list[float]:
         page = await browser.new_page(viewport={"width": 1920, "height": 1080})
         await page.goto((HERE / "compose.html").as_uri())
         await page.evaluate("document.fonts.ready")
+        if explain:
+            await resolve_art(page, explain)
         prev_key, prev_png = None, b""
         for st in states:
             key = json.dumps(st, sort_keys=True)
@@ -227,7 +376,9 @@ async def render_video(rec_dir: Path, meta: dict, out_mp4: Path) -> list[float]:
     if ff.wait() != 0:
         raise SystemExit("ffmpeg failed")
     print(f"{out_mp4}: {len(states) / FPS:.1f} s ({len(states)} frames)")
-    lead = INTRO + (ARCH if meta.get("arch") else 0.0)
+    lead = INTRO + (
+        int(explain["length"] * FPS) / FPS if explain else ARCH if meta.get("arch") else 0.0
+    )
     return [round(lead + u - u_start, 2) for u, _ in steps]
 
 

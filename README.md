@@ -31,7 +31,7 @@ under **Connect › Developer keys**, and put the key in `.env`.
 | # | Demo | Shows | Base | Video |
 |---|---|---|---|---|
 | 01 | [Coding memory](01-coding-memory/) | Claude Code, Codex and Gemini CLI remember across sessions on their own | hosted | [▶ 66 s](#01-coding-memory) |
-| 02 | [Book memory](02-book-memory/) | With memory vs without, side by side, with the passages used | hosted | [▶ 51 s](#02-book-memory) |
+| 02 | [Book memory](02-book-memory/) | With memory vs without, side by side, with the passages used | hosted | [▶ 55 s](#02-book-memory) |
 | 03 | [Study buddy](03-study-buddy/) | Course material plus what you keep getting wrong | hosted | [▶ 79 s](#03-study-buddy) |
 | 04 | [Story bible](04-story-bible/) | One creative memory shared by every AI you write with | hosted | [▶ 66 s](#04-story-bible) |
 | 05 | [Agent team](05-agent-team/) | Several agents share one memory; a read-only key cannot write | hosted | [▶ 60 s](#05-agent-team) |
@@ -40,7 +40,7 @@ under **Connect › Developer keys**, and put the key in `.env`.
 | 08 | [Companion](08-companion/) | A character that remembers you and follows up | local | [▶ 57 s](#08-companion) |
 | 09 | [Taste journal](09-taste-journal/) | Tastings become a palate profile and a star map | local | [▶ 70 s](#09-taste-journal) |
 | 10 | [Quest log](10-quest-log/) | Daily plans as quests, shaped by your habits | local | [▶ 55 s](#10-quest-log) |
-| 11 | [NPC mystery](11-npc-mystery/) | Characters remember what you told them and gossip | local | [▶ 77 s](#11-npc-mystery) |
+| 11 | [NPC mystery](11-npc-mystery/) | Characters remember what you told them and gossip | local | [▶ 81 s](#11-npc-mystery) |
 | 12 | [Data technician](12-data-technician/) | An agent learns a scientist's corrections as skills | local | [▶ 64 s](#12-data-technician) |
 | 13 | [Screen memory](13-screen-memory/) | Screenshots analysed, remembered and reused | local | [▶ 59 s](#13-screen-memory) |
 | 14 | [Care companion](14-care-companion/) | Daily-life memory for someone who forgets | local | [▶ 65 s](#14-care-companion) |
@@ -66,11 +66,11 @@ A new Claude Code session already knows yesterday's decision.
 https://github.com/user-attachments/assets/6226abb2-9910-4134-9acd-5a0637e4f66d
 
 <a name="02-book-memory"></a>
-### 02 · [Book memory](02-book-memory/) · 51 s
+### 02 · [Book memory](02-book-memory/) · 55 s
 
 A book the model never read: right with memory, wrong without.
 
-https://github.com/user-attachments/assets/f5819d51-e9f3-4a4e-9d13-a6d87530a299
+https://github.com/user-attachments/assets/fe3475af-c4fb-40f5-bd5d-d5698fc62c9b
 
 <a name="03-study-buddy"></a>
 ### 03 · [Study buddy](03-study-buddy/) · 79 s
@@ -129,11 +129,11 @@ Three skipped Mondays move the gym to 18:30.
 https://github.com/user-attachments/assets/f622dbbc-4d0b-44ce-b0de-8792986f2bf5
 
 <a name="11-npc-mystery"></a>
-### 11 · [NPC mystery](11-npc-mystery/) · 77 s
+### 11 · [NPC mystery](11-npc-mystery/) · 81 s
 
 Gossip reaches Elsie, not Tobias.
 
-https://github.com/user-attachments/assets/cea4ddb4-97b2-4ac0-abff-418d5d29cc72
+https://github.com/user-attachments/assets/3fadbbf1-5c19-4b0d-b49a-0789b9d70b7a
 
 <a name="12-data-technician"></a>
 ### 12 · [Data technician](12-data-technician/) · 64 s

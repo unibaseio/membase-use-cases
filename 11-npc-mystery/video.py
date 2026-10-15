@@ -1,4 +1,4 @@
-"""The NPC mystery video, on the local engine. After the architecture card: the investigator
+"""The NPC mystery video, on the local engine. After the explainer: the investigator
 tells Mara about a green glass button; the evening passes and Mara tells her niece Elsie at the
 inn, which is one write into Elsie's memory; Elsie, asked at the ferry landing, recalls it and
 says Mara told her; Tobias, asked the same at the lighthouse, recalls nothing; then Tobias is
@@ -9,6 +9,8 @@ the route is the story's, not the model's. The take checks the payoff on the pag
 the gossip lost the button, Elsie does not credit Mara, or Tobias knows: record it again.
 """
 
+ART = "11-npc-mystery/static/art.js"  # the game's own portraits, drawn into the explainer
+
 META = {
     "title": "NPC mystery",
     "title_html": "Characters who remember<br>what you told them",
@@ -16,32 +18,92 @@ META = {
     "base": "local",
     "port": 8711,
     "banner_from_recording": True,
-    "arch": {
-        "kick": "How it works",
-        "title": "One memory per character; gossip is a write",
-        "nodes": [
+    "line": "A harbour mystery game. Each character keeps a memory of their own.",
+    "intro_at": ["Ask Elsie at the landing", 14.0],  # Elsie has just recalled Mara's gossip
+    "explain": {
+        "title": "One memory per character",
+        "actors": [
+            {"id": "you", "icon": "user", "label": "You", "kind": "user", "at": [170, "mb.elsie"]},
             {
-                "t": "A directory per player",
-                "d": "the local engine in process; a new game is a new, empty directory",
-                "mb": True,
+                "id": "game",
+                "icon": "gamepad-2",
+                "label": "The game",
+                "kind": "app",
+                "box": [360, 205, 1470, 725],
+                "tint": "#1d1813",
+                "ink": "#f3e8cf",
             },
+            *(
+                {
+                    "id": who,
+                    "art": [ART, "portrait", who, {"face": True}],
+                    "label": who.title(),
+                    "labelAt": "plate",
+                    "kind": "character",
+                    "at": [610, f"mb.{who}"],
+                    "size": 120,
+                    "ring": ring,
+                }
+                for who, ring in (("mara", "#a8482a"), ("elsie", "#56693a"), ("tobias", "#2c5a6b"))
+            ),
             {
-                "t": "A container per character",
-                "d": "Mara, Elsie, Tobias: every exchange with you is written to that character's own",
-                "mb": True,
-            },
-            {
-                "t": "Gossip",
-                "d": "when time passes, Mara's retelling is one write into Elsie's container",
-                "mb": True,
-            },
-            {
-                "t": "Recall per character",
-                "d": "before it answers, a character searches its own container only; the model speaks for it",
-                "mb": True,
+                "id": "mb",
+                "kind": "membase",
+                "base": "local",
+                "tab": "Local engine, inside the game",
+                "folder": "This player's folder",
+                "stack": True,
+                "box": [840, 240, 950, 665],
+                "slots": [
+                    {"id": "mara", "label": "Mara's memory"},
+                    {"id": "elsie", "label": "Elsie's memory"},
+                    {"id": "tobias", "label": "Tobias's memory"},
+                ],
             },
         ],
-        "foot": "Nothing is shared: what Tobias never heard, he cannot recall.",
+        "beats": [
+            {
+                "say": "Tell Mara a clue: it goes in her memory",
+                "membase": "learn",
+                "facts": ["the clue"],
+                "flows": [
+                    {"from": "you", "to": "mara", "token": {"label": "a clue", "icon": "search"}},
+                    {"from": "mara", "to": "mb.mara", "token": "the clue"},
+                ],
+            },
+            {
+                "say": "That evening, Mara's gossip is written to Elsie's",
+                "membase": "learn",
+                "facts": ["Mara's gossip"],
+                "flows": [
+                    {
+                        "from": "mara",
+                        "to": "mb.elsie",
+                        "toAt": [-330, 0],  # land on the slot's near side, not its top
+                        "token": {"label": "gossip", "icon": "message-circle"},
+                    }
+                ],
+            },
+            {
+                "say": "Ask both: only Elsie recalls it",
+                "membase": "recall",
+                "flows": [
+                    {
+                        "from": "you",
+                        "to": "elsie",
+                        "token": {"label": "a question", "icon": "circle-help"},
+                    },
+                    {
+                        "from": "you",
+                        "to": "tobias",
+                        "token": {"label": "a question", "icon": "circle-help"},
+                        "par": True,
+                    },
+                    {"from": "mb.elsie", "to": "elsie", "token": "Mara's gossip"},
+                    {"from": "mb.tobias", "to": "tobias", "token": "nothing", "par": True},
+                ],
+            },
+        ],
     },
 }
 SEED: list[str] = []

@@ -23,7 +23,7 @@ container in it. **New case** starts a new, empty directory.
 
 ## Video
 
-https://github.com/user-attachments/assets/cea4ddb4-97b2-4ac0-abff-418d5d29cc72
+https://github.com/user-attachments/assets/3fadbbf1-5c19-4b0d-b49a-0789b9d70b7a
 
 77 s · local engine, one container per character. After a card that shows how the app and Membase fit together:
 

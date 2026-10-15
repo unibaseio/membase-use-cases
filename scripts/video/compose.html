@@ -69,6 +69,8 @@
   .intro .base { align-self: flex-start; padding: 8px 18px; border-radius: 999px; background: rgba(255,255,255,.16);
     font: 600 20px 'Instrument Sans'; }
   .intro .right { position: relative; overflow: hidden; }
+  #iWin { width: 1180px; left: 120px; top: 190px; }
+  .intro.short #iWin { width: 1080px; left: 36px; top: 172px; }
 
   /* outro */
   .outro { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(246, 248, 253, .97); }
@@ -101,6 +103,125 @@
   .archcard .node span { font: 400 21px/1.4 'Instrument Sans'; color: var(--body); }
   .archcard .arrow { align-self: center; font: 600 34px 'Instrument Sans'; color: var(--blue); }
   .archcard .foot { font: 400 24px/1.4 'Instrument Sans'; color: var(--body); }
+
+  /* intro, short form (META "line"): a big title, one line, and a product shot you can read */
+  .intro.short { grid-template-columns: 40% 60%; }
+  .intro.short .left { padding: 0 84px 0 96px; gap: 30px; }
+  .intro.short h1 { font-size: 100px; line-height: 1; }
+  .intro.short p { font: 500 40px/1.3 'Instrument Sans'; opacity: .95; max-width: 640px; }
+  .intro.short .base { font-size: 24px; padding: 10px 22px; }
+
+  /* the explainer (META "explain"): actors, arrows, tokens that move along them, and Membase
+     showing what it does inside at each beat */
+  .explain { position: absolute; inset: 0; overflow: hidden; }
+  .explain > .field .clouds { opacity: .55; }
+  .xhead { position: absolute; left: 96px; top: 64px; display: grid; gap: 10px; }
+  .xhead .kick { font: 600 24px 'Instrument Sans'; letter-spacing: .08em; text-transform: uppercase; color: var(--blue); }
+  .xhead h2 { font: 700 64px/1.05 'Bricolage Grotesque'; letter-spacing: -.025em; }
+  .xhead .foot { font: 500 30px 'Instrument Sans'; color: var(--body); }
+  .xarrows { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: visible; }
+  .xarrows path.arrow { fill: none; stroke: #9aa8c4; stroke-width: 4; stroke-dasharray: 2 11; stroke-linecap: round; }
+  .xarrows path.arrow.on { stroke: var(--blue); stroke-width: 6; stroke-dasharray: none; }
+  .xarrows path.arrow.dark { stroke: #8a7f6c; }
+  .xarrows path.arrow.dark.on { stroke: #7f9bff; }
+  .xlayer, .xtokens { position: absolute; inset: 0; }
+  .xframe { position: absolute; border-radius: 30px; background: var(--tint, #fff); color: var(--ink2, var(--ink));
+    box-shadow: 0 30px 70px rgba(15, 23, 43, .22), 0 0 0 1px rgba(15, 23, 43, .1); }
+  .xframe .xframe-h { position: absolute; left: 30px; top: 22px; display: flex; align-items: center; gap: 14px;
+    font: 700 32px 'Bricolage Grotesque'; }
+  .xframe .xframe-h svg { width: 40px; height: 40px; }
+  .xnode { position: absolute; width: 0; height: 0; --r: 84px; }
+  .xnode .disc { position: absolute; left: calc(-1 * var(--r)); top: calc(-1 * var(--r)); width: calc(2 * var(--r)); height: calc(2 * var(--r)); border-radius: 50%;
+    display: grid; place-items: center; background: var(--tint, #fff); color: var(--ink2, var(--ink));
+    box-shadow: 0 16px 40px rgba(15, 23, 43, .16), 0 0 0 2px rgba(15, 23, 43, .08); }
+  .xnode.app .disc { border-radius: 40px; }
+  .xnode .disc > svg { width: 96px; height: 96px; }
+  .xnode.art .disc { overflow: hidden; background: var(--tint, #e9dcbf); box-shadow: 0 16px 40px rgba(0, 0, 0, .35), 0 0 0 5px var(--ring, #e2b25c); }
+  .xnode.art .disc > svg { width: 100%; height: 100%; }
+  .xnode .disc::after { content: ''; position: absolute; inset: -12px; border-radius: inherit; border: 5px solid var(--blue); opacity: 0; }
+  .xnode.app .disc::after { border-radius: 50px; }
+  .xnode.on .disc::after { opacity: 1; }
+  .xnode .lab { position: absolute; white-space: nowrap; font: 700 34px 'Bricolage Grotesque'; letter-spacing: -.01em; color: var(--labc, var(--ink)); }
+  .xnode .lab.below { left: 0; top: calc(var(--r) + 18px); transform: translateX(-50%); }
+  .xnode .lab.above { left: 0; bottom: calc(var(--r) + 18px); transform: translateX(-50%); }
+  .xnode .lab.right { left: calc(var(--r) + 24px); top: 0; transform: translateY(-50%); }
+  .xnode .lab.left { right: calc(var(--r) + 24px); top: 0; transform: translateY(-50%); }
+  .xnode .lab.plate { left: 0; top: calc(var(--r) - 26px); transform: translateX(-50%); padding: 4px 18px; border-radius: 6px; font: 700 28px 'Bricolage Grotesque';
+    background: var(--ring, var(--ink)); color: #fbf3e2; box-shadow: 0 4px 12px rgba(0, 0, 0, .35); }
+  .xnode .lab.none { display: none; }
+  .xnode .disc .lab.inside { position: static; font-size: 32px; color: inherit; }
+  .xnode .disc:has(.inside) { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding-top: 8px; }
+  .xnode .disc:has(.inside) ~ .results { top: calc(var(--r) + 20px); }
+  .xnode .results { position: absolute; display: grid; gap: 10px; justify-items: center; left: 0; top: calc(var(--r) + 72px); transform: translateX(-50%); }
+  .xnode .lab.right ~ .results { left: calc(var(--r) + 24px); top: 34px; transform: none; justify-items: start; }
+  .chip { display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px 10px 14px; border-radius: 999px; white-space: nowrap;
+    font: 700 28px 'Instrument Sans'; background: #fff; color: var(--ink); box-shadow: 0 8px 22px rgba(15, 23, 43, .16), 0 0 0 1px rgba(15, 23, 43, .08); }
+  .chip svg { width: 30px; height: 30px; flex: none; }
+  .chip.ok svg { color: #fff; background: #16a34a; border-radius: 50%; padding: 4px; }
+  .chip.no svg { color: #fff; background: #dc2626; border-radius: 50%; padding: 4px; }
+  .chip.no { color: #7a1d1d; }
+
+  .xmb { position: absolute; border-radius: 32px; color: #fff;
+    background: linear-gradient(160deg, #4a6cff 0%, #3e61ff 45%, #2c48d8 100%);
+    box-shadow: 0 30px 80px rgba(62, 97, 255, .35), 0 0 0 1px rgba(255, 255, 255, .25) inset; }
+  .xmb.on { box-shadow: 0 30px 90px rgba(62, 97, 255, .55), 0 0 0 6px rgba(62, 97, 255, .28); }
+  .xmb .tab { position: absolute; left: 28px; top: -26px; display: flex; align-items: center; gap: 10px; padding: 8px 20px 8px 14px;
+    border-radius: 14px; background: var(--ink); color: #fff; font: 700 26px 'Instrument Sans'; box-shadow: 0 8px 20px rgba(15, 23, 43, .25); }
+  .xmb .tab svg { width: 32px; height: 32px; color: #9fb2ff; }
+  .xmb .head { display: flex; align-items: center; gap: 14px; padding: 34px 30px 18px; }
+  .xmb .head img { width: 50px; height: 50px; }
+  .xmb .head b { font: 700 40px 'Bricolage Grotesque'; letter-spacing: -.02em; }
+  .xmb .head .pills { margin-left: auto; display: flex; gap: 10px; }
+  .xmb .pill { display: flex; align-items: center; gap: 8px; padding: 8px 18px 8px 12px; border-radius: 999px; font: 700 26px 'Instrument Sans';
+    background: rgba(255, 255, 255, .12); color: rgba(255, 255, 255, .55); }
+  .xmb .pill svg { width: 28px; height: 28px; }
+  .xmb .pill.on { background: #fff; color: var(--blue); box-shadow: 0 0 0 6px rgba(255, 255, 255, .25); }
+  .xmb .body { position: absolute; left: 24px; right: 24px; bottom: 24px; display: flex; flex-direction: column; }
+  .xmb .folder { flex: 1; display: flex; flex-direction: column; border-radius: 0 18px 18px 18px; background: rgba(15, 23, 43, .22); padding: 16px; position: relative; }
+  .xmb .folder .ftab { position: absolute; left: 0; top: -40px; height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 18px 0 14px;
+    border-radius: 14px 14px 0 0; background: rgba(15, 23, 43, .22); font: 600 24px 'Instrument Sans'; color: rgba(255, 255, 255, .9); }
+  .xmb .folder .ftab svg { width: 26px; height: 26px; }
+  .xmb .slots { flex: 1; display: flex; gap: 16px; }
+  .xmb.stack .slots { flex-direction: column; }
+  .xmb.stack .xslot { flex-direction: row; align-items: center; gap: 18px; padding: 0 20px; }
+  .xmb.stack .xslot .sh { width: 250px; flex: none; }
+  .xmb.stack .xslot .rows { flex-direction: row; flex: 1; }
+  .xslot { flex: 1; position: relative; border-radius: 18px; background: rgba(255, 255, 255, .13); border: 2px solid rgba(255, 255, 255, .28);
+    padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+  .xslot.on { border-color: #fff; background: rgba(255, 255, 255, .2); }
+  .xslot .sh { display: flex; align-items: center; gap: 12px; font: 700 28px 'Instrument Sans'; }
+  .xslot .sh .face { width: 44px; height: 44px; border-radius: 50%; overflow: hidden; background: #e9dcbf; box-shadow: 0 0 0 3px rgba(255, 255, 255, .7); flex: none; }
+  .xslot .sh .face svg { width: 100%; height: 100%; display: block; }
+  .xslot .sh > svg { width: 34px; height: 34px; }
+  .xslot .rows { display: flex; flex-direction: column; gap: 10px; }
+  .xslot .row { display: flex; align-items: center; gap: 12px; height: 50px; padding: 0 16px 0 12px; border-radius: 12px; background: #fff; color: var(--ink);
+    font: 600 27px 'Instrument Sans'; transform-origin: 0 50%; white-space: nowrap; box-shadow: 0 4px 12px rgba(15, 23, 43, .14); }
+  .xslot .row svg { width: 28px; height: 28px; color: var(--blue); flex: none; }
+  .xslot .row i { display: block; height: 14px; border-radius: 7px; background: #c9d2e6; }
+  .xslot .row.hit { background: #fbe08a; box-shadow: 0 0 0 4px #f4c734, 0 10px 26px rgba(15, 23, 43, .25); }
+  .xslot .row.hit i { background: #d7a92a; }
+  .xslot .empty { font: italic 500 27px 'Instrument Sans'; color: rgba(255, 255, 255, .6); padding: 8px 4px; }
+  .xslot .fx { position: absolute; left: 0; right: 0; top: 0; bottom: 0; pointer-events: none; }
+  .xslot .fx .chip { position: absolute; left: 50%; }
+  .xslot .fx .lens { position: absolute; left: 50%; width: 76px; height: 76px; margin-left: -38px; border-radius: 50%; background: #fff; color: var(--blue);
+    display: grid; place-items: center; box-shadow: 0 10px 26px rgba(15, 23, 43, .3), 0 0 0 6px rgba(255, 255, 255, .3); }
+  .xslot .fx .lens svg { width: 44px; height: 44px; }
+  .xslot .fx .scan { position: absolute; left: 8px; right: 8px; height: 6px; border-radius: 3px; background: #fff; box-shadow: 0 0 22px 6px rgba(255, 255, 255, .55); }
+
+  .xtok { position: absolute; left: 0; top: 0; }
+  .xtok .chip { transform: translate(-50%, -50%); border: 4px solid var(--blue); padding: 10px 22px 10px 16px; font-size: 30px; }
+  .xtok .chip svg { color: var(--blue); width: 32px; height: 32px; }
+  .xtok .chip.hit { background: #fbe08a; border-color: #e0ad1f; }
+  .xtok .chip.hit svg { color: #8a6400; }
+  .xtok .chip.none { background: #eef1f6; border-color: #9aa8c4; color: #54637a; }
+  .xtok .chip.none svg { color: #54637a; }
+  .xkey { position: absolute; transform: translate(-50%, -50%); }
+  .xkey .chip { background: var(--ink); color: #fff; font-size: 26px; }
+  .xkey .chip svg { color: #f4c734; }
+  .xcap { position: absolute; left: 50%; bottom: 44px; display: flex; align-items: center; gap: 20px; padding: 16px 40px 16px 16px; border-radius: 999px;
+    background: #fff; white-space: nowrap; box-shadow: 0 14px 40px rgba(15, 23, 43, .16), 0 0 0 1px rgba(62, 97, 255, .16); }
+  .xcap .n { width: 64px; height: 64px; border-radius: 50%; background: var(--blue); color: #fff; font: 700 34px 'Bricolage Grotesque'; display: grid; place-items: center; }
+  .xcap .t { font: 700 48px 'Bricolage Grotesque'; letter-spacing: -.015em; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -120,7 +241,7 @@
   <div class="intro" id="intro" hidden>
     <div class="left"><div class="kick" id="iKick"></div><h1 id="iTitle"></h1><p id="iPitch"></p><div class="base" id="iBase"></div></div>
     <div class="right"><div class="field"><div class="glow"></div><div class="clouds"></div></div>
-      <div class="window" id="iWin" style="width:1180px; left:120px; top:190px;">
+      <div class="window" id="iWin">
         <div class="chrome"><div class="lights"><i></i><i></i><i></i></div><div class="url" id="iUrl"></div><div style="width:52px"></div></div>
         <img class="shot" id="iShot">
       </div>
@@ -129,6 +250,7 @@
   <div class="archcard" id="arch" hidden><div class="wrap">
     <div class="kick" id="archKick"></div><h2 id="archTitle"></h2>
     <div class="chain" id="archChain"></div><div class="foot" id="archFoot"></div></div></div>
+  <div class="explain" id="explain" hidden></div>
   <div class="outro" id="outro" hidden>
     <div class="card"><img src="assets/membase-logo.svg"><h2 id="oTitle"></h2><p id="oPitch"></p>
       <div class="chips"><span class="chip blue" id="oBase"></span><span class="chip">github.com/unibaseio/membase-use-cases</span></div></div>
@@ -182,6 +304,291 @@ function camera(box) {
   const tx = clamp(STAGE.w / 2 - cx * s, (r.x + r.w) * (1 - s), r.x * (1 - s));
   const ty = clamp(STAGE.h * 0.45 - cy * s, (r.y + r.h) * (1 - s), r.y * (1 - s));
   return { s, tx, ty };
+}
+
+
+// ---- the explainer ------------------------------------------------------------------------
+// compose.py's plan_explain timed everything: beats [t0, t1], flows [t0, t1], Membase's inside
+// step (learn or recall) [t0, t1]. Here: build the scene once per spec, then pose it at time t.
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const sm = (v) => { v = clamp01(v); return v * v * (3 - 2 * v); };
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+let XS = null;  // the built scene
+
+function buildExplain(spec) {
+  const root = $('explain');
+  root.replaceChildren();
+  root.append(el('div', 'field', '<div class="glow"></div><div class="clouds"></div>'));
+  const head = el('div', 'xhead');
+  head.append(el('div', 'kick', spec.kick || 'How Membase serves it'), el('h2', '', spec.title));
+  if (spec.foot) head.append(el('div', 'foot', spec.foot));
+  root.append(head);
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'xarrows'); svg.setAttribute('viewBox', '0 0 1920 1080');
+  svg.innerHTML = `<defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4.2" markerHeight="4.2" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#9aa8c4"/></marker>
+    <marker id="ahd" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4.2" markerHeight="4.2" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#8a7f6c"/></marker>
+    <marker id="ahon" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="3.4" markerHeight="3.4" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#3e61ff"/></marker>
+    <marker id="ahond" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="3.4" markerHeight="3.4" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#7f9bff"/></marker></defs>`;
+  const layer = el('div', 'xlayer'), toks = el('div', 'xtokens');
+  root.append(layer, svg, toks);
+  const cap = el('div', 'xcap', '<span class="n"></span><span class="t"></span>');
+  root.append(cap);
+
+  const ui = spec.ui, nodes = {}, slots = {};
+  const mb = spec.actors.find((a) => a.kind === 'membase');
+  // default places: a row across the middle, Membase a card in its turn
+  const row = spec.actors.filter((a) => !a.at && !a.box);
+  row.forEach((a, i) => {
+    const cx = 260 + (1400 * (i + 0.5)) / row.length;
+    if (a.kind === 'membase') a.box = [cx - 330, 300, 660, 520]; else a.at = [cx, 540];
+  });
+  // frames first (an app that holds the rest), then Membase, then the nodes on top
+  const rank = (a) => (a.kind === 'membase' ? 1 : a.box ? 0 : 2);
+  const order = [...spec.actors].sort((a, b) => rank(a) - rank(b));
+  for (const a of order) {
+    const style = (e) => { if (a.tint) e.style.setProperty('--tint', a.tint); if (a.ink) e.style.setProperty('--ink2', a.ink); };
+    if (a.kind === 'membase') {
+      const [x, y, w, h] = a.box;
+      const card = el('div', 'xmb' + (a.base === 'local' ? ' local' : '') + (a.stack ? ' stack' : ''));
+      Object.assign(card.style, { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' });
+      card.append(el('div', 'tab', (a.base === 'local' ? ui.cpu : ui.cloud) + `<span>${a.tab || (a.base === 'local' ? 'Local engine' : 'Hosted Membase')}</span>`));
+      const hd = el('div', 'head', `<img src="assets/membase-logo-inverse.svg"><b>${a.label || 'Membase'}</b>`);
+      const pills = el('span', 'pills');
+      const pl = el('span', 'pill', ui.sparkles + 'learn'), pr = el('span', 'pill', ui.search + 'recall');
+      pills.append(pl, pr); hd.append(pills); card.append(hd);
+      const body = el('div', 'body');
+      body.style.top = (a.folder ? 158 : 112) + 'px';
+      const ss = el('div', 'slots');
+      if (a.folder) {
+        const f = el('div', 'folder'); f.append(el('div', 'ftab', ui.folder + `<span>${a.folder}</span>`), ss); body.append(f);
+      } else body.append(ss);
+      for (const s of a.slots) {
+        const d = el('div', 'xslot');
+        const face = s.face && spec.actors.find((b) => b.id === s.face);
+        const sh = el('div', 'sh', (face ? `<span class="face">${face.svg}</span>` : (s.svg || '')) + `<span>${s.label}</span>`);
+        const rows = el('div', 'rows'), fx = el('div', 'fx');
+        d.append(sh, rows, fx); ss.append(d);
+        slots[s.id] = { el: d, rows, fx, across: !!a.stack };
+      }
+      card.append(body); layer.append(card);
+      nodes[a.id] = { a, el: card, ring: card, pills: { learn: pl, recall: pr } };
+    } else if (a.box) {
+      const [x, y, w, h] = a.box;
+      const f = el('div', 'xframe', `<div class="xframe-h">${a.svg || ''}<span>${a.label}</span></div>`);
+      Object.assign(f.style, { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' });
+      style(f); layer.append(f);
+      nodes[a.id] = { a, el: f, ring: f, frame: true };
+    } else {
+      const n = el('div', 'xnode ' + (a.kind || '') + (a.art ? ' art' : ''));
+      // a coordinate may name a Membase slot: the node sits level with it
+      const at = a.at.map((v, i) => {
+        if (typeof v === 'number') return v;
+        const r = slots[v.split('.')[1]].el.getBoundingClientRect();
+        return i ? r.top + r.height / 2 : r.left + r.width / 2;
+      });
+      n.style.left = at[0] + 'px'; n.style.top = at[1] + 'px';
+      if (a.size) n.style.setProperty('--r', a.size / 2 + 'px');
+      if (a.ring) n.style.setProperty('--ring', a.ring);
+      if (a.labelColor) n.style.setProperty('--labc', a.labelColor);
+      const disc = el('div', 'disc', a.svg || ''); style(disc);
+      const res = el('div', 'results');
+      const lab = el('div', 'lab ' + (a.labelAt || 'below'), a.label);
+      if (a.labelAt === 'inside') disc.append(lab);  // an app tile: icon over name
+      n.append(disc, ...(a.labelAt === 'inside' ? [] : [lab]), res);
+      layer.append(n);
+      nodes[a.id] = { a, el: n, ring: n, disc, res };
+    }
+  }
+  // where an endpoint is on the stage: a node's disc, a Membase slot, or a frame
+  const shape = (end, slot) => {
+    if (slot != null) { const r = slots[slot].el.getBoundingClientRect(); return { r, round: false }; }
+    const nd = nodes[end];
+    const r = (nd.disc || nd.el).getBoundingClientRect();
+    return { r, round: !!nd.disc && !nd.a.kind?.startsWith('app') };
+  };
+  const centre = (r) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+  // from c, heading d (unit), the point just outside the shape
+  const exit = (sh, c, d, gap) => {
+    if (sh.round) { const R = sh.r.width / 2 + gap; return { x: c.x + d.x * R, y: c.y + d.y * R }; }
+    const r = sh.r, ts = [];
+    if (d.x) ts.push(((d.x > 0 ? r.right : r.left) - c.x) / d.x);
+    if (d.y) ts.push(((d.y > 0 ? r.bottom : r.top) - c.y) / d.y);
+    const t = Math.min(...ts.filter((v) => v > 0)) + gap;
+    return { x: c.x + d.x * t, y: c.y + d.y * t };
+  };
+  const unit = (a, b) => { const dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1; return { x: dx / l, y: dy / l }; };
+  // one arrow per direction used; a pair used both ways gets two lanes
+  const arrows = {}, used = new Set();
+  spec.beats.forEach((b) => b.flows.forEach((f) => used.add(f.from + '>' + f.to)));
+  spec.beats.forEach((b, bi) => b.flows.forEach((f) => {
+    const k = f.from + '>' + f.to;
+    if (arrows[k]) { arrows[k].beats.add(bi); return; }
+    const A = shape(f.from, f.fromSlot), B = shape(f.to, f.toSlot);
+    let ca = centre(A.r), cb = centre(B.r);
+    if (f.fromAt) ca = { x: ca.x + f.fromAt[0], y: ca.y + f.fromAt[1] };
+    if (f.toAt) cb = { x: cb.x + f.toAt[0], y: cb.y + f.toAt[1] };
+    const d = unit(ca, cb), nrm = { x: -d.y, y: d.x };
+    const lane = used.has(f.to + '>' + f.from) ? 22 : 0;
+    ca = { x: ca.x + nrm.x * lane, y: ca.y + nrm.y * lane }; cb = { x: cb.x + nrm.x * lane, y: cb.y + nrm.y * lane };
+    const bend = f.bend || 0;
+    const ctl = { x: (ca.x + cb.x) / 2 + nrm.x * bend, y: (ca.y + cb.y) / 2 + nrm.y * bend };
+    const p0 = exit(A, ca, unit(ca, bend ? ctl : cb), 12), p1 = exit(B, cb, unit(cb, bend ? ctl : ca), 22);
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', bend ? `M${p0.x} ${p0.y} Q${ctl.x} ${ctl.y} ${p1.x} ${p1.y}` : `M${p0.x} ${p0.y} L${p1.x} ${p1.y}`);
+    const dark = [f.from, f.to].some((e) => nodes[e]?.a.dark) || (f.dark ?? false);
+    path.setAttribute('class', 'arrow' + (dark ? ' dark' : ''));
+    svg.append(path);
+    arrows[k] = { path, len: path.getTotalLength(), first: f.t0, beats: new Set([bi]), dark, mid: { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 } };
+  }));
+  // the key a hosted app calls Membase with, over the arrow between them
+  let key = null;
+  if (mb.key) {
+    const app = spec.actors.find((a) => a.kind === 'app');
+    const ks = Object.keys(arrows).filter((k) => app && (k.startsWith(app.id + '>') && k.split('>')[1].split('.')[0] === mb.id));
+    if (ks.length) {
+      const ar = arrows[ks[0]];
+      key = { el: el('div', 'xkey', `<span class="chip">${ui['key-round']}<span>${mb.key}</span></span>`), first: ar.first };
+      key.el.style.left = ar.mid.x + 'px'; key.el.style.top = ar.mid.y + 72 + 'px';  // under the call it rides on
+      toks.append(key.el);
+    }
+  }
+  // the tokens and results
+  const flows = [];
+  spec.beats.forEach((b, bi) => b.flows.forEach((f) => {
+    const tk = el('div', 'xtok');
+    // what recall hands out: a lit passage, or nothing from a memory never written to
+    const learned = spec.beats.some((x) => x.inside && x.inside.kind === 'learn' && x.inside.slots.includes(f.fromSlot) && x.inside.t0 < f.t0);
+    const cls = f.token.style || (b.membase === 'recall' && f.fromSlot != null ? (learned ? 'hit' : 'none') : '');
+    const glyph = f.token.svg || { hit: ui.sparkles, none: ui.x }[cls] || '';
+    const chip = el('span', 'chip ' + cls, glyph + `<span>${f.token.label}</span>`);
+    tk.append(chip); toks.append(tk);
+    let res = null;
+    if (f.result && nodes[f.to].res) {
+      res = el('span', 'chip ' + (f.ok === false ? 'no' : 'ok'), (f.ok === false ? ui.x : ui.check) + `<span>${f.result}</span>`);
+      nodes[f.to].res.append(res);
+    }
+    flows.push({ f, b, bi, tk, chip, res, ar: arrows[f.from + '>' + f.to] });
+  }));
+  XS = { spec, nodes, slots, arrows, flows, cap, key, mb };
+}
+
+function renderExplain(spec, t, fade) {
+  const keyOf = JSON.stringify([spec.title, spec.length, spec.beats.map((b) => b.say)]);
+  if (!XS || XS.keyOf !== keyOf) { buildExplain(spec); XS.keyOf = keyOf; }
+  const { nodes, slots, arrows, flows, cap, key, mb } = XS, ui = spec.ui;
+  const root = $('explain');
+  root.style.opacity = fade;
+  const beats = spec.beats;
+  let bi = -1;
+  beats.forEach((b, i) => { if (t >= b.t0) bi = i; });
+  const beat = beats[bi], live = beat && t < beat.t1 ? beat : null;
+  // actors pop in one after another, then the ones in the current beat light up
+  const ids = new Set();
+  if (live) live.flows.forEach((f) => { ids.add(f.from.split('.')[0]); ids.add(f.to.split('.')[0]); });
+  spec.actors.forEach((a, i) => {
+    const nd = nodes[a.id], k = sm((t - 0.1 - i * 0.09) / 0.4);
+    const dim = live && !ids.has(a.id) && !nd.frame ? (a.kind === 'membase' ? 0.75 : 0.42) : 1;
+    nd.el.style.opacity = k * dim;
+    if (!nd.frame) nd.el.style.transform = (a.kind === 'membase' ? '' : '') + `translateY(${(1 - k) * 24}px)`;
+    nd.el.classList.toggle('on', !!live && ids.has(a.id) && !nd.frame);
+  });
+  // arrows: appear on first use, light up in the beats that use them
+  for (const ar of Object.values(arrows)) {
+    const on = !!live && ar.beats.has(bi);
+    ar.path.style.opacity = sm((t - ar.first + 0.25) / 0.3);
+    ar.path.classList.toggle('on', on);
+    ar.path.setAttribute('marker-end', `url(#ah${on ? 'on' : ''}${ar.dark ? 'd' : ''})`);
+  }
+  if (key) key.el.style.opacity = sm((t - key.first + 0.25) / 0.3);
+  // tokens travel; results land
+  for (const fl of flows) {
+    const { f } = fl, k = (t - f.t0) / (f.t1 - f.t0);
+    const vis = k >= -0.02 && k <= 1.06;
+    fl.tk.hidden = !vis;
+    if (vis) {
+      const q = sm(k), p = fl.ar.path.getPointAtLength(fl.ar.len * q);
+      fl.tk.style.transform = `translate(${p.x}px, ${p.y}px) scale(${0.85 + 0.15 * sm(k / 0.15)})`;
+      fl.tk.style.opacity = Math.min(sm((k + 0.02) / 0.12), sm((1.06 - k) / 0.12));
+    }
+    if (fl.res) {
+      const on = t >= f.t1 && t < fl.b.t1 + (fl.bi === beats.length - 1 ? 99 : 0);
+      fl.res.style.opacity = on ? sm((t - f.t1) / 0.25) : 0;
+      fl.res.style.display = on ? '' : 'none';
+    }
+  }
+  // Membase, inside: what each slot holds now, and the learn or recall step playing
+  const held = {};
+  for (const s of mb.slots) held[s.id] = [];
+  const insideNow = live && live.inside && t >= live.inside.t0 - 0.05 ? live.inside : null;
+  for (const b of beats) {
+    const ins = b.inside;
+    if (!ins || ins.kind !== 'learn' || t < ins.t0) continue;
+    const k = (t - ins.t0) / (ins.t1 - ins.t0);
+    for (const s of ins.slots) ins.facts.forEach((label, j) => held[s].push({ label, k: sm((k - 0.52 - j * 0.1) / 0.3) }));
+  }
+  nodes[mb.id].pills.learn.classList.toggle('on', !!insideNow && insideNow.kind === 'learn' && t < insideNow.t1 + 0.4);
+  nodes[mb.id].pills.recall.classList.toggle('on', !!insideNow && insideNow.kind === 'recall' && t < insideNow.t1 + 0.4);
+  const bars = [78, 60, 70, 52, 66];
+  for (const s of mb.slots) {
+    const sl = slots[s.id], facts = held[s.id].filter((x) => x.k > 0);
+    const mine = insideNow && insideNow.slots.includes(s.id) ? insideNow : null;
+    const k = mine ? (t - mine.t0) / (mine.t1 - mine.t0) : 0;
+    sl.el.classList.toggle('on', !!mine);
+    const hitIdx = mine && mine.kind === 'recall' && facts.length ? (mine.hit ?? facts.length - 1) : -1;
+    const lit = hitIdx >= 0 && k > 0.72;
+    sl.rows.innerHTML = '';
+    if (!facts.length && !(mine && mine.kind === 'learn')) sl.rows.append(el('div', 'empty', s.empty || 'empty'));
+    facts.forEach((x, j) => {
+      const r = el('div', 'row' + (lit && j === hitIdx ? ' hit' : ''), ui.sparkles + (x.label ? `<span>${x.label}</span>` : `<i style="width:${bars[j % bars.length]}%"></i>`));
+      r.style.opacity = x.k; r.style.transform = `scaleX(${0.4 + 0.6 * x.k})`;
+      sl.rows.append(r);
+    });
+    sl.fx.innerHTML = '';
+    if (!mine) continue;
+    // where the facts are, in the slot's own coordinates
+    const R = { x: sl.rows.offsetLeft, y: sl.rows.offsetTop, w: sl.rows.offsetWidth, h: Math.max(50, sl.rows.offsetHeight) };
+    if (mine.kind === 'learn') {
+      if (k > 1) continue;
+      // the file drops in, then gives way to facts
+      const inbound = live.flows.find((f) => f.toSlot === s.id);
+      const c = el('span', 'chip', ui['file-text'] + `<span>${inbound ? inbound.token.label : ''}</span>`);
+      c.style.left = (sl.across ? R.x : R.x + R.w / 2) + 'px';
+      c.style.top = R.y + 25 - 40 * (1 - sm(k / 0.3)) + 'px';
+      c.style.transform = `translate(${sl.across ? 0 : -50}%, -50%) scale(${1 - 0.3 * sm((k - 0.36) / 0.2)})`;
+      c.style.transformOrigin = sl.across ? '0 50%' : '50% 50%';
+      c.style.opacity = Math.min(sm(k / 0.12), 1 - sm((k - 0.36) / 0.18));
+      sl.fx.append(c);
+      continue;
+    }
+    // recall: a lens comes in and runs over the facts; the one that answers lights up
+    const hitRow = hitIdx >= 0 ? sl.rows.children[hitIdx] : null;
+    const to = hitRow ? { x: hitRow.offsetLeft + (sl.across ? -34 : 30), y: hitRow.offsetTop + 25 } : { x: R.x + (sl.across ? 60 : R.w / 2), y: R.y + 25 };
+    const from = sl.across ? { x: R.x - 40, y: to.y } : { x: to.x, y: R.y + 25 };
+    if (k <= 1.05) {
+      const lens = el('div', 'lens', ui.search), q = sm((k - 0.1) / 0.55);
+      lens.style.left = from.x + (to.x - from.x) * q + 'px';
+      lens.style.top = from.y + (to.y - from.y) * q - 38 + 'px';
+      lens.style.opacity = Math.min(sm(k / 0.12), 1 - sm((k - 0.85) / 0.15));
+      sl.fx.append(lens);
+    }
+    if (!hitRow && k > 0.7) {
+      sl.rows.innerHTML = '';
+      const c = el('span', 'chip no', ui.x + '<span>nothing</span>');
+      c.style.left = (sl.across ? R.x + 90 : R.x + R.w / 2) + 'px'; c.style.top = R.y + 25 + 'px';
+      c.style.transform = 'translate(-50%, -50%)'; c.style.opacity = sm((k - 0.7) / 0.2);
+      sl.fx.append(c);
+    }
+  }
+  // the caption: what this beat shows
+  cap.hidden = !beat;
+  if (beat) {
+    cap.querySelector('.n').textContent = bi + 1;
+    cap.querySelector('.t').textContent = beat.say;
+    const a = sm((t - beat.t0) / 0.3);
+    cap.style.opacity = a;
+    cap.style.transform = `translateX(-50%) translateY(${(1 - a) * 14}px)`;
+  }
 }
 
 window.render = async (st) => {
@@ -239,7 +646,17 @@ window.render = async (st) => {
   const intro = $('intro');
   intro.hidden = st.intro == null;
   if (st.intro != null) {
-    $('iKick').textContent = st.kick; $('iTitle').innerHTML = st.title; $('iPitch').textContent = st.pitch;
+    intro.classList.toggle('short', !!st.line);
+    // a long title steps down until it takes at most three lines
+    const h1 = $('iTitle');
+    if (h1.dataset.fit !== st.title + !!st.line) {
+      h1.dataset.fit = st.title + !!st.line;
+      h1.innerHTML = st.line ? st.title.replace(/<br\s*\/?>/g, ' ') : st.title;  // short form: wrap freely
+      h1.style.fontSize = '';
+      await document.fonts.load("700 100px 'Bricolage Grotesque'", st.title);  // measure in the real face
+      if (st.line) for (let fs = 100; fs > 60 && h1.offsetHeight > fs * 3.1; fs -= 4) h1.style.fontSize = fs - 4 + 'px';
+    }
+    $('iKick').textContent = st.kick; $('iPitch').textContent = st.line || st.pitch;
     $('iBase').textContent = st.base; $('iUrl').innerHTML = st.url;
     tasks.push(load($('iShot'), st.introShot || st.frame));
     const q = st.intro;             // 0 = fully shown, 1 = gone
@@ -272,6 +689,9 @@ window.render = async (st) => {
       c.style.opacity = k; c.style.transform = `translateY(${(1 - k) * 16}px)`;
     });
   }
+  // the explainer
+  $('explain').hidden = st.explain == null;
+  if (st.explain != null) renderExplain(st.explain, st.explainT, st.explainFade);
   // outro
   const outro = $('outro');
   outro.hidden = st.outro == null;

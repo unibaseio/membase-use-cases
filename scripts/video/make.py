@@ -138,6 +138,12 @@ def main() -> None:
     if meta.get("banner_from_recording"):  # the payoff frame also opens the video
         tl = json.loads((rec_dir / "timeline.json").read_text())
         meta["intro_shot"] = str(rec_dir / tl["frames"][-1]["file"])
+    if meta.get("intro_at"):  # [step title, seconds after it starts]: the intro's product shot
+        tl = json.loads((rec_dir / "timeline.json").read_text())
+        title, after = meta["intro_at"]
+        at = next(s["t"] for s in tl["steps"] if s["title"] == title) + after
+        shot = [f for f in tl["frames"] if f["t"] <= at][-1]
+        meta["intro_shot"] = str(rec_dir / shot["file"])
     step_times = asyncio.run(render_video(rec_dir, meta, mp4))
     # the preview loop: by default from just before step 2, for 12 s
     start, length = meta.get("preview") or (

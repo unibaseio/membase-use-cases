@@ -1,4 +1,4 @@
-"""The book memory video, on hosted Membase. After the architecture card: a reading app with
+"""The book memory video, on hosted Membase. After the explainer: a reading app with
 Doorways in Drumorty open, a 1925 book of village stories the model has never read; its reading
 companion has read three of the stories (they are in memory). A question recalls the line that
 answers it; the reader turns to that line and marks it; the answer that read it is right and
@@ -22,31 +22,91 @@ META = {
     "base": "hosted",
     "port": 8702,
     "banner_from_recording": True,
-    "arch": {
-        "kick": "How it works",
-        "title": "The book is in memory; the model sees only what recall returns",
-        "nodes": [
+    "line": "Ask Lamplight about a 1925 story: it marks the line that answers.",
+    "explain": {
+        "title": "The book lives in Membase",
+        "actors": [
+            {"id": "reader", "icon": "user", "label": "Reader", "kind": "user", "at": [250, 330]},
             {
-                "t": "Reading app",
-                "d": "Membase SDK with a developer key for the Book memory; one model, asked twice",
+                "id": "app",
+                "icon": "lamp-desk",
+                "label": "Lamplight",
+                "kind": "app",
+                "at": [640, 545],
+                "size": 200,
+                "labelAt": "inside",
+                "tint": "#2f4b3c",
+                "ink": "#e9cf8a",
             },
             {
-                "t": "Membase API",
-                "d": "add puts each story in; search returns notes for a question",
-                "mb": True,
+                "id": "model",
+                "icon": "sparkles",
+                "label": "The model",
+                "kind": "model",
+                "at": [250, 760],
+                "labelAt": "right",
+                "tint": "#0f172b",
+                "ink": "#fff",
             },
             {
-                "t": "Your account's agent VM",
-                "d": "each story lands as a file; a learning run turns it into facts. Search is a recall turn over them",
-                "mb": True,
-            },
-            {
-                "t": "Book memory",
-                "d": "Doorways in Drumorty (Lorna Moon, 1925): three stories, from Project Gutenberg",
-                "mb": True,
+                "id": "mb",
+                "kind": "membase",
+                "base": "hosted",
+                "key": "API key",
+                "box": [1080, 300, 700, 470],
+                "slots": [{"id": "book", "label": "Book memory", "icon": "book-open"}],
             },
         ],
-        "foot": "Same model, same question. Only one of the two answers gets the recalled lines.",
+        "beats": [
+            {
+                "say": "The stories go in once, and are learned",
+                "membase": "learn",
+                "facts": 4,
+                "flows": [
+                    {
+                        "from": "app",
+                        "to": "mb",
+                        "token": {"label": "3 stories", "icon": "file-text"},
+                    }
+                ],
+            },
+            {
+                "say": "A question recalls the passage",
+                "membase": "recall",
+                "hit": 1,
+                "flows": [
+                    {
+                        "from": "reader",
+                        "to": "app",
+                        "token": {"label": "a question", "icon": "circle-help"},
+                    },
+                    {
+                        "from": "app",
+                        "to": "mb",
+                        "token": {"label": "the question", "icon": "search"},
+                    },
+                    {"from": "mb", "to": "app", "token": "the passage"},
+                ],
+            },
+            {
+                "say": "Same model, with the passage and without",
+                "flows": [
+                    {
+                        "from": "app",
+                        "to": "model",
+                        "token": {"label": "+ passage", "icon": "highlighter"},
+                        "result": "right",
+                    },
+                    {
+                        "from": "app",
+                        "to": "model",
+                        "token": {"label": "no passage", "icon": "circle-help"},
+                        "result": "a guess",
+                        "ok": False,
+                    },
+                ],
+            },
+        ],
     },
 }
 SEED = ["02-book-memory/load.py"]
