@@ -15,7 +15,7 @@ prompt, and one save per session.
 
 ## Video
 
-https://github.com/user-attachments/assets/ac1ab9e6-ec28-454f-bf2b-4cb935630a95
+https://github.com/user-attachments/assets/6226abb2-9910-4134-9acd-5a0637e4f66d
 
 66 s · hosted Membase and the real Claude Code, replayed in a terminal at the pace the two sessions ran (long waits are played short, with their real length on screen). The terminal is split: the plugin's own log (`tail -f ~/.membase/hooks.log`) at the top, the shell below, and the status bar shows the `Coding` memory's state.
 

@@ -14,7 +14,7 @@ instead.
 
 ## Video
 
-https://github.com/user-attachments/assets/3e40568f-c721-47ed-8991-1515875ff4c9
+https://github.com/user-attachments/assets/f5819d51-e9f3-4a4e-9d13-a6d87530a299
 
 51 s · hosted Membase. After a card that shows how the app and Membase fit together:
 

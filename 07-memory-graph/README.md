@@ -17,7 +17,7 @@ page). Set `MEMBASE_DEMO_MODE=hosted` to use hosted Membase.
 
 ## Video
 
-https://github.com/user-attachments/assets/91e57c45-2314-4a9b-ab95-3acae386e25d
+https://github.com/user-attachments/assets/d8717c7e-468f-40c1-9044-db5c2e53bfb0
 
 58 s · local engine. After a card that shows how the app and Membase fit together:
 

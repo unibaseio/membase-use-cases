@@ -14,7 +14,7 @@ local engine accepts; hosted `memories.add` stamps the time of the call.
 
 ## Video
 
-https://github.com/user-attachments/assets/e3436cbc-0ab1-4e24-a91e-45abd4c43fde
+https://github.com/user-attachments/assets/4bad0e02-0315-4da7-8480-b72a8bc8d853
 
 59 s · local engine and a vision model. After a card that shows how the app and Membase fit together:
 

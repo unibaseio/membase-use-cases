@@ -21,7 +21,7 @@ recorded, and that needs the local engine (`demokit.dated`).
 
 ## Video
 
-https://github.com/user-attachments/assets/eaf76ac8-ca48-43e3-a584-f08ac88733a7
+https://github.com/user-attachments/assets/b5b698eb-2aa7-48b6-affd-1b0e71b64f9a
 
 62 s · local engine and speech-to-text. After a card that shows how the app and Membase fit together:
 

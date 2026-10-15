@@ -14,7 +14,7 @@ tools. Set `MEMBASE_DEMO_MODE=local` to run the page alone, with nothing leaving
 
 ## Video
 
-https://github.com/user-attachments/assets/909d038f-6324-4411-a9a2-1c5a6f4ff155
+https://github.com/user-attachments/assets/65917bdc-055c-4098-ba23-d0661d58c195
 
 66 s · hosted Membase and the real Claude Code. After a card that shows how the app and Membase fit together:
 

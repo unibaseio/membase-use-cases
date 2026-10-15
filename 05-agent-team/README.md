@@ -17,7 +17,7 @@ fixed.
 
 ## Video
 
-https://github.com/user-attachments/assets/f2acd4fd-f9a7-4b98-b635-babc861c24b0
+https://github.com/user-attachments/assets/8a041cf0-aea6-43b5-921a-538c703981f9
 
 60 s · hosted Membase, one key per agent. After a card that shows how the app and Membase fit together:
 

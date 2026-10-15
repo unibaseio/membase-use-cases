@@ -18,7 +18,7 @@ directory of its own; **New lab** starts with an empty memory.
 
 ## Video
 
-https://github.com/user-attachments/assets/5f7a46a0-493d-477b-8566-6ab0a886fc63
+https://github.com/user-attachments/assets/2f793acd-c926-43f8-b104-aeccbdb0a21e
 
 64 s · local engine, agent memory. After a card that shows how the app and Membase fit together:
 

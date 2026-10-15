@@ -24,7 +24,7 @@ caseworker) holding both kinds of record in one local store.
 
 ## Video
 
-https://github.com/user-attachments/assets/a8f25823-2bc1-4051-bcce-6c4b85225862
+https://github.com/user-attachments/assets/3fb5c8f6-ccaf-4519-828f-2f5ca88dc5cf
 
 56 s · local engine, one operator's store. After a card that shows how the app and Membase fit together:
 

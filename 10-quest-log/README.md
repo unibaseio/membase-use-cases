@@ -15,7 +15,7 @@ outcome is dated by the day it was for, which needs the local engine.
 
 ## Video
 
-https://github.com/user-attachments/assets/9d7dbf66-7ed0-442e-b9b8-3648212b9fad
+https://github.com/user-attachments/assets/f622dbbc-4d0b-44ce-b0de-8792986f2bf5
 
 55 s · local engine. After a card that shows how the app and Membase fit together:
 

@@ -63,119 +63,119 @@ by step.
 
 A new Claude Code session already knows yesterday's decision.
 
-https://github.com/user-attachments/assets/ac1ab9e6-ec28-454f-bf2b-4cb935630a95
+https://github.com/user-attachments/assets/6226abb2-9910-4134-9acd-5a0637e4f66d
 
 <a name="02-book-memory"></a>
 ### 02 · [Book memory](02-book-memory/) · 51 s
 
 A book the model never read: right with memory, wrong without.
 
-https://github.com/user-attachments/assets/3e40568f-c721-47ed-8991-1515875ff4c9
+https://github.com/user-attachments/assets/f5819d51-e9f3-4a4e-9d13-a6d87530a299
 
 <a name="03-study-buddy"></a>
 ### 03 · [Study buddy](03-study-buddy/) · 79 s
 
 The review goes straight to the two mistakes.
 
-https://github.com/user-attachments/assets/228f587b-d1f9-4977-9f69-40acfb5ec478
+https://github.com/user-attachments/assets/42dfe50f-952c-4c9a-856e-aa89f62cd403
 
 <a name="04-story-bible"></a>
 ### 04 · [Story bible](04-story-bible/) · 66 s
 
 A draft checked against canon, and Claude Code reads the same canon.
 
-https://github.com/user-attachments/assets/909d038f-6324-4411-a9a2-1c5a6f4ff155
+https://github.com/user-attachments/assets/65917bdc-055c-4098-ba23-d0661d58c195
 
 <a name="05-agent-team"></a>
 ### 05 · [Agent team](05-agent-team/) · 60 s
 
 Fixer recalls the Investigator's finding; a read-only key gets 403.
 
-https://github.com/user-attachments/assets/f2acd4fd-f9a7-4b98-b635-babc861c24b0
+https://github.com/user-attachments/assets/8a041cf0-aea6-43b5-921a-538c703981f9
 
 <a name="06-browser-memory"></a>
 ### 06 · [Browser memory](06-browser-memory/) · 63 s
 
 A forecast page answered from two pages read days earlier.
 
-https://github.com/user-attachments/assets/08b56a06-9545-486e-819c-54fa5c842ad0
+https://github.com/user-attachments/assets/b8a1006c-066d-4ffc-a70a-dbd426845919
 
 <a name="07-memory-graph"></a>
 ### 07 · [Memory graph](07-memory-graph/) · 58 s
 
 One new sentence lights up what it touched.
 
-https://github.com/user-attachments/assets/91e57c45-2314-4a9b-ab95-3acae386e25d
+https://github.com/user-attachments/assets/d8717c7e-468f-40c1-9044-db5c2e53bfb0
 
 <a name="08-companion"></a>
 ### 08 · [Companion](08-companion/) · 57 s
 
 Wren asks about Maya's interview; Theo's Wren knows nothing.
 
-https://github.com/user-attachments/assets/7f218dbe-3271-449c-b340-16121c242262
+https://github.com/user-attachments/assets/932d78fd-597a-4476-9514-a36e07e174a3
 
 <a name="09-taste-journal"></a>
 ### 09 · [Taste journal](09-taste-journal/) · 70 s
 
 A suggestion that cites the tastings behind it.
 
-https://github.com/user-attachments/assets/a1ba47b6-8b37-4ce2-a104-bf6c0c3109ee
+https://github.com/user-attachments/assets/4e7d1362-9378-4a89-a79c-f2497d50e3ad
 
 <a name="10-quest-log"></a>
 ### 10 · [Quest log](10-quest-log/) · 55 s
 
 Three skipped Mondays move the gym to 18:30.
 
-https://github.com/user-attachments/assets/9d7dbf66-7ed0-442e-b9b8-3648212b9fad
+https://github.com/user-attachments/assets/f622dbbc-4d0b-44ce-b0de-8792986f2bf5
 
 <a name="11-npc-mystery"></a>
 ### 11 · [NPC mystery](11-npc-mystery/) · 77 s
 
 Gossip reaches Elsie, not Tobias.
 
-https://github.com/user-attachments/assets/b6aefd90-2a41-4ffa-822a-f80c330eae68
+https://github.com/user-attachments/assets/cea4ddb4-97b2-4ac0-abff-418d5d29cc72
 
 <a name="12-data-technician"></a>
 ### 12 · [Data technician](12-data-technician/) · 64 s
 
 One correction becomes a skill: 6 → 8 of 12.
 
-https://github.com/user-attachments/assets/5f7a46a0-493d-477b-8566-6ab0a886fc63
+https://github.com/user-attachments/assets/2f793acd-c926-43f8-b104-aeccbdb0a21e
 
 <a name="13-screen-memory"></a>
 ### 13 · [Screen memory](13-screen-memory/) · 59 s
 
 "My flight number?" answered from the screenshot.
 
-https://github.com/user-attachments/assets/e3436cbc-0ab1-4e24-a91e-45abd4c43fde
+https://github.com/user-attachments/assets/4bad0e02-0315-4da7-8480-b72a8bc8d853
 
 <a name="14-care-companion"></a>
 ### 14 · [Care companion](14-care-companion/) · 65 s
 
 A fix to the log changes the next answer.
 
-https://github.com/user-attachments/assets/550171b0-4ef9-4c7c-93cf-3dcb2b37d02c
+https://github.com/user-attachments/assets/82e1e890-8d0d-4ec1-bdd1-2faea4fd2892
 
 <a name="15-reunite"></a>
 ### 15 · [Reunite](15-reunite/) · 56 s
 
 "Fire engine" matches "fire truck"; a person decides.
 
-https://github.com/user-attachments/assets/a8f25823-2bc1-4051-bcce-6c4b85225862
+https://github.com/user-attachments/assets/3fb5c8f6-ccaf-4519-828f-2f5ca88dc5cf
 
 <a name="16-wearable-diary"></a>
 ### 16 · [Wearable diary](16-wearable-diary/) · 62 s
 
 A later clip moved the meeting to 3:30.
 
-https://github.com/user-attachments/assets/eaf76ac8-ca48-43e3-a584-f08ac88733a7
+https://github.com/user-attachments/assets/b5b698eb-2aa7-48b6-affd-1b0e71b64f9a
 
 <a name="17-run-coach-hud"></a>
 ### 17 · [Run coach HUD](17-run-coach-hud/) · 53 s
 
 A cue at km 6.5 from the 5 runs that faded.
 
-https://github.com/user-attachments/assets/af717c4f-538f-4033-8c19-5d9d12ef0320
+https://github.com/user-attachments/assets/bba27630-6be4-4621-a147-3401925e9183
 
 ## Layout
 

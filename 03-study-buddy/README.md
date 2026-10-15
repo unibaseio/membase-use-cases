@@ -12,7 +12,7 @@ instead.
 
 ## Video
 
-https://github.com/user-attachments/assets/228f587b-d1f9-4977-9f69-40acfb5ec478
+https://github.com/user-attachments/assets/42dfe50f-952c-4c9a-856e-aa89f62cd403
 
 79 s · hosted Membase. After a card that shows how the app and Membase fit together:
 

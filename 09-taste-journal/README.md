@@ -14,7 +14,7 @@ tasting is dated by the day it was tasted, which needs the local engine.
 
 ## Video
 
-https://github.com/user-attachments/assets/a1ba47b6-8b37-4ce2-a104-bf6c0c3109ee
+https://github.com/user-attachments/assets/4e7d1362-9378-4a89-a79c-f2497d50e3ad
 
 70 s · local engine. After a card that shows how the app and Membase fit together:
 

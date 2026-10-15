@@ -14,7 +14,7 @@ what to bring. The answer picks the day from the forecast, takes the only water 
 
 ## Video
 
-https://github.com/user-attachments/assets/08b56a06-9545-486e-819c-54fa5c842ad0
+https://github.com/user-attachments/assets/b8a1006c-066d-4ffc-a70a-dbd426845919
 
 64 s · hosted Membase, the real Chrome extension, docked beside three fictional sites. After a card that shows how the app and Membase fit together:
 

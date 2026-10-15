@@ -18,7 +18,7 @@ Hosted mode runs, but a hosted account is one person, so Maya and Theo would sha
 
 ## Video
 
-https://github.com/user-attachments/assets/7f218dbe-3271-449c-b340-16121c242262
+https://github.com/user-attachments/assets/932d78fd-597a-4476-9514-a36e07e174a3
 
 57 s · local engine, one directory per person. After a card that shows how the app and Membase fit together:
 

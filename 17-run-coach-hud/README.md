@@ -19,7 +19,7 @@ needs the local engine (`demokit.dated`).
 
 ## Video
 
-https://github.com/user-attachments/assets/af717c4f-538f-4033-8c19-5d9d12ef0320
+https://github.com/user-attachments/assets/bba27630-6be4-4621-a147-3401925e9183
 
 53 s · local engine. After a card that shows how the app and Membase fit together:
 
