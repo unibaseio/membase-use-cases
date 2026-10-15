@@ -23,6 +23,100 @@ META = {
     "port": 8701,
     "path": "static/video.html",
     "banner_from_recording": True,
+    "line": "Decide in one Claude Code session. The next one already knows.",
+    "explain": {
+        "title": "Every session saves, the next recalls",
+        "actors": [
+            {"id": "you", "icon": "user", "label": "You", "kind": "user", "at": [170, 560]},
+            {
+                "id": "s1",
+                "icon": "terminal",
+                "label": "Session 1",
+                "kind": "app",
+                "at": [560, 400],
+                "size": 150,
+                "tint": "#0f172b",
+                "ink": "#fff",
+                "labelColor": "#fff",
+            },
+            {
+                "id": "s2",
+                "icon": "terminal",
+                "label": "Session 2",
+                "kind": "app",
+                "at": [560, 720],
+                "size": 150,
+                "tint": "#0f172b",
+                "ink": "#fff",
+                "labelColor": "#fff",
+            },
+            {
+                "id": "cc",
+                "icon": "terminal",
+                "label": "Claude Code",
+                "kind": "frame",
+                "box": [360, 220, 400, 700],
+                "tint": "#1e293b",
+                "ink": "#fff",
+            },
+            {
+                "id": "mb",
+                "kind": "membase",
+                "base": "hosted",
+                "key": "Developer key",
+                "box": [1180, 300, 600, 400],
+                "slots": [{"id": "coding", "label": "Coding memory", "icon": "folder"}],
+            },
+        ],
+        "beats": [
+            {
+                "say": "Session 1 ends: the plugin saves it",
+                "membase": "learn",
+                "facts": ["New: INV-&lt;ULID&gt;", "Never renumber old"],
+                "flows": [
+                    {
+                        "from": "you",
+                        "to": "s1",
+                        "token": {"label": "a decision", "icon": "message-circle"},
+                    },
+                    {
+                        "from": "s1",
+                        "to": "mb",
+                        "token": {"label": "the session", "icon": "file-text"},
+                    },
+                ],
+            },
+            {
+                "say": "A brand-new session recalls it",
+                "membase": "recall",
+                "hit": 0,
+                "flows": [
+                    {
+                        "from": "you",
+                        "to": "s2",
+                        "token": {"label": "a prompt", "icon": "message-circle"},
+                    },
+                    {
+                        "from": "s2",
+                        "to": "mb",
+                        "token": {"label": "the prompt", "icon": "search"},
+                    },
+                    {"from": "mb", "to": "s2", "token": "the decision"},
+                ],
+            },
+            {
+                "say": "Its answer uses the decision",
+                "flows": [
+                    {
+                        "from": "s2",
+                        "to": "you",
+                        "token": "the answer",
+                        "result": "INV-&lt;ULID&gt;",
+                    }
+                ],
+            },
+        ],
+    },
 }
 SEED: list[str] = []
 MARKS = [

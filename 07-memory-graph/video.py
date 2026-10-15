@@ -1,4 +1,4 @@
-"""The memory graph video, on the local engine. After the architecture card: Kith, a notes app
+"""The memory graph video, on the local engine. After the explainer: Kith, a notes app
 with a map of the people, places and things in Lena's notes. The map is built from what memory
 returns; Clara Jensen's card lists the dated notes she came from; Lena writes one new note, and
 after a rebuild the map marks what it brought in.
@@ -14,30 +14,94 @@ META = {
     "base": "local",
     "port": 8707,
     "banner_from_recording": True,
-    "arch": {
-        "kick": "How it works",
-        "title": "A map drawn from recall, never stored in place of memory",
-        "nodes": [
+    "line": "Kith draws Lena's people and places from what her memory returns.",
+    "explain": {
+        "title": "A map drawn from recall",
+        "actors": [
+            {"id": "lena", "icon": "user", "label": "Lena", "kind": "user", "at": [170, 560]},
             {
-                "t": "Life memory",
-                "d": "four months of Lena's notes and chats, each dated, and three standing facts",
-                "mb": True,
+                "id": "kith",
+                "icon": "network",
+                "label": "Kith",
+                "kind": "app",
+                "box": [360, 205, 1470, 725],
+                "tint": "#151b2c",
+                "ink": "#eef2ff",
             },
             {
-                "t": "Recall",
-                "d": "the profile, eight broad searches, then one search per name found",
-                "mb": True,
+                "id": "map",
+                "icon": "network",
+                "label": "The map",
+                "kind": "view",
+                "at": [650, 540],
+                "size": 170,
+                "tint": "#232c45",
+                "ink": "#f4c734",
+                "labelColor": "#eef2ff",
             },
             {
-                "t": "Model",
-                "d": "names people, places and links; anything no note states is dropped",
-            },
-            {
-                "t": "Kith, the notes app",
-                "d": "the map is a cache you can rebuild; a card shows the notes behind each node",
+                "id": "mb",
+                "kind": "membase",
+                "base": "local",
+                "tab": "Local engine, inside Kith",
+                "folder": "Lena's folder",
+                "box": [970, 250, 820, 640],
+                "slots": [
+                    {"id": "notes", "label": "Lena's notes", "icon": "file-text", "facts": 3}
+                ],
             },
         ],
-        "foot": "Membase stays the source: delete a note, rebuild, and what came from it is gone.",
+        "beats": [
+            {
+                "say": "Kith asks memory who is in her notes",
+                "membase": "recall",
+                "hit": 0,
+                "flows": [
+                    {
+                        "from": "map",
+                        "to": "mb",
+                        "token": {"label": "who? where?", "icon": "search"},
+                    },
+                    {
+                        "from": "mb",
+                        "to": "map",
+                        "token": "people, places",
+                        "result": "21 on the map",
+                    },
+                ],
+            },
+            {
+                "say": "Lena writes one new note",
+                "membase": "learn",
+                "facts": ["Clara moves to Porto"],
+                "flows": [
+                    {
+                        "from": "lena",
+                        "to": "map",
+                        "token": {"label": "a note", "icon": "file-text"},
+                    },
+                    {"from": "map", "to": "mb", "token": {"label": "the note"}},
+                ],
+            },
+            {
+                "say": "Rebuild: what the note touched glows",
+                "membase": "recall",
+                "hit": 3,
+                "flows": [
+                    {
+                        "from": "map",
+                        "to": "mb",
+                        "token": {"label": "rebuild", "icon": "search"},
+                    },
+                    {
+                        "from": "mb",
+                        "to": "map",
+                        "token": "Clara → Porto",
+                        "result": "new links",
+                    },
+                ],
+            },
+        ],
     },
 }
 SEED = ["07-memory-graph/seed.py"]

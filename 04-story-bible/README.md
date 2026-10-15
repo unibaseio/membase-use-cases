@@ -14,9 +14,9 @@ tools. Set `MEMBASE_DEMO_MODE=local` to run the page alone, with nothing leaving
 
 ## Video
 
-https://github.com/user-attachments/assets/65917bdc-055c-4098-ba23-d0661d58c195
+https://github.com/user-attachments/assets/c7a67370-2ec0-4abe-bc95-5227ef8b5f27
 
-66 s · hosted Membase and the real Claude Code. After a card that shows how the app and Membase fit together:
+70 s · hosted Membase and the real Claude Code. After a short explainer of how the app and Membase fit together:
 
 1. **The canon lives in memory.** Quire's binder lists the Saltmarrow canon. Chapter Three is a
    draft with planted mistakes.

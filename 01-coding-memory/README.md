@@ -15,9 +15,9 @@ prompt, and one save per session.
 
 ## Video
 
-https://github.com/user-attachments/assets/6226abb2-9910-4134-9acd-5a0637e4f66d
+https://github.com/user-attachments/assets/873b16d3-cfc4-40e7-9e31-f5a2c420253c
 
-66 s · hosted Membase and the real Claude Code, replayed in a terminal at the pace the two sessions ran (long waits are played short, with their real length on screen). The terminal is split: the plugin's own log (`tail -f ~/.membase/hooks.log`) at the top, the shell below, and the status bar shows the `Coding` memory's state.
+76 s · hosted Membase and the real Claude Code, replayed in a terminal at the pace the two sessions ran (long waits are played short, with their real length on screen). The terminal is split: the plugin's own log (`tail -f ~/.membase/hooks.log`) at the top, the shell below, and the status bar shows the `Coding` memory's state.
 
 1. **Session 1.** `claude -p` reads `billing/numbering.py`, and you decide that new invoice numbers are ULIDs made on the device (`INV-<ULID>`) and old numbers never change.
 2. **The session ends.** The log shows the plugin saving it to the `Coding` memory, and the status bar shows the memory learning it (26 s, played sped up).

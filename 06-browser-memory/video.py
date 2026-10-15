@@ -1,4 +1,4 @@
-"""The browser memory video, on hosted Membase. After the architecture card: in Chromium with
+"""The browser memory video, on hosted Membase. After the explainer: in Chromium with
 the real extension loaded, two pages read on one day are remembered from the side panel and
 learned; later, on a third page, a question is answered from that page and the two remembered
 ones, each citation pointing back to the page it came from.
@@ -33,26 +33,94 @@ META = {
     "start_url": f"chrome-extension://{EXT_ID}/demo.html?pages={PAGES}",
     "url_label": "Chrome · Browser Memory extension",
     "banner_from_recording": True,
-    "arch": {
-        "kick": "How it works",
-        "title": "The extension holds no key; your memory stays in Membase",
-        "nodes": [
+    "line": "Remember pages from a side panel. Ask later: each fact cites its page.",
+    "explain": {
+        "title": "Only the companion holds the key",
+        "actors": [
             {
-                "t": "Side panel",
-                "d": "reads the page in the tab you are on; stores nothing, holds no key",
+                "id": "comp",
+                "icon": "laptop",
+                "label": "Companion",
+                "kind": "app",
+                "at": [720, 570],
+                "size": 200,
+                "labelAt": "inside",
+                "tint": "#0f172b",
+                "ink": "#fff",
             },
             {
-                "t": "Companion on 127.0.0.1",
-                "d": "holds the Membase key; answers only the extension, only on loopback",
+                "id": "chrome",
+                "icon": "globe",
+                "label": "Chrome",
+                "kind": "frame",
+                "box": [96, 330, 340, 500],
+                "tint": "#e8ecf4",
             },
             {
-                "t": "Membase · Browsing memory",
-                "d": "every page you remembered, learned into facts that cite the page",
-                "mb": True,
+                "id": "panel",
+                "icon": "panel-right",
+                "label": "Side panel",
+                "kind": "app",
+                "at": [266, 570],
+                "size": 170,
             },
-            {"t": "Model", "d": "answers from the page and the recalled memories, citing each one"},
+            {
+                "id": "mb",
+                "kind": "membase",
+                "base": "hosted",
+                "key": "Developer key",
+                "box": [1100, 350, 680, 340],
+                "slots": [{"id": "browse", "label": "Browsing memory", "icon": "globe"}],
+            },
         ],
-        "foot": "A bearer token never sits in browser storage: revoke the companion's key and the panel stops at once.",
+        "beats": [
+            {
+                "say": "Remember two pages, one click each",
+                "membase": "learn",
+                "facts": ["Water: Tamsin Spring only", "The pack has no rain cover"],
+                "flows": [
+                    {
+                        "from": "panel",
+                        "to": "comp",
+                        "token": {"label": "2 pages", "icon": "file-text"},
+                    },
+                    {
+                        "from": "comp",
+                        "to": "mb",
+                        "token": {"label": "2 pages", "icon": "file-text"},
+                    },
+                ],
+            },
+            {
+                "say": "Days later, on another page, ask",
+                "membase": "recall",
+                "hit": 0,
+                "flows": [
+                    {
+                        "from": "panel",
+                        "to": "comp",
+                        "token": {"label": "a question", "icon": "circle-help"},
+                    },
+                    {
+                        "from": "comp",
+                        "to": "mb",
+                        "token": {"label": "the question", "icon": "search"},
+                    },
+                    {"from": "mb", "to": "comp", "token": "both facts"},
+                ],
+            },
+            {
+                "say": "Each fact in the answer cites its page",
+                "flows": [
+                    {
+                        "from": "comp",
+                        "to": "panel",
+                        "token": "the answer",
+                        "result": "cites 2 pages",
+                    }
+                ],
+            },
+        ],
     },
 }
 SEED: list[str] = []

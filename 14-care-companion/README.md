@@ -19,9 +19,9 @@ engine accepts; hosted `memories.add` stamps the time of the call.
 
 ## Video
 
-https://github.com/user-attachments/assets/82e1e890-8d0d-4ec1-bdd1-2faea4fd2892
+https://github.com/user-attachments/assets/86483dff-a927-4537-a0ca-6cf16eaf0c1c
 
-65 s · local engine. After a card that shows how the app and Membase fit together:
+69 s · local engine. After a short explainer of how the app and Membase fit together:
 
 1. **Sofia keeps Margaret's care log** on her phone, beside Margaret's tablet.
 2. **"Did I take my pills this morning?"** Yes, at 8:15, under *Sofia's note, today, 08:15*. Sofia's phone gets a notice of the question and marks the note the answer came from.

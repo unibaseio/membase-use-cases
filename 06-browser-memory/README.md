@@ -14,9 +14,9 @@ what to bring. The answer picks the day from the forecast, takes the only water 
 
 ## Video
 
-https://github.com/user-attachments/assets/b8a1006c-066d-4ffc-a70a-dbd426845919
+https://github.com/user-attachments/assets/db2ce7eb-7cb4-481f-8c74-34bc7a196a86
 
-64 s · hosted Membase, the real Chrome extension, docked beside three fictional sites. After a card that shows how the app and Membase fit together:
+67 s · hosted Membase, the real Chrome extension, docked beside three fictional sites. After a short explainer of how the app and Membase fit together:
 
 1. **Remember pages you read.** A trail guide (*Fernwick Trail Journal*) and a pack review (*Kitbag Weekly*): one click on **Remember** in the side panel for each.
 2. **Membase learns them** (54 s, sped up). Under **Remembered pages**, both turn *Learned*.

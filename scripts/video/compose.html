@@ -154,12 +154,15 @@
   .xnode .disc:has(.inside) ~ .results { top: calc(var(--r) + 20px); }
   .xnode .results { position: absolute; display: grid; gap: 10px; justify-items: center; left: 0; top: calc(var(--r) + 72px); transform: translateX(-50%); }
   .xnode .lab.right ~ .results { left: calc(var(--r) + 24px); top: 34px; transform: none; justify-items: start; }
+  .xnode .lab.left ~ .results { left: auto; right: calc(var(--r) + 24px); top: 34px; transform: none; justify-items: end; }
   .chip { display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px 10px 14px; border-radius: 999px; white-space: nowrap;
     font: 700 28px 'Instrument Sans'; background: #fff; color: var(--ink); box-shadow: 0 8px 22px rgba(15, 23, 43, .16), 0 0 0 1px rgba(15, 23, 43, .08); }
   .chip svg { width: 30px; height: 30px; flex: none; }
   .chip.ok svg { color: #fff; background: #16a34a; border-radius: 50%; padding: 4px; }
   .chip.no svg { color: #fff; background: #dc2626; border-radius: 50%; padding: 4px; }
   .chip.no { color: #7a1d1d; }
+  .chip.key { background: var(--ink); color: #fff; font-size: 26px; }
+  .chip.key svg { color: #f4c734; }
 
   .xmb { position: absolute; border-radius: 32px; color: #fff;
     background: linear-gradient(160deg, #4a6cff 0%, #3e61ff 45%, #2c48d8 100%);
@@ -200,6 +203,9 @@
   .xslot .row i { display: block; height: 14px; border-radius: 7px; background: #c9d2e6; }
   .xslot .row.hit { background: #fbe08a; box-shadow: 0 0 0 4px #f4c734, 0 10px 26px rgba(15, 23, 43, .25); }
   .xslot .row.hit i { background: #d7a92a; }
+  .xslot .row.gone { background: #fde8e8; color: #9b1c1c; box-shadow: 0 0 0 4px #f29b9b; text-decoration: line-through 3px; }
+  .xslot .row.gone svg { color: #dc2626; }
+  .xslot .row.gone i { background: #f29b9b; }
   .xslot .empty { font: italic 500 27px 'Instrument Sans'; color: rgba(255, 255, 255, .6); padding: 8px 4px; }
   .xslot .fx { position: absolute; left: 0; right: 0; top: 0; bottom: 0; pointer-events: none; }
   .xslot .fx .chip { position: absolute; left: 50%; }
@@ -356,7 +362,10 @@ function buildExplain(spec) {
       const hd = el('div', 'head', `<img src="assets/membase-logo-inverse.svg"><b>${a.label || 'Membase'}</b>`);
       const pills = el('span', 'pills');
       const pl = el('span', 'pill', ui.sparkles + 'learn'), pr = el('span', 'pill', ui.search + 'recall');
-      pills.append(pl, pr); hd.append(pills); card.append(hd);
+      pills.append(pl, pr);
+      const pf = spec.beats.some((b) => b.inside && b.inside.kind === 'forget') ? el('span', 'pill', ui.eraser + 'forget') : null;
+      if (pf) pills.append(pf);
+      hd.append(pills); card.append(hd);
       const body = el('div', 'body');
       body.style.top = (a.folder ? 158 : 112) + 'px';
       const ss = el('div', 'slots');
@@ -372,7 +381,7 @@ function buildExplain(spec) {
         slots[s.id] = { el: d, rows, fx, across: !!a.stack };
       }
       card.append(body); layer.append(card);
-      nodes[a.id] = { a, el: card, ring: card, pills: { learn: pl, recall: pr } };
+      nodes[a.id] = { a, el: card, ring: card, pills: { learn: pl, recall: pr, forget: pf } };
     } else if (a.box) {
       const [x, y, w, h] = a.box;
       const f = el('div', 'xframe', `<div class="xframe-h">${a.svg || ''}<span>${a.label}</span></div>`);
@@ -380,7 +389,8 @@ function buildExplain(spec) {
       style(f); layer.append(f);
       nodes[a.id] = { a, el: f, ring: f, frame: true };
     } else {
-      const n = el('div', 'xnode ' + (a.kind || '') + (a.art ? ' art' : ''));
+      // art (the demo's own drawing, or an inline <svg> with "fill") fills the disc
+      const n = el('div', 'xnode ' + (a.kind || '') + (a.art || a.fill ? ' art' : ''));
       // a coordinate may name a Membase slot: the node sits level with it
       const at = a.at.map((v, i) => {
         if (typeof v === 'number') return v;
@@ -395,6 +405,8 @@ function buildExplain(spec) {
       const res = el('div', 'results');
       const lab = el('div', 'lab ' + (a.labelAt || 'below'), a.label);
       if (a.labelAt === 'inside') disc.append(lab);  // an app tile: icon over name
+      // the actor's own key to Membase, under its name
+      if (a.key) res.append(el('span', 'chip key', ui['key-round'] + `<span>${a.key}</span>`));
       n.append(disc, ...(a.labelAt === 'inside' ? [] : [lab]), res);
       layer.append(n);
       nodes[a.id] = { a, el: n, ring: n, disc, res };
@@ -458,7 +470,8 @@ function buildExplain(spec) {
   spec.beats.forEach((b, bi) => b.flows.forEach((f) => {
     const tk = el('div', 'xtok');
     // what recall hands out: a lit passage, or nothing from a memory never written to
-    const learned = spec.beats.some((x) => x.inside && x.inside.kind === 'learn' && x.inside.slots.includes(f.fromSlot) && x.inside.t0 < f.t0);
+    const preset = mb.slots.find((s) => s.id === f.fromSlot)?.facts?.length > 0;
+    const learned = preset || spec.beats.some((x) => x.inside && ['learn', 'forget'].includes(x.inside.kind) && x.inside.facts.length && x.inside.slots.includes(f.fromSlot) && x.inside.t0 < f.t0);
     const cls = f.token.style || (b.membase === 'recall' && f.fromSlot != null ? (learned ? 'hit' : 'none') : '');
     const glyph = f.token.svg || { hit: ui.sparkles, none: ui.x }[cls] || '';
     const chip = el('span', 'chip ' + cls, glyph + `<span>${f.token.label}</span>`);
@@ -519,16 +532,26 @@ function renderExplain(spec, t, fade) {
   }
   // Membase, inside: what each slot holds now, and the learn or recall step playing
   const held = {};
-  for (const s of mb.slots) held[s.id] = [];
+  const mbIn = sm((t - 0.1 - spec.actors.indexOf(mb) * 0.09) / 0.4);  // what it holds from the start comes in with it
+  for (const s of mb.slots) held[s.id] = (s.facts || []).map((label) => ({ label, k: mbIn }));
   const insideNow = live && live.inside && t >= live.inside.t0 - 0.05 ? live.inside : null;
   for (const b of beats) {
     const ins = b.inside;
-    if (!ins || ins.kind !== 'learn' || t < ins.t0) continue;
+    if (!ins || ins.kind === 'recall' || t < ins.t0) continue;
     const k = (t - ins.t0) / (ins.t1 - ins.t0);
-    for (const s of ins.slots) ins.facts.forEach((label, j) => held[s].push({ label, k: sm((k - 0.52 - j * 0.1) / 0.3) }));
+    for (const s of ins.slots) {
+      if (ins.kind === 'forget') {
+        // struck out during the beat, gone after it
+        held[s] = held[s].filter((x) => !(ins.forget.includes(x.label) && t >= b.t1));
+        held[s].forEach((x) => { if (ins.forget.includes(x.label)) x.gone = sm((k - 0.3) / 0.3); });
+      }
+      ins.facts.forEach((label, j) => held[s].push({ label, k: sm((k - 0.52 - j * 0.1) / 0.3) }));
+    }
   }
-  nodes[mb.id].pills.learn.classList.toggle('on', !!insideNow && insideNow.kind === 'learn' && t < insideNow.t1 + 0.4);
-  nodes[mb.id].pills.recall.classList.toggle('on', !!insideNow && insideNow.kind === 'recall' && t < insideNow.t1 + 0.4);
+  const pills = nodes[mb.id].pills;
+  for (const kind of ['learn', 'recall', 'forget']) {
+    if (pills[kind]) pills[kind].classList.toggle('on', !!insideNow && insideNow.kind === kind && t < insideNow.t1 + 0.4);
+  }
   const bars = [78, 60, 70, 52, 66];
   for (const s of mb.slots) {
     const sl = slots[s.id], facts = held[s.id].filter((x) => x.k > 0);
@@ -538,9 +561,10 @@ function renderExplain(spec, t, fade) {
     const hitIdx = mine && mine.kind === 'recall' && facts.length ? (mine.hit ?? facts.length - 1) : -1;
     const lit = hitIdx >= 0 && k > 0.72;
     sl.rows.innerHTML = '';
-    if (!facts.length && !(mine && mine.kind === 'learn')) sl.rows.append(el('div', 'empty', s.empty || 'empty'));
+    if (!facts.length && !(mine && mine.kind !== 'recall')) sl.rows.append(el('div', 'empty', s.empty || 'empty'));
     facts.forEach((x, j) => {
-      const r = el('div', 'row' + (lit && j === hitIdx ? ' hit' : ''), ui.sparkles + (x.label ? `<span>${x.label}</span>` : `<i style="width:${bars[j % bars.length]}%"></i>`));
+      const gone = x.gone > 0.5;
+      const r = el('div', 'row' + (lit && j === hitIdx ? ' hit' : '') + (gone ? ' gone' : ''), (gone ? ui.eraser : ui.sparkles) + (x.label ? `<span>${x.label}</span>` : `<i style="width:${bars[j % bars.length]}%"></i>`));
       r.style.opacity = x.k; r.style.transform = `scaleX(${0.4 + 0.6 * x.k})`;
       sl.rows.append(r);
     });
@@ -548,13 +572,15 @@ function renderExplain(spec, t, fade) {
     if (!mine) continue;
     // where the facts are, in the slot's own coordinates
     const R = { x: sl.rows.offsetLeft, y: sl.rows.offsetTop, w: sl.rows.offsetWidth, h: Math.max(50, sl.rows.offsetHeight) };
-    if (mine.kind === 'learn') {
+    if (mine.kind !== 'recall') {
       if (k > 1) continue;
       // the file drops in, then gives way to facts
       const inbound = live.flows.find((f) => f.toSlot === s.id);
       const c = el('span', 'chip', ui['file-text'] + `<span>${inbound ? inbound.token.label : ''}</span>`);
-      c.style.left = (sl.across ? R.x : R.x + R.w / 2) + 'px';
-      c.style.top = R.y + 25 - 40 * (1 - sm(k / 0.3)) + 'px';
+      // it lands where the new facts will be: after what the slot already holds
+      const n = sl.rows.children.length;
+      c.style.left = (sl.across ? R.x + (n ? sl.rows.offsetWidth + 12 : 0) : R.x + R.w / 2) + 'px';
+      c.style.top = R.y + (n && !sl.across ? sl.rows.offsetHeight + 10 : 0) + 25 - 40 * (1 - sm(k / 0.3)) + 'px';
       c.style.transform = `translate(${sl.across ? 0 : -50}%, -50%) scale(${1 - 0.3 * sm((k - 0.36) / 0.2)})`;
       c.style.transformOrigin = sl.across ? '0 50%' : '50% 50%';
       c.style.opacity = Math.min(sm(k / 0.12), 1 - sm((k - 0.36) / 0.18));

@@ -30,23 +30,23 @@ under **Connect › Developer keys**, and put the key in `.env`.
 
 | # | Demo | Shows | Base | Video |
 |---|---|---|---|---|
-| 01 | [Coding memory](01-coding-memory/) | Claude Code, Codex and Gemini CLI remember across sessions on their own | hosted | [▶ 66 s](#01-coding-memory) |
+| 01 | [Coding memory](01-coding-memory/) | Claude Code, Codex and Gemini CLI remember across sessions on their own | hosted | [▶ 76 s](#01-coding-memory) |
 | 02 | [Book memory](02-book-memory/) | With memory vs without, side by side, with the passages used | hosted | [▶ 55 s](#02-book-memory) |
-| 03 | [Study buddy](03-study-buddy/) | Course material plus what you keep getting wrong | hosted | [▶ 79 s](#03-study-buddy) |
-| 04 | [Story bible](04-story-bible/) | One creative memory shared by every AI you write with | hosted | [▶ 66 s](#04-story-bible) |
-| 05 | [Agent team](05-agent-team/) | Several agents share one memory; a read-only key cannot write | hosted | [▶ 60 s](#05-agent-team) |
-| 06 | [Browser memory](06-browser-memory/) | Ask your memory about the page you are on | hosted | [▶ 63 s](#06-browser-memory) |
-| 07 | [Memory graph](07-memory-graph/) | What memory holds, as people, places and links | local | [▶ 58 s](#07-memory-graph) |
-| 08 | [Companion](08-companion/) | A character that remembers you and follows up | local | [▶ 57 s](#08-companion) |
-| 09 | [Taste journal](09-taste-journal/) | Tastings become a palate profile and a star map | local | [▶ 70 s](#09-taste-journal) |
-| 10 | [Quest log](10-quest-log/) | Daily plans as quests, shaped by your habits | local | [▶ 55 s](#10-quest-log) |
+| 03 | [Study buddy](03-study-buddy/) | Course material plus what you keep getting wrong | hosted | [▶ 85 s](#03-study-buddy) |
+| 04 | [Story bible](04-story-bible/) | One creative memory shared by every AI you write with | hosted | [▶ 70 s](#04-story-bible) |
+| 05 | [Agent team](05-agent-team/) | Several agents share one memory; a read-only key cannot write | hosted | [▶ 63 s](#05-agent-team) |
+| 06 | [Browser memory](06-browser-memory/) | Ask your memory about the page you are on | hosted | [▶ 67 s](#06-browser-memory) |
+| 07 | [Memory graph](07-memory-graph/) | What memory holds, as people, places and links | local | [▶ 63 s](#07-memory-graph) |
+| 08 | [Companion](08-companion/) | A character that remembers you and follows up | local | [▶ 62 s](#08-companion) |
+| 09 | [Taste journal](09-taste-journal/) | Tastings become a palate profile and a star map | local | [▶ 75 s](#09-taste-journal) |
+| 10 | [Quest log](10-quest-log/) | Daily plans as quests, shaped by your habits | local | [▶ 59 s](#10-quest-log) |
 | 11 | [NPC mystery](11-npc-mystery/) | Characters remember what you told them and gossip | local | [▶ 81 s](#11-npc-mystery) |
-| 12 | [Data technician](12-data-technician/) | An agent learns a scientist's corrections as skills | local | [▶ 64 s](#12-data-technician) |
-| 13 | [Screen memory](13-screen-memory/) | Screenshots analysed, remembered and reused | local | [▶ 59 s](#13-screen-memory) |
-| 14 | [Care companion](14-care-companion/) | Daily-life memory for someone who forgets | local | [▶ 65 s](#14-care-companion) |
-| 15 | [Reunite](15-reunite/) | Matching two people's memories of the same past | local | [▶ 56 s](#15-reunite) |
-| 16 | [Wearable diary](16-wearable-diary/) | A day of audio becomes conversation memory | local | [▶ 62 s](#16-wearable-diary) |
-| 17 | [Run coach HUD](17-run-coach-hud/) | Glasses-style coach that remembers past runs | local | [▶ 53 s](#17-run-coach-hud) |
+| 12 | [Data technician](12-data-technician/) | An agent learns a scientist's corrections as skills | local | [▶ 67 s](#12-data-technician) |
+| 13 | [Screen memory](13-screen-memory/) | Screenshots analysed, remembered and reused | local | [▶ 65 s](#13-screen-memory) |
+| 14 | [Care companion](14-care-companion/) | Daily-life memory for someone who forgets | local | [▶ 69 s](#14-care-companion) |
+| 15 | [Reunite](15-reunite/) | Matching two people's memories of the same past | local | [▶ 59 s](#15-reunite) |
+| 16 | [Wearable diary](16-wearable-diary/) | A day of audio becomes conversation memory | local | [▶ 66 s](#16-wearable-diary) |
+| 17 | [Run coach HUD](17-run-coach-hud/) | Glasses-style coach that remembers past runs | local | [▶ 56 s](#17-run-coach-hud) |
 
 All the data in these demos is synthetic or public domain.
 
@@ -59,11 +59,11 @@ length shown. Each video plays right here; each demo's README lists what its vid
 by step.
 
 <a name="01-coding-memory"></a>
-### 01 · [Coding memory](01-coding-memory/) · 66 s
+### 01 · [Coding memory](01-coding-memory/) · 76 s
 
 A new Claude Code session already knows yesterday's decision.
 
-https://github.com/user-attachments/assets/6226abb2-9910-4134-9acd-5a0637e4f66d
+https://github.com/user-attachments/assets/873b16d3-cfc4-40e7-9e31-f5a2c420253c
 
 <a name="02-book-memory"></a>
 ### 02 · [Book memory](02-book-memory/) · 55 s
@@ -73,60 +73,60 @@ A book the model never read: right with memory, wrong without.
 https://github.com/user-attachments/assets/fe3475af-c4fb-40f5-bd5d-d5698fc62c9b
 
 <a name="03-study-buddy"></a>
-### 03 · [Study buddy](03-study-buddy/) · 79 s
+### 03 · [Study buddy](03-study-buddy/) · 85 s
 
 The review goes straight to the two mistakes.
 
-https://github.com/user-attachments/assets/42dfe50f-952c-4c9a-856e-aa89f62cd403
+https://github.com/user-attachments/assets/9ade94e4-a70a-4f99-947b-2e460dfdc279
 
 <a name="04-story-bible"></a>
-### 04 · [Story bible](04-story-bible/) · 66 s
+### 04 · [Story bible](04-story-bible/) · 70 s
 
 A draft checked against canon, and Claude Code reads the same canon.
 
-https://github.com/user-attachments/assets/65917bdc-055c-4098-ba23-d0661d58c195
+https://github.com/user-attachments/assets/c7a67370-2ec0-4abe-bc95-5227ef8b5f27
 
 <a name="05-agent-team"></a>
-### 05 · [Agent team](05-agent-team/) · 60 s
+### 05 · [Agent team](05-agent-team/) · 63 s
 
 Fixer recalls the Investigator's finding; a read-only key gets 403.
 
-https://github.com/user-attachments/assets/8a041cf0-aea6-43b5-921a-538c703981f9
+https://github.com/user-attachments/assets/1b81a2db-8cfd-451e-884c-471c670105ea
 
 <a name="06-browser-memory"></a>
-### 06 · [Browser memory](06-browser-memory/) · 63 s
+### 06 · [Browser memory](06-browser-memory/) · 67 s
 
 A forecast page answered from two pages read days earlier.
 
-https://github.com/user-attachments/assets/b8a1006c-066d-4ffc-a70a-dbd426845919
+https://github.com/user-attachments/assets/db2ce7eb-7cb4-481f-8c74-34bc7a196a86
 
 <a name="07-memory-graph"></a>
-### 07 · [Memory graph](07-memory-graph/) · 58 s
+### 07 · [Memory graph](07-memory-graph/) · 63 s
 
 One new sentence lights up what it touched.
 
-https://github.com/user-attachments/assets/d8717c7e-468f-40c1-9044-db5c2e53bfb0
+https://github.com/user-attachments/assets/1833086a-2144-49d7-8f58-6ff9603a7554
 
 <a name="08-companion"></a>
-### 08 · [Companion](08-companion/) · 57 s
+### 08 · [Companion](08-companion/) · 62 s
 
 Wren asks about Maya's interview; Theo's Wren knows nothing.
 
-https://github.com/user-attachments/assets/932d78fd-597a-4476-9514-a36e07e174a3
+https://github.com/user-attachments/assets/2ab8a549-70e8-4db2-9ace-9867701130f6
 
 <a name="09-taste-journal"></a>
-### 09 · [Taste journal](09-taste-journal/) · 70 s
+### 09 · [Taste journal](09-taste-journal/) · 75 s
 
 A suggestion that cites the tastings behind it.
 
-https://github.com/user-attachments/assets/4e7d1362-9378-4a89-a79c-f2497d50e3ad
+https://github.com/user-attachments/assets/5be70d9e-0792-4b1c-9f7e-06dc4854cdfc
 
 <a name="10-quest-log"></a>
-### 10 · [Quest log](10-quest-log/) · 55 s
+### 10 · [Quest log](10-quest-log/) · 59 s
 
 Three skipped Mondays move the gym to 18:30.
 
-https://github.com/user-attachments/assets/f622dbbc-4d0b-44ce-b0de-8792986f2bf5
+https://github.com/user-attachments/assets/1080200b-5159-446f-beb0-c6366acaa4d2
 
 <a name="11-npc-mystery"></a>
 ### 11 · [NPC mystery](11-npc-mystery/) · 81 s
@@ -136,46 +136,46 @@ Gossip reaches Elsie, not Tobias.
 https://github.com/user-attachments/assets/3fadbbf1-5c19-4b0d-b49a-0789b9d70b7a
 
 <a name="12-data-technician"></a>
-### 12 · [Data technician](12-data-technician/) · 64 s
+### 12 · [Data technician](12-data-technician/) · 67 s
 
 One correction becomes a skill: 6 → 8 of 12.
 
-https://github.com/user-attachments/assets/2f793acd-c926-43f8-b104-aeccbdb0a21e
+https://github.com/user-attachments/assets/9422ec0e-c766-4079-a58e-ef8845d642c9
 
 <a name="13-screen-memory"></a>
-### 13 · [Screen memory](13-screen-memory/) · 59 s
+### 13 · [Screen memory](13-screen-memory/) · 65 s
 
 "My flight number?" answered from the screenshot.
 
-https://github.com/user-attachments/assets/4bad0e02-0315-4da7-8480-b72a8bc8d853
+https://github.com/user-attachments/assets/36baa455-333c-441d-9c7e-4c0c58214b36
 
 <a name="14-care-companion"></a>
-### 14 · [Care companion](14-care-companion/) · 65 s
+### 14 · [Care companion](14-care-companion/) · 69 s
 
 A fix to the log changes the next answer.
 
-https://github.com/user-attachments/assets/82e1e890-8d0d-4ec1-bdd1-2faea4fd2892
+https://github.com/user-attachments/assets/86483dff-a927-4537-a0ca-6cf16eaf0c1c
 
 <a name="15-reunite"></a>
-### 15 · [Reunite](15-reunite/) · 56 s
+### 15 · [Reunite](15-reunite/) · 59 s
 
 "Fire engine" matches "fire truck"; a person decides.
 
-https://github.com/user-attachments/assets/3fb5c8f6-ccaf-4519-828f-2f5ca88dc5cf
+https://github.com/user-attachments/assets/d81d8124-bd24-43de-804d-63c5abb89611
 
 <a name="16-wearable-diary"></a>
-### 16 · [Wearable diary](16-wearable-diary/) · 62 s
+### 16 · [Wearable diary](16-wearable-diary/) · 66 s
 
 A later clip moved the meeting to 3:30.
 
-https://github.com/user-attachments/assets/b5b698eb-2aa7-48b6-affd-1b0e71b64f9a
+https://github.com/user-attachments/assets/3d542882-39dd-4b0a-8d37-8774f3a3ee3d
 
 <a name="17-run-coach-hud"></a>
-### 17 · [Run coach HUD](17-run-coach-hud/) · 53 s
+### 17 · [Run coach HUD](17-run-coach-hud/) · 56 s
 
 A cue at km 6.5 from the 5 runs that faded.
 
-https://github.com/user-attachments/assets/bba27630-6be4-4621-a147-3401925e9183
+https://github.com/user-attachments/assets/98269966-c9dc-474b-ac32-776173327b30
 
 ## Layout
 

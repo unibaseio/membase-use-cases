@@ -1,5 +1,5 @@
 """The screen memory video, on the local engine. The page is Lookback, a screenshot library on a
-desktop. After the architecture card: Jordan's six screenshots are imported and each one is read
+desktop. After the explainer: Jordan's six screenshots are imported and each one is read
 by the vision model and remembered, dated when it was taken, while the library fills; in the
 search panel, "What was my flight number?" is answered from the flight booking (S1), which opens
 with SL 482 marked; "How did I fix the VPN error last time?" is answered from the VPN settings
@@ -16,30 +16,109 @@ META = {
     "base": "local",
     "port": 8713,
     "banner_from_recording": True,
-    "arch": {
-        "kick": "How it works",
-        "title": "Every screenshot becomes one dated memory",
-        "nodes": [
+    "line": "A vision model reads each screenshot. Ask later: the answer opens the right one.",
+    "explain": {
+        "title": "Every screenshot becomes a dated memory",
+        "actors": [
+            {"id": "you", "icon": "user", "label": "Jordan", "kind": "user", "at": [170, 380]},
             {
-                "t": "Vision model",
-                "d": "reads each screenshot: the app, the values and the text on screen",
+                "id": "vision",
+                "icon": "scan-eye",
+                "label": "Vision model",
+                "kind": "model",
+                "at": [170, 740],
+                "tint": "#0f172b",
+                "ink": "#fff",
             },
             {
-                "t": "Screens memory",
-                "d": "one memory per screenshot on the local engine, dated when it was taken",
-                "mb": True,
+                "id": "app",
+                "icon": "image",
+                "label": "Lookback",
+                "kind": "app",
+                "box": [360, 205, 1470, 725],
+                "tint": "#eef1f6",
+                "ink": "#0f172b",
             },
             {
-                "t": "Recall",
-                "d": "a search finds the memories that answer the question",
-                "mb": True,
+                "id": "lib",
+                "icon": "image",
+                "label": "Screenshots",
+                "kind": "view",
+                "at": [650, 540],
+                "size": 170,
+                "tint": "#2b6cb0",
+                "ink": "#fff",
             },
             {
-                "t": "Answer",
-                "d": "a model answers from them and names the screenshot; the page shows its image",
+                "id": "mb",
+                "kind": "membase",
+                "base": "local",
+                "tab": "Local engine, inside Lookback",
+                "folder": "Jordan's folder",
+                "box": [970, 250, 820, 640],
+                "slots": [{"id": "screens", "label": "Screens", "icon": "image"}],
             },
         ],
-        "foot": "Each memory id the write returns is linked to its image, so a recalled memory leads back to the screenshot.",
+        "beats": [
+            {
+                "say": "Each screenshot is read, then remembered, dated",
+                "membase": "learn",
+                "facts": [
+                    "SkyLark booking · 2 Oct",
+                    "VPN settings · 18 Sep",
+                    "Router admin · 27 Sep",
+                ],
+                "flows": [
+                    {
+                        "from": "lib",
+                        "to": "vision",
+                        "token": {"label": "a screenshot", "icon": "image"},
+                    },
+                    {"from": "vision", "to": "lib", "token": "what it shows"},
+                    {
+                        "from": "lib",
+                        "to": "mb",
+                        "token": {"label": "6 readings", "icon": "file-text"},
+                    },
+                ],
+            },
+            {
+                "say": "What was my flight number?",
+                "membase": "recall",
+                "hit": 0,
+                "flows": [
+                    {
+                        "from": "you",
+                        "to": "lib",
+                        "token": {"label": "flight number?", "icon": "circle-help"},
+                    },
+                    {
+                        "from": "lib",
+                        "to": "mb",
+                        "token": {"label": "the question", "icon": "search"},
+                    },
+                    {"from": "mb", "to": "lib", "token": "booking, 2 Oct", "result": "SL 482"},
+                ],
+            },
+            {
+                "say": "How did I fix the VPN? Another screenshot",
+                "membase": "recall",
+                "hit": 1,
+                "flows": [
+                    {
+                        "from": "you",
+                        "to": "lib",
+                        "token": {"label": "the VPN fix?", "icon": "circle-help"},
+                    },
+                    {
+                        "from": "lib",
+                        "to": "mb",
+                        "token": {"label": "the question", "icon": "search"},
+                    },
+                    {"from": "mb", "to": "lib", "token": "VPN, 18 Sep", "result": "WireGuard"},
+                ],
+            },
+        ],
     },
 }
 SEED: list[str] = []

@@ -1,4 +1,4 @@
-"""The care companion video, on the local engine. After the architecture card: Hearth, a tablet
+"""The care companion video, on the local engine. After the explainer: Hearth, a tablet
 and a phone on a kitchen table. Sofia's phone holds the care log of Margaret's week (seed.py,
 demo clock Tuesday 12:30). Margaret taps "Did I take my pills this morning?" on her tablet (yes,
 8:15, today's note) and "When is my next doctor visit?" (Thursday). Sofia edits the note on her
@@ -20,31 +20,95 @@ META = {
     "base": "local",
     "port": 8714,
     "banner_from_recording": True,
-    "arch": {
-        "kick": "How it works",
-        "title": "Dated memories, recalled with the time worked out",
-        "nodes": [
+    "line": "Sofia keeps Margaret's day in Hearth. Margaret asks; the answer knows the day.",
+    "explain": {
+        "title": "The caregiver's log is the memory",
+        "actors": [
+            {"id": "sofia", "icon": "user", "label": "Sofia", "kind": "user", "at": [170, 370]},
             {
-                "t": "Caregiver's log",
-                "d": "Sofia writes what happened: pills at 08:15, a visit, an appointment",
+                "id": "margaret",
+                "icon": "user",
+                "label": "Margaret",
+                "kind": "user",
+                "at": [170, 700],
             },
             {
-                "t": "Daily log memory",
-                "d": "one memory per note on the local engine, dated when it happened",
-                "mb": True,
+                "id": "hearth",
+                "icon": "house",
+                "label": "Hearth",
+                "kind": "app",
+                "box": [360, 205, 1470, 725],
+                "tint": "#f5ead8",
+                "ink": "#4a2c1a",
             },
             {
-                "t": "Recall + time",
-                "d": "each recalled note is labelled today, yesterday or in 2 days; a model answers from those",
-                "mb": True,
-            },
-            {
-                "t": "Correct = forget",
-                "d": "an edit deletes the old memory and writes the new one; the next answer changes",
-                "mb": True,
+                "id": "mb",
+                "kind": "membase",
+                "base": "local",
+                "tab": "Local engine, inside Hearth",
+                "folder": "Margaret's folder",
+                "box": [600, 270, 1180, 540],
+                "slots": [
+                    {
+                        "id": "log",
+                        "label": "Daily log",
+                        "icon": "calendar-days",
+                        "facts": ["Pills taken · today 08:15", "Doctor · Thu 10:30"],
+                    }
+                ],
             },
         ],
-        "foot": "A demo with a made-up person and made-up notes. It is not a medical service.",
+        "beats": [
+            {
+                "say": "Did I take my pills? Yes, at 8:15",
+                "membase": "recall",
+                "hit": 0,
+                "flows": [
+                    {
+                        "from": "margaret",
+                        "to": "mb",
+                        "token": {"label": "my pills?", "icon": "search"},
+                    },
+                    {
+                        "from": "mb",
+                        "to": "margaret",
+                        "token": "today, 08:15",
+                        "result": "Yes, at 8:15",
+                    },
+                ],
+            },
+            {
+                "say": "Sofia moves the visit: the old note is forgotten",
+                "membase": "forget",
+                "forget": ["Doctor · Thu 10:30"],
+                "facts": ["Doctor · Fri 14:00"],
+                "flows": [
+                    {
+                        "from": "sofia",
+                        "to": "mb",
+                        "token": {"label": "moved to Fri", "icon": "pen-line"},
+                    }
+                ],
+            },
+            {
+                "say": "Margaret asks again: Friday at 14:00",
+                "membase": "recall",
+                "hit": 1,
+                "flows": [
+                    {
+                        "from": "margaret",
+                        "to": "mb",
+                        "token": {"label": "next visit?", "icon": "search"},
+                    },
+                    {
+                        "from": "mb",
+                        "to": "margaret",
+                        "token": "Fri 14:00",
+                        "result": "Friday, 14:00",
+                    },
+                ],
+            },
+        ],
     },
 }
 SEED = ["14-care-companion/seed.py"]

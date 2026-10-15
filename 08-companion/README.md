@@ -18,9 +18,9 @@ Hosted mode runs, but a hosted account is one person, so Maya and Theo would sha
 
 ## Video
 
-https://github.com/user-attachments/assets/932d78fd-597a-4476-9514-a36e07e174a3
+https://github.com/user-attachments/assets/2ab8a549-70e8-4db2-9ace-9867701130f6
 
-57 s · local engine, one directory per person. After a card that shows how the app and Membase fit together:
+62 s · local engine, one directory per person. After a short explainer of how the app and Membase fit together:
 
 1. **Maya calls in.** She tells Wren about Thursday's interview at Brightwater Studio and her
    nerves about the portfolio review. Wren answers in two or three sentences.

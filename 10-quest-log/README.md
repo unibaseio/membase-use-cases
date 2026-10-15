@@ -15,9 +15,9 @@ outcome is dated by the day it was for, which needs the local engine.
 
 ## Video
 
-https://github.com/user-attachments/assets/f622dbbc-4d0b-44ce-b0de-8792986f2bf5
+https://github.com/user-attachments/assets/1080200b-5159-446f-beb0-c6366acaa4d2
 
-55 s · local engine. After a card that shows how the app and Membase fit together:
+59 s · local engine. After a short explainer of how the app and Membase fit together:
 
 1. **Rin plans next Monday.** The chronicle on the right already holds 16 dated days. Rin writes the plan, including *gym at 7:00 before work*, and presses **Draw up the quests**.
 2. **The scribe turns to past days.** Memory gives back the past days, each with its date: they get a red bookmark in the chronicle, the Mondays shaded.

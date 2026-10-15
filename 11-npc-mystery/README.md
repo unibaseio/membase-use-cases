@@ -25,7 +25,7 @@ container in it. **New case** starts a new, empty directory.
 
 https://github.com/user-attachments/assets/3fadbbf1-5c19-4b0d-b49a-0789b9d70b7a
 
-77 s · local engine, one container per character. After a card that shows how the app and Membase fit together:
+77 s · local engine, one container per character. After a short explainer of how the app and Membase fit together:
 
 1. **Tell Mara** you found a green glass button stamped with an anchor under the harbour office
    window. "Mara will remember that." Her line in the notebook says what you told her.

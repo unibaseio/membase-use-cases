@@ -17,9 +17,9 @@ page). Set `MEMBASE_DEMO_MODE=hosted` to use hosted Membase.
 
 ## Video
 
-https://github.com/user-attachments/assets/d8717c7e-468f-40c1-9044-db5c2e53bfb0
+https://github.com/user-attachments/assets/1833086a-2144-49d7-8f58-6ff9603a7554
 
-58 s · local engine. After a card that shows how the app and Membase fit together:
+63 s · local engine. After a short explainer of how the app and Membase fit together:
 
 1. **Build the map from memory.** Kith reads Lena's memory: what she always keeps, eight broad
    questions, then every name those turn up. People are round avatars, places are pins, projects

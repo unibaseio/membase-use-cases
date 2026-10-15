@@ -1,4 +1,4 @@
-"""The story bible video, on hosted Membase. After the architecture card: Quire, a novelist's
+"""The story bible video, on hosted Membase. After the explainer: Quire, a novelist's
 writing app. The binder holds the Saltmarrow canon (the story bible, in a Membase memory);
 Chapter Three is a draft with planted mistakes. Check continuity: each contradiction becomes a
 margin comment that quotes the canon it breaks, and the fixes are accepted like suggestions.
@@ -32,30 +32,89 @@ META = {
     "base": "hosted",
     "port": 8704,
     "banner_from_recording": True,
-    "arch": {
-        "kick": "How it works",
-        "title": "The bible lives in one Membase memory; every tool reads it",
-        "nodes": [
+    "line": "Quire checks your chapter against the canon. Claude Code reads the same canon.",
+    "intro_at": ["Check continuity", 30.0],  # each margin note quotes the canon it breaks
+    "explain": {
+        "title": "One canon, read by every AI",
+        "actors": [
             {
-                "t": "Quire, the writing app",
-                "d": "your key: check and continue the chapter against canon, file scenes into it",
+                "id": "quire",
+                "icon": "feather",
+                "label": "Quire",
+                "kind": "app",
+                "at": [600, 400],
+                "size": 200,
+                "labelAt": "inside",
+                "tint": "#22302e",
+                "ink": "#f3e8cf",
+                "key": "write key",
             },
             {
-                "t": "Membase",
-                "d": "a write lands as a file and a learning run turns it into facts; search is a recall turn",
-                "mb": True,
+                "id": "cc",
+                "icon": "terminal",
+                "label": "Claude Code",
+                "kind": "agent",
+                "at": [600, 770],
+                "labelAt": "left",
+                "tint": "#0f172b",
+                "ink": "#fff",
+                "key": "read-only key",
             },
             {
-                "t": "Story Bible memory",
-                "d": "characters, places, world rules, the style guide, and every scene you file",
-                "mb": True,
-            },
-            {
-                "t": "Claude, ChatGPT, Cursor",
-                "d": "connected over MCP with a read-only key: they answer from the same canon",
+                "id": "mb",
+                "kind": "membase",
+                "base": "hosted",
+                "box": [1060, 300, 720, 470],
+                "slots": [
+                    {"id": "bible", "label": "Story Bible", "icon": "scroll-text", "facts": 3}
+                ],
             },
         ],
-        "foot": "Every continuity note quotes the canon it comes from. A scene you file becomes canon for every connected AI.",
+        "beats": [
+            {
+                "say": "Quire checks the draft against canon",
+                "membase": "recall",
+                "hit": 1,
+                "flows": [
+                    {
+                        "from": "quire",
+                        "to": "mb",
+                        "token": {"label": "its topics", "icon": "search"},
+                    },
+                    {
+                        "from": "mb",
+                        "to": "quire",
+                        "token": "canon lines",
+                        "result": "3 slips caught",
+                    },
+                ],
+            },
+            {
+                "say": "A new scene is filed into canon",
+                "membase": "learn",
+                "facts": ["Iron key, stamped 41"],
+                "flows": [
+                    {
+                        "from": "quire",
+                        "to": "mb",
+                        "token": {"label": "new scene", "icon": "file-text"},
+                    }
+                ],
+            },
+            {
+                "say": "Claude Code, over MCP, finds the new scene",
+                "membase": "recall",
+                "hit": 3,
+                "flows": [
+                    {
+                        "from": "cc",
+                        "to": "mb",
+                        "token": {"label": "what key?", "icon": "search"},
+                    },
+                    {"from": "mb", "to": "cc", "token": "key stamped 41"},
+                ],
+            },
+        ],
     },
 }
 SEED: list[str] = []

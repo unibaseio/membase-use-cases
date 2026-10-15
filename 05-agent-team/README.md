@@ -17,9 +17,9 @@ fixed.
 
 ## Video
 
-https://github.com/user-attachments/assets/8a041cf0-aea6-43b5-921a-538c703981f9
+https://github.com/user-attachments/assets/1b81a2db-8cfd-451e-884c-471c670105ea
 
-60 s · hosted Membase, one key per agent. After a card that shows how the app and Membase fit together:
+63 s · hosted Membase, one key per agent. After a short explainer of how the app and Membase fit together:
 
 1. **The Investigator finds the cause.** ISSUE-212 is assigned to the agent team. The Investigator reads the code, the tests fail (a red check), and it pins one finding to the Team notes.
 2. **Membase learns it** before the next agent can find it (58 s, sped up). The pinned note turns *learned*.

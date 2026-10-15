@@ -19,9 +19,9 @@ needs the local engine (`demokit.dated`).
 
 ## Video
 
-https://github.com/user-attachments/assets/bba27630-6be4-4621-a147-3401925e9183
+https://github.com/user-attachments/assets/98269966-c9dc-474b-ac32-776173327b30
 
-53 s · local engine. After a card that shows how the app and Membase fit together:
+56 s · local engine. After a short explainer of how the app and Membase fit together:
 
 1. **Before the run: the brief.** On the phone: 10 km steady, 5:18 /km target, a one-line read
    of the last run, *Read your last 10 runs*, and *5 of 5 runs over 7 km faded after km 7* with

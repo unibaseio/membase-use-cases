@@ -1,4 +1,4 @@
-"""The quest log video, on the local engine. After the architecture card: Rin's Quest Log, a cozy
+"""The quest log video, on the local engine. After the explainer: Rin's Quest Log, a cozy
 RPG quest log. Rin tells the scribe the plan for next Monday, with the 7:00 gym on it again; the
 scribe turns to the past days in the chronicle (memory gives them back, each with its date); the
 app counts them (the 7:00 gym was skipped on each of the last three Mondays, the 18:30 sessions
@@ -17,30 +17,92 @@ META = {
     "base": "local",
     "port": 8710,
     "banner_from_recording": True,
-    "arch": {
-        "kick": "How it works",
-        "title": "Rin's outcomes are dated memories; the app counts what recall returns",
-        "nodes": [
+    "line": "Rin's quest log remembers how each day went, and rewrites what keeps failing.",
+    "explain": {
+        "title": "Every day is a dated memory",
+        "actors": [
+            {"id": "rin", "icon": "user", "label": "Rin", "kind": "user", "at": [170, 560]},
             {
-                "t": "Quest log memory",
-                "d": "data/10-quest-log/rin/: one memory per day, dated by the day it was for",
-                "mb": True,
+                "id": "log",
+                "icon": "swords",
+                "label": "Quest Log",
+                "kind": "app",
+                "box": [360, 205, 1470, 725],
+                "tint": "#f3e6c8",
+                "ink": "#3a2414",
             },
             {
-                "t": "Recall",
-                "d": "the planned weekday, and each item at any time; every hit keeps its date",
-                "mb": True,
+                "id": "scribe",
+                "icon": "scroll-text",
+                "label": "The scribe",
+                "kind": "view",
+                "at": [650, 540],
+                "size": 170,
+                "tint": "#6b3a1f",
+                "ink": "#f3e6c8",
+                "labelColor": "#3a2414",
             },
             {
-                "t": "Model",
-                "d": "says which recalled days mention each item, with a quote; the app checks the quote and counts",
-            },
-            {
-                "t": "Quest board",
-                "d": "only a quest that keeps failing is rewritten, and its note shows the dates behind it",
+                "id": "mb",
+                "kind": "membase",
+                "base": "local",
+                "tab": "Local engine, inside the Quest Log",
+                "folder": "Rin's folder",
+                "box": [970, 250, 820, 640],
+                "slots": [
+                    {
+                        "id": "days",
+                        "label": "Rin's days",
+                        "icon": "calendar-days",
+                        "facts": [
+                            "Mon 28 Sep · gym skipped",
+                            "Mon 5 Oct · gym skipped",
+                            "Mon 12 Oct · gym skipped",
+                        ],
+                    }
+                ],
             },
         ],
-        "foot": "Membase keeps the history; the app does the arithmetic, so the numbers on screen are true.",
+        "beats": [
+            {
+                "say": "Rin plans Monday: gym at 7:00 again",
+                "membase": "recall",
+                "hit": 2,
+                "flows": [
+                    {
+                        "from": "rin",
+                        "to": "scribe",
+                        "token": {"label": "Monday's plan", "icon": "file-text"},
+                    },
+                    {
+                        "from": "scribe",
+                        "to": "mb",
+                        "token": {"label": "past Mondays", "icon": "search"},
+                    },
+                    {"from": "mb", "to": "scribe", "token": "3 Mondays"},
+                ],
+            },
+            {
+                "say": "Skipped 3 of 3: the quest is rewritten",
+                "flows": [
+                    {
+                        "from": "scribe",
+                        "to": "rin",
+                        "token": {"label": "gym at 18:30", "icon": "dumbbell"},
+                        "result": "rewritten",
+                    }
+                ],
+            },
+            {
+                "say": "Done: Monday is remembered with its date",
+                "membase": "learn",
+                "facts": ["Mon 19 Oct · gym done"],
+                "flows": [
+                    {"from": "rin", "to": "scribe", "token": {"label": "Done", "icon": "check"}},
+                    {"from": "scribe", "to": "mb", "token": {"label": "Mon 19 Oct"}},
+                ],
+            },
+        ],
     },
 }
 SEED = ["10-quest-log/seed.py"]

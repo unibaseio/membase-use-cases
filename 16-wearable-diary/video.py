@@ -1,4 +1,4 @@
-"""The wearable diary video, on the local engine. After the architecture card: Earshot, the
+"""The wearable diary video, on the local engine. After the explainer: Earshot, the
 companion app of a clip-on recording pendant, with nothing from today yet. Syncing brings in
 Alex's Wednesday (four synthetic-speech clips): each is transcribed with its timings, the model
 says who spoke each line, and the conversation is remembered at the time it was recorded; the
@@ -18,30 +18,105 @@ META = {
     "base": "local",
     "port": 8716,
     "banner_from_recording": True,
-    "arch": {
-        "kick": "How it works",
-        "title": "Audio in, dated conversation memory out",
-        "nodes": [
+    "line": "A day of pendant clips becomes dated memory. Ask, and hear the moment.",
+    "explain": {
+        "title": "Every clip is remembered at its time",
+        "actors": [
             {
-                "t": "Pendant clip",
-                "d": "a recording with the time it was made: 09:30, 12:40, 15:10, 17:15",
+                "id": "pendant",
+                "icon": "mic",
+                "label": "Pendant",
+                "kind": "device",
+                "at": [170, 380],
+                "tint": "#1d1d1f",
+                "ink": "#fff",
             },
             {
-                "t": "Transcribe",
-                "d": "speech to text with timings; the model says who spoke each line",
+                "id": "stt",
+                "icon": "captions",
+                "label": "Speech to text",
+                "kind": "model",
+                "at": [170, 740],
+                "tint": "#0f172b",
+                "ink": "#fff",
             },
             {
-                "t": "Conversation memory",
-                "d": "one conversation per clip, remembered at the time it was recorded",
-                "mb": True,
+                "id": "earshot",
+                "icon": "audio-lines",
+                "label": "Earshot",
+                "kind": "app",
+                "box": [360, 205, 1470, 725],
+                "tint": "#faf7f2",
+                "ink": "#1d1d1f",
             },
             {
-                "t": "Recall",
-                "d": "a question finds the conversations; the answer plays the clip, and the later one wins",
-                "mb": True,
+                "id": "clips",
+                "icon": "audio-lines",
+                "label": "Wednesday",
+                "kind": "view",
+                "at": [650, 540],
+                "size": 170,
+                "tint": "#e0533d",
+                "ink": "#fff",
+            },
+            {
+                "id": "mb",
+                "kind": "membase",
+                "base": "local",
+                "tab": "Local engine, inside Earshot",
+                "folder": "Alex's folder",
+                "box": [970, 250, 820, 640],
+                "slots": [{"id": "talk", "label": "Conversations", "icon": "message-square-text"}],
             },
         ],
-        "foot": "Each memory keeps when it was said, so a later conversation can overrule an earlier one.",
+        "beats": [
+            {
+                "say": "Four clips are transcribed, speaker by speaker",
+                "flows": [
+                    {
+                        "from": "pendant",
+                        "to": "clips",
+                        "token": {"label": "4 clips", "icon": "mic"},
+                    },
+                    {"from": "clips", "to": "stt", "token": {"label": "the audio"}},
+                    {"from": "stt", "to": "clips", "token": "who said what"},
+                ],
+            },
+            {
+                "say": "Each is remembered at the time it was said",
+                "membase": "learn",
+                "facts": [
+                    "09:30 · review Thu 3 PM",
+                    "15:10 · moved to 3:30",
+                    "17:15 · promise to Sam",
+                ],
+                "flows": [
+                    {
+                        "from": "clips",
+                        "to": "mb",
+                        "token": {"label": "4 conversations", "icon": "message-square-text"},
+                    }
+                ],
+            },
+            {
+                "say": "What time is the review? The later clip wins",
+                "membase": "recall",
+                "hit": 1,
+                "flows": [
+                    {
+                        "from": "clips",
+                        "to": "mb",
+                        "token": {"label": "the review?", "icon": "search"},
+                    },
+                    {
+                        "from": "mb",
+                        "to": "clips",
+                        "token": "the 15:10 clip",
+                        "result": "Thu 3:30 PM",
+                    },
+                ],
+            },
+        ],
     },
 }
 SEED = ["16-wearable-diary/seed.py --audio-only --reuse data/16-wearable-diary/seed-audio"]

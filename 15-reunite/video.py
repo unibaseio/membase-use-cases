@@ -1,4 +1,4 @@
-"""The Reunite video, on the local engine. After the architecture card: a caseworker's review
+"""The Reunite video, on the local engine. After the explainer: a caseworker's review
 desk. Seeker S-01, Callum Price, in his own words; the reviewer pulls the family files that
 could fit (memory recalls them, the model scores the top five); F-01 opens beside his file and
 the worksheet lines up what agrees, with the same numbered marks in both files ("a little metal
@@ -14,30 +14,106 @@ META = {
     "port": 8715,
     "path": "?seeker=S-01",
     "banner_from_recording": True,
-    "arch": {
-        "kick": "How it works",
-        "title": "One operator's store, recall, a model comparison, a person's decision",
-        "nodes": [
+    "line": "Memory finds family files that could fit a seeker's memories. A person decides.",
+    "explain": {
+        "title": "Memory suggests, a person decides",
+        "actors": [
+            {"id": "person", "icon": "user", "label": "Reviewer", "kind": "user", "at": [170, 380]},
             {
-                "t": "Families · Seekers",
-                "d": "two containers in one operator's local store; each record is a document",
-                "mb": True,
+                "id": "model",
+                "icon": "sparkles",
+                "label": "The model",
+                "kind": "model",
+                "at": [170, 740],
+                "tint": "#0f172b",
+                "ink": "#fff",
             },
             {
-                "t": "Recall",
-                "d": "the seeker's whole account, then each kind of detail, searched in Families",
-                "mb": True,
+                "id": "reunite",
+                "icon": "folder-search",
+                "label": "Reunite",
+                "kind": "app",
+                "box": [360, 205, 1470, 725],
+                "tint": "#efe6d2",
+                "ink": "#2b2a26",
             },
             {
-                "t": "Model comparison",
-                "d": "the top five, detail by detail: what agrees, what conflicts, a score",
+                "id": "desk",
+                "icon": "folder-search",
+                "label": "Review desk",
+                "kind": "view",
+                "at": [650, 540],
+                "size": 170,
+                "tint": "#2b2a26",
+                "ink": "#efe6d2",
+                "labelColor": "#2b2a26",
             },
             {
-                "t": "A person decides",
-                "d": "a reviewer stamps a match or not; the system only suggests",
+                "id": "mb",
+                "kind": "membase",
+                "base": "local",
+                "tab": "Local engine, inside Reunite",
+                "folder": "The operator's folder",
+                "stack": True,
+                "box": [970, 250, 820, 640],
+                "slots": [
+                    {"id": "seekers", "label": "Seekers", "icon": "user", "facts": ["S-01 Callum"]},
+                    {
+                        "id": "families",
+                        "label": "Families",
+                        "icon": "users",
+                        "facts": ["F-01", "F-02", "F-03"],
+                    },
+                ],
             },
         ],
-        "foot": "Synthetic records. Matching across people's accounts on hosted Membase would cross the tenant boundary, so this runs locally.",
+        "beats": [
+            {
+                "say": "His memories search the family files",
+                "membase": "recall",
+                "hit": 0,
+                "flows": [
+                    {
+                        "from": "desk",
+                        "to": "mb.families",
+                        "token": {"label": "each detail", "icon": "search"},
+                    },
+                    {"from": "mb.families", "to": "desk", "token": "F-01 · 90"},
+                ],
+            },
+            {
+                "say": "A model lines the details up",
+                "flows": [
+                    {
+                        "from": "desk",
+                        "to": "model",
+                        "token": {"label": "S-01 + F-01", "icon": "file-text"},
+                    },
+                    {
+                        "from": "model",
+                        "to": "desk",
+                        "token": "6 pairs",
+                        "result": "6 details agree",
+                    },
+                ],
+            },
+            {
+                "say": "A person decides; the system only suggests",
+                "flows": [
+                    {
+                        "from": "desk",
+                        "to": "person",
+                        "token": {"label": "the worksheet", "icon": "file-text"},
+                    },
+                    {
+                        "from": "person",
+                        "to": "desk",
+                        "token": {"label": "Match", "icon": "stamp"},
+                        "result": "stamped by a person",
+                    },
+                ],
+            },
+        ],
     },
 }
 SEED = ["15-reunite/seed.py --records-only"]

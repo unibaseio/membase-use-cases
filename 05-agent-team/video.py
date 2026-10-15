@@ -1,4 +1,4 @@
-"""The agent team video, on hosted Membase. After the architecture card: one real run of the
+"""The agent team video, on hosted Membase. After the explainer: one real run of the
 four agents, each with its own key. The Investigator writes the cause to the Team memory;
 Membase learns it; the Fixer recalls it before touching the code and patches the bug; the
 Reviewer recalls both and the tests pass; the Auditor's read-only key can search, and its write
@@ -16,30 +16,86 @@ META = {
     "base": "hosted",
     "port": 8705,
     "banner_from_recording": True,
-    "arch": {
-        "kick": "How it works",
-        "title": "Four agents, four keys, one Team memory",
-        "nodes": [
+    "line": "Four agents fix a bug through one Membase memory, each with its own key.",
+    "explain": {
+        "title": "Four agents, four keys, one memory",
+        "actors": [
+            *(
+                {
+                    "id": who,
+                    "icon": icon,
+                    "label": label,
+                    "kind": "agent",
+                    "at": [600, y],
+                    "size": 120,
+                    "labelAt": "left",
+                    "key": key,
+                }
+                for who, icon, label, y, key in (
+                    ("inv", "scan-search", "Investigator", 260, "read & write"),
+                    ("fixer", "wrench", "Fixer", 420, "read & write"),
+                    ("rev", "clipboard-check", "Reviewer", 580, "read & write"),
+                    ("aud", "shield", "Auditor", 740, "read only"),
+                )
+            ),
             {
-                "t": "Investigator · Fixer · Reviewer",
-                "d": "LLM agents with tools on the repo; each calls Membase with its own read & write key",
-            },
-            {
-                "t": "Membase API",
-                "d": "checks each key's scope on every call; a write is learned before search finds it",
-                "mb": True,
-            },
-            {
-                "t": "Team memory",
-                "d": "the finding, the fix decision: what one agent learns, the next recalls",
-                "mb": True,
-            },
-            {
-                "t": "Auditor",
-                "d": "read-only key: search works, a write is refused by Membase with 403",
+                "id": "mb",
+                "kind": "membase",
+                "base": "hosted",
+                "box": [1040, 300, 740, 400],
+                "slots": [{"id": "team", "label": "Team memory", "icon": "users"}],
             },
         ],
-        "foot": "Permissions live in Membase, not in the agents: revoke or narrow a key and that agent stops at once.",
+        "beats": [
+            {
+                "say": "The Investigator writes down its finding",
+                "membase": "learn",
+                "facts": ["Finding: the refill bug"],
+                "flows": [
+                    {
+                        "from": "inv",
+                        "to": "mb",
+                        "token": {"label": "the finding", "icon": "file-text"},
+                    }
+                ],
+            },
+            {
+                "say": "The Fixer and the Reviewer recall it first",
+                "membase": "recall",
+                "flows": [
+                    {
+                        "from": "fixer",
+                        "to": "mb",
+                        "token": {"label": "ISSUE-212", "icon": "search"},
+                    },
+                    {
+                        "from": "rev",
+                        "to": "mb",
+                        "token": {"label": "ISSUE-212", "icon": "search"},
+                        "par": True,
+                    },
+                    {"from": "mb", "to": "fixer", "token": "the finding"},
+                    {"from": "mb", "to": "rev", "token": "the finding", "par": True},
+                ],
+            },
+            {
+                "say": "The Auditor's read-only key cannot write",
+                "flows": [
+                    {
+                        "from": "aud",
+                        "to": "mb",
+                        "token": {"label": "a note", "icon": "file-text"},
+                    },
+                    {
+                        "from": "mb",
+                        "to": "aud",
+                        "token": {"label": "403", "icon": "x", "style": "none"},
+                        "result": "write refused",
+                        "ok": False,
+                    },
+                ],
+            },
+        ],
     },
 }
 SEED: list[str] = []

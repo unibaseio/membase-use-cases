@@ -1,4 +1,4 @@
-"""The companion video, on the local engine. After the architecture card: Night Line, the
+"""The companion video, on the local engine. After the explainer: Night Line, the
 listener line of a late-night radio show. Maya calls in and tells Wren about Thursday's
 interview at Brightwater Studio; Wren signs off and jots it in her notebook (Maya's memory
 directory); on the next call Wren speaks first and asks about the interview, from the note she
@@ -10,6 +10,14 @@ Record with .venv/bin/python scripts/video/make.py 08-companion
 """
 
 import re
+from pathlib import Path
+
+# Wren's portrait, as the page draws it, for the explainer
+WREN = re.search(
+    r"const WREN = `(<svg.*?</svg>)`",
+    (Path(__file__).parent / "static/index.html").read_text(),
+    re.S,
+)[1]
 
 META = {
     "title": "Companion",
@@ -18,31 +26,85 @@ META = {
     "base": "local",
     "port": 8708,
     "banner_from_recording": True,
-    "arch": {
-        "kick": "How it works",
-        "title": "One memory directory per caller, on the local engine",
-        "nodes": [
+    "line": "Night Line's host follows up on your call. Each caller has their own memory.",
+    "intro_at": ["Next call: Wren asks first", 6.0],
+    "explain": {
+        "title": "One memory per caller",
+        "actors": [
+            {"id": "maya", "icon": "user", "label": "Maya", "kind": "user", "at": [170, "mb.maya"]},
+            {"id": "theo", "icon": "user", "label": "Theo", "kind": "user", "at": [170, "mb.theo"]},
             {
-                "t": "Night Line app",
-                "d": "Wren's persona; recall before every reply, a write when she signs off",
+                "id": "show",
+                "icon": "radio",
+                "label": "Night Line",
+                "kind": "app",
+                "box": [360, 205, 1470, 725],
+                "tint": "#1c2840",
+                "ink": "#f3e8cf",
             },
             {
-                "t": "Membase local engine",
-                "d": "membase-core in the app's process: search, add, profile. A write is searchable in seconds",
-                "mb": True,
+                "id": "wren",
+                "icon": WREN,
+                "fill": True,
+                "label": "Wren",
+                "labelAt": "plate",
+                "kind": "character",
+                "at": [600, 620],
+                "size": 190,
+                "ring": "#c9563c",
             },
             {
-                "t": "Maya's directory",
-                "d": "data/08-companion/maya/: the call as episodes, follow-ups, profile facts",
-                "mb": True,
-            },
-            {
-                "t": "Theo's directory",
-                "d": "data/08-companion/theo/: a separate store. Nothing of Maya's is in it",
-                "mb": True,
+                "id": "mb",
+                "kind": "membase",
+                "base": "local",
+                "tab": "Local engine, inside Night Line",
+                "stack": True,
+                "box": [900, 250, 880, 650],
+                "slots": [
+                    {"id": "maya", "label": "Maya's memory", "icon": "folder"},
+                    {"id": "theo", "label": "Theo's memory", "icon": "folder"},
+                ],
             },
         ],
-        "foot": "Wren's notebook is the caller's memory: one directory, one memory, per person.",
+        "beats": [
+            {
+                "say": "Maya tells Wren about Thursday's interview",
+                "membase": "learn",
+                "facts": ["Ask: the interview"],
+                "flows": [
+                    {
+                        "from": "maya",
+                        "to": "wren",
+                        "token": {"label": "the interview", "icon": "message-circle"},
+                    },
+                    {"from": "wren", "to": "mb.maya", "token": "a follow-up"},
+                ],
+            },
+            {
+                "say": "Next call, Wren asks about it first",
+                "membase": "recall",
+                "flows": [
+                    {
+                        "from": "maya",
+                        "to": "wren",
+                        "token": {"label": "a new call", "icon": "phone"},
+                    },
+                    {"from": "mb.maya", "to": "wren", "token": "the interview"},
+                ],
+            },
+            {
+                "say": "Theo's memory is his own: it's empty",
+                "membase": "recall",
+                "flows": [
+                    {
+                        "from": "theo",
+                        "to": "wren",
+                        "token": {"label": "my interview?", "icon": "circle-help"},
+                    },
+                    {"from": "mb.theo", "to": "wren", "token": "nothing"},
+                ],
+            },
+        ],
     },
 }
 SEED: list[str] = []

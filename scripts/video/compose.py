@@ -52,9 +52,11 @@ def plan_explain(spec: dict) -> dict:
     beat, flow and Membase inside step given its start and end (seconds into the explainer).
 
     Flows play one after another; a flow with "par": true travels with the one before it. In a
-    "learn" beat, Membase's inside step plays as soon as a flow reaches it; in a "recall" beat,
-    just before the first flow leaves it. A flow endpoint "mb.mara" is the slot "mara" of the
-    Membase actor "mb"."""
+    "learn" or "forget" beat, Membase's inside step plays as soon as a flow reaches it; in a
+    "recall" beat, just before the first flow leaves it. A flow endpoint "mb.mara" is the slot
+    "mara" of the Membase actor "mb". A slot's "facts" are what it holds from the start (a
+    count, or labels); a "forget" beat strikes out the facts it names (and may add "facts", as a
+    correction does)."""
     x = copy.deepcopy(spec)
     mb = next((a for a in x["actors"] if a.get("kind") == "membase"), None)
     if mb is None:
@@ -67,6 +69,8 @@ def plan_explain(spec: dict) -> dict:
         for s in a.get("slots", []):
             if s.get("icon"):
                 s["svg"] = icon_svg(s["icon"])
+            if isinstance(s.get("facts"), int):
+                s["facts"] = [""] * s["facts"]
     ids = {a["id"] for a in x["actors"]}
 
     def slot_of(end: str) -> str | None:
@@ -95,6 +99,7 @@ def plan_explain(spec: dict) -> dict:
             "key-round",
             "check",
             "x",
+            "eraser",
         )
     }
     t = X_IN
@@ -126,14 +131,18 @@ def plan_explain(spec: dict) -> dict:
                 f["t0"], f["t1"] = round(t, 3), round(t + TRAVEL, 3)
             t += TRAVEL
             ins = [f["toSlot"] for f in step if f["toSlot"] is not None]
-            if kind == "learn" and inside is None and ins:
+            if kind in ("learn", "forget") and inside is None and ins:
                 inside = {"kind": kind, "slots": ins, "t0": round(t, 3), "t1": round(t + INSIDE, 3)}
                 t += INSIDE
         if kind and inside is None:
             raise SystemExit(f"explain: beat {b['say']!r} is a {kind} but no flow touches Membase")
-        if inside and kind == "learn":
-            facts = b.get("facts", 3)
+        if inside and kind in ("learn", "forget"):
+            facts = b.get("facts", 3 if kind == "learn" else 0)
             inside["facts"] = facts if isinstance(facts, list) else [""] * facts
+        if inside and kind == "forget":
+            inside["forget"] = b.get("forget") or []
+            if not inside["forget"]:
+                raise SystemExit(f"explain: beat {b['say']!r} forgets nothing: name the facts")
         if inside and kind == "recall":
             inside["hit"] = b.get("hit")
         b["inside"] = inside

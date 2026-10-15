@@ -1,4 +1,4 @@
-"""The taste journal video, on the local engine. After the architecture card: Pour, Sam's tasting
+"""The taste journal video, on the local engine. After the explainer: Pour, Sam's tasting
 journal app. Sam adds tonight's wine, an Etna Rosso he loved; it lands at the top of the journal
 and as a dot on the palate map, among five months of tastings. Sam asks the sommelier for a red
 for Friday dinner; memory recalls the entries the answer may use (the rest of the map and the
@@ -16,30 +16,103 @@ META = {
     "base": "local",
     "port": 8709,
     "banner_from_recording": True,
-    "arch": {
-        "kick": "How it works",
-        "title": "One memory per person; the answer comes from what it recalls",
-        "nodes": [
+    "line": "Sam logs every tasting in Pour. Ask for a red: it cites his entries.",
+    "explain": {
+        "title": "Every tasting is a dated memory",
+        "actors": [
+            {"id": "sam", "icon": "user", "label": "Sam", "kind": "user", "at": [170, 360]},
             {
-                "t": "Sam's directory",
-                "d": "data/09-taste-journal/sam/: the Membase store, plus each dot's flavour scores",
+                "id": "model",
+                "icon": "sparkles",
+                "label": "Sommelier",
+                "kind": "model",
+                "at": [170, 760],
+                "tint": "#0f172b",
+                "ink": "#fff",
             },
             {
-                "t": "Tastings memory",
-                "d": "one memory per tasting, dated by the day it was tasted; a new one is searchable in seconds",
-                "mb": True,
+                "id": "pour",
+                "icon": "wine",
+                "label": "Pour",
+                "kind": "app",
+                "box": [360, 205, 1470, 725],
+                "tint": "#f6efe4",
+                "ink": "#3b1f22",
             },
             {
-                "t": "Recall, then the model",
-                "d": "loved and disliked tastings are recalled; the model may only cite those, by number",
-                "mb": True,
+                "id": "journal",
+                "icon": "notebook-pen",
+                "label": "Journal",
+                "kind": "view",
+                "at": [650, 540],
+                "size": 170,
+                "tint": "#7a2335",
+                "ink": "#fff",
+                "labelColor": "#3b1f22",
             },
             {
-                "t": "Journal and palate map",
-                "d": "what memory returned stays in colour; what the note cites is numbered",
+                "id": "mb",
+                "kind": "membase",
+                "base": "local",
+                "tab": "Local engine, inside Pour",
+                "folder": "Sam's folder",
+                "box": [970, 250, 820, 640],
+                "slots": [{"id": "tastings", "label": "Tastings", "icon": "wine", "facts": 3}],
             },
         ],
-        "foot": "The map draws every tasting; memory decides which ones an answer may use.",
+        "beats": [
+            {
+                "say": "Tonight's wine is remembered, dated tonight",
+                "membase": "learn",
+                "facts": ["Etna Rosso · 5 of 5 · tonight"],
+                "flows": [
+                    {
+                        "from": "sam",
+                        "to": "journal",
+                        "token": {"label": "Etna Rosso", "icon": "wine"},
+                    },
+                    {
+                        "from": "journal",
+                        "to": "mb",
+                        "token": {"label": "a tasting", "icon": "file-text"},
+                    },
+                ],
+            },
+            {
+                "say": "A red for Friday? Memory returns his tastings",
+                "membase": "recall",
+                "hit": 3,
+                "flows": [
+                    {
+                        "from": "sam",
+                        "to": "journal",
+                        "token": {"label": "a red, Friday?", "icon": "circle-help"},
+                    },
+                    {
+                        "from": "journal",
+                        "to": "mb",
+                        "token": {"label": "the question", "icon": "search"},
+                    },
+                    {"from": "mb", "to": "journal", "token": "13 tastings"},
+                ],
+            },
+            {
+                "say": "The sommelier may cite only those",
+                "flows": [
+                    {
+                        "from": "journal",
+                        "to": "model",
+                        "token": {"label": "13 tastings", "icon": "wine"},
+                    },
+                    {
+                        "from": "model",
+                        "to": "journal",
+                        "token": "3 picks",
+                        "result": "cites his entries",
+                    },
+                ],
+            },
+        ],
     },
 }
 SEED = ["09-taste-journal/seed.py"]

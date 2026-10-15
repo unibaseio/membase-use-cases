@@ -1,4 +1,4 @@
-"""The run coach video, on the local engine. After the architecture card: Pacenote, a coach
+"""The run coach video, on the local engine. After the explainer: Pacenote, a coach
 for smart glasses. On the phone, the brief: it read Jamie's last runs from memory, and code
 counts the ones that faded after km 7. Through the glasses, the run: a park path, the HUD at the
 lens edges, and at km 6.5 the coach's cue with the five runs it counted. Back on the phone, the
@@ -17,30 +17,103 @@ META = {
     "base": "local",
     "port": 8717,
     "banner_from_recording": True,
-    "arch": {
-        "kick": "How it works",
-        "title": "Past runs in memory, a cue counted from them, today's run saved back",
-        "nodes": [
+    "line": "Pacenote reads your past runs before you start, and cues you where they faded.",
+    "explain": {
+        "title": "Past runs in, today's run back",
+        "actors": [
+            {"id": "jamie", "icon": "user", "label": "Jamie", "kind": "user", "at": [170, 720]},
             {
-                "t": "Runs memory",
-                "d": "each run's summary as a conversation memory, dated the day it was run",
-                "mb": True,
+                "id": "pacenote",
+                "icon": "footprints",
+                "label": "Pacenote",
+                "kind": "app",
+                "box": [360, 205, 1470, 725],
+                "tint": "#14201a",
+                "ink": "#e4f7c4",
             },
             {
-                "t": "Recall",
-                "d": "three searches before the run bring back the recent runs; goals come from the profile",
-                "mb": True,
+                "id": "phone",
+                "icon": "smartphone",
+                "label": "Phone",
+                "kind": "device",
+                "at": [640, 380],
+                "size": 150,
+                "tint": "#c6f432",
+                "ink": "#14201a",
+                "labelAt": "left",
+                "labelColor": "#e4f7c4",
             },
             {
-                "t": "Coach",
-                "d": "code counts the fades from the splits; the model writes the other cues, citing runs",
+                "id": "glasses",
+                "icon": "glasses",
+                "label": "Glasses",
+                "kind": "device",
+                "at": [640, 720],
+                "size": 150,
+                "tint": "#c6f432",
+                "ink": "#14201a",
+                "labelAt": "right",
+                "labelColor": "#e4f7c4",
             },
             {
-                "t": "Glasses and phone",
-                "d": "the cue fires in the lens at its km; the finished run is written back",
+                "id": "mb",
+                "kind": "membase",
+                "base": "local",
+                "tab": "Local engine, inside Pacenote",
+                "folder": "Jamie's folder",
+                "box": [940, 250, 850, 640],
+                "slots": [
+                    {
+                        "id": "runs",
+                        "label": "Jamie's runs",
+                        "icon": "activity",
+                        "facts": [
+                            "Mon 12 Oct · faded after km 7",
+                            "Tue 6 Oct · faded after km 7",
+                            "Wed 30 Sep · faded after km 7",
+                        ],
+                    }
+                ],
             },
         ],
-        "foot": "The next brief recalls today's run like any other, so the coach's picture of Jamie changes with each run.",
+        "beats": [
+            {
+                "say": "Before the run, the brief reads past runs",
+                "membase": "recall",
+                "hit": 0,
+                "flows": [
+                    {
+                        "from": "phone",
+                        "to": "mb",
+                        "token": {"label": "recent runs", "icon": "search"},
+                    },
+                    {"from": "mb", "to": "phone", "token": "all 5 faded"},
+                ],
+            },
+            {
+                "say": "At km 6.5, a cue in the glasses",
+                "flows": [
+                    {
+                        "from": "phone",
+                        "to": "glasses",
+                        "token": {"label": "the cue", "icon": "activity"},
+                    },
+                    {"from": "glasses", "to": "jamie", "token": "hold steady"},
+                ],
+            },
+            {
+                "say": "Today's run is saved, dated today",
+                "membase": "learn",
+                "facts": ["Today · held after km 7"],
+                "flows": [
+                    {
+                        "from": "phone",
+                        "to": "mb",
+                        "token": {"label": "today's run", "icon": "file-text"},
+                    }
+                ],
+            },
+        ],
     },
 }
 SEED = ["17-run-coach-hud/seed.py"]

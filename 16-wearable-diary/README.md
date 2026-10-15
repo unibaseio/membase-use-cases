@@ -21,9 +21,9 @@ recorded, and that needs the local engine (`demokit.dated`).
 
 ## Video
 
-https://github.com/user-attachments/assets/b5b698eb-2aa7-48b6-affd-1b0e71b64f9a
+https://github.com/user-attachments/assets/3d542882-39dd-4b0a-8d37-8774f3a3ee3d
 
-62 s · local engine and speech-to-text. After a card that shows how the app and Membase fit together:
+66 s · local engine and speech-to-text. After a short explainer of how the app and Membase fit together:
 
 1. **A day on the pendant.** Earshot, with nothing from today yet. **Sync from the pendant**
    brings in four clips. Each card fills in as its clip is transcribed, split by speaker

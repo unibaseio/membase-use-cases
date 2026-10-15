@@ -24,9 +24,9 @@ caseworker) holding both kinds of record in one local store.
 
 ## Video
 
-https://github.com/user-attachments/assets/3fb5c8f6-ccaf-4519-828f-2f5ca88dc5cf
+https://github.com/user-attachments/assets/d81d8124-bd24-43de-804d-63c5abb89611
 
-56 s · local engine, one operator's store. After a card that shows how the app and Membase fit together:
+59 s · local engine, one operator's store. After a short explainer of how the app and Membase fit together:
 
 1. **What Callum remembers.** The notice pinned across the desk: every file is synthetic, this is not a tracing service, a person decides. Then Callum's file, in his own words, and the fire engine he remembers.
 2. **Pull the family files that could fit:** six searches of the family files, the top five scored. F-01 comes first at 90, on an index card.

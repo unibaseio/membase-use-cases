@@ -1,4 +1,4 @@
-"""The study buddy video, on hosted Membase. After the architecture card: Cue, a flashcard app
+"""The study buddy video, on hosted Membase. After the explainer: Cue, a flashcard app
 for BIO 110. A deck for the Cellular respiration lecture is written from passages Membase
 recalls from the lecture notes, one card at a time. Two cards are missed: each flips to the
 lecture line it came from, with the student's answer struck through in the margin, and goes to
@@ -22,31 +22,87 @@ META = {
     "base": "hosted",
     "port": 8703,
     "banner_from_recording": True,
-    "arch": {
-        "kick": "How it works",
-        "title": "One Membase memory holds the course and your mistakes",
-        "nodes": [
+    "line": "Cue deals cards from the lecture notes, then the ones you missed.",
+    "intro_at": ["A review deck from the pile", 80.0],  # a review card: "last time you said"
+    "explain": {
+        "title": "Cue keeps your mistakes in Membase",
+        "actors": [
+            {"id": "you", "icon": "user", "label": "You", "kind": "user", "at": [250, 560]},
             {
-                "t": "Cue, the flashcard app",
-                "d": "Membase SDK with a developer key for the Study memory; a model writes and grades the cards",
+                "id": "cue",
+                "icon": "layers",
+                "label": "Cue",
+                "kind": "app",
+                "at": [660, 560],
+                "size": 200,
+                "labelAt": "inside",
+                "tint": "#24584a",
+                "ink": "#fff",
             },
             {
-                "t": "Membase API",
-                "d": "the same tools as MCP: search, add, memories, profile",
-                "mb": True,
-            },
-            {
-                "t": "Your account's agent VM",
-                "d": "a write lands as a file; a learning run turns it into facts. Search is a recall turn over them",
-                "mb": True,
-            },
-            {
-                "t": "Study memory",
-                "d": "5 BIO 110 lecture notes + one note per session: each miss, each card learned",
-                "mb": True,
+                "id": "mb",
+                "kind": "membase",
+                "base": "hosted",
+                "key": "Developer key",
+                "box": [1080, 300, 700, 470],
+                "slots": [
+                    {
+                        "id": "study",
+                        "label": "Study memory",
+                        "icon": "graduation-cap",
+                        "facts": 2,
+                    }
+                ],
             },
         ],
-        "foot": "Cards come only from passages recalled from the notes. What you miss goes back into the same memory.",
+        "beats": [
+            {
+                "say": "Cards are written from the lecture notes",
+                "membase": "recall",
+                "hit": 0,
+                "flows": [
+                    {
+                        "from": "cue",
+                        "to": "mb",
+                        "token": {"label": "Lecture 3", "icon": "search"},
+                    },
+                    {"from": "mb", "to": "cue", "token": "passages"},
+                    {"from": "cue", "to": "you", "token": {"label": "3 cards", "icon": "layers"}},
+                ],
+            },
+            {
+                "say": "Your misses go in as one note",
+                "membase": "learn",
+                "facts": ["Missed: “matrix”", "Missed: “NADH”"],
+                "flows": [
+                    {"from": "you", "to": "cue", "token": {"label": "2 misses", "icon": "x"}},
+                    {
+                        "from": "cue",
+                        "to": "mb",
+                        "token": {"label": "session note", "icon": "file-text"},
+                    },
+                ],
+            },
+            {
+                "say": "Next session, the review deals those misses",
+                "membase": "recall",
+                "hit": 2,
+                "flows": [
+                    {
+                        "from": "cue",
+                        "to": "mb",
+                        "token": {"label": "my misses", "icon": "search"},
+                    },
+                    {"from": "mb", "to": "cue", "token": "2 misses"},
+                    {
+                        "from": "cue",
+                        "to": "you",
+                        "token": {"label": "review deck", "icon": "layers"},
+                        "result": "right this time",
+                    },
+                ],
+            },
+        ],
     },
 }
 SEED: list[str] = []

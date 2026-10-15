@@ -16,7 +16,7 @@ instead.
 
 https://github.com/user-attachments/assets/fe3475af-c4fb-40f5-bd5d-d5698fc62c9b
 
-51 s · hosted Membase. After a card that shows how the app and Membase fit together:
+51 s · hosted Membase. After a short explainer of how the app and Membase fit together:
 
 1. **The book is in memory.** *Doorways in Drumorty* (Lorna Moon, 1925) open at its title page in a reading app. Three of its six stories carry a green ribbon: the hosted Memory learned them, so the companion "has read" them.
 2. **Ask** *"How did Sandy MacNab die?"*

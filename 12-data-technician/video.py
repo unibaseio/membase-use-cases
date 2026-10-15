@@ -1,5 +1,5 @@
 """The data technician video, on the local engine. The page is Benchlog, a lab notebook. After the
-architecture card: the QC agent labels window T01 with tool calls and gets it wrong (a lone
+explainer: the QC agent labels window T01 with tool calls and gets it wrong (a lone
 outlier it calls a spike); Dr. Ito corrects it in one handwritten sentence, the lab's rule; the
 corrected run is ingested as agent memory and an SOP card (the skill) is filed in the binder;
 window T07, the same kind, is labelled with that SOP read first and comes out right; the
@@ -23,31 +23,78 @@ META = {
     "port": 8712,
     "path": f"?lab={LAB}",
     "banner_from_recording": True,
-    "arch": {
-        "kick": "How it works",
-        "title": "Agent memory: corrected runs become skills",
-        "nodes": [
+    "line": "One correction, with a reason, becomes a skill the agent reads first.",
+    "explain": {
+        "title": "Corrected runs become skills",
+        "actors": [
+            {"id": "ito", "icon": "user", "label": "Dr. Ito", "kind": "user", "at": [170, 560]},
             {
-                "t": "Technician agent",
-                "d": "a model with five tools that compute on the readings, then a label",
+                "id": "lab",
+                "icon": "flask-conical",
+                "label": "Benchlog",
+                "kind": "app",
+                "box": [360, 205, 1470, 725],
+                "tint": "#f4f1e8",
+                "ink": "#1f3a33",
             },
             {
-                "t": "agent_ingest",
-                "d": "the corrected run (tool calls, the scientist's reason, the reply) becomes a case",
-                "mb": True,
+                "id": "agent",
+                "icon": "bot",
+                "label": "QC agent",
+                "kind": "agent",
+                "at": [640, 540],
+                "size": 170,
+                "tint": "#1f3a33",
+                "ink": "#fff",
             },
             {
-                "t": "Skills",
-                "d": "cases fold into a reusable procedure with decision rules",
-                "mb": True,
-            },
-            {
-                "t": "agent_search",
-                "d": "before every window, the closest skill and cases go into the agent's prompt",
-                "mb": True,
+                "id": "mb",
+                "kind": "membase",
+                "base": "local",
+                "tab": "Local engine, inside Benchlog",
+                "folder": "This lab's folder",
+                "box": [940, 290, 850, 520],
+                "slots": [{"id": "lab", "label": "Agent memory", "icon": "bot"}],
             },
         ],
-        "foot": "On the local engine, in process: one directory per lab. Held-out windows are never taught.",
+        "beats": [
+            {
+                "say": "Dr. Ito corrects one label, and says why",
+                "flows": [
+                    {"from": "agent", "to": "ito", "token": {"label": "T01: spike", "icon": "x"}},
+                    {
+                        "from": "ito",
+                        "to": "agent",
+                        "token": {"label": "only z ≥ 8", "icon": "pen-line"},
+                    },
+                ],
+            },
+            {
+                "say": "The run becomes a case, then a skill",
+                "membase": "learn",
+                "facts": ["Case: T01, corrected", "Skill: SOP-01"],
+                "flows": [
+                    {
+                        "from": "agent",
+                        "to": "mb",
+                        "token": {"label": "the run", "icon": "file-text"},
+                    }
+                ],
+            },
+            {
+                "say": "On T07, it reads the skill first",
+                "membase": "recall",
+                "hit": 1,
+                "flows": [
+                    {
+                        "from": "agent",
+                        "to": "mb",
+                        "token": {"label": "T07's shape", "icon": "search"},
+                    },
+                    {"from": "mb", "to": "agent", "token": "SOP-01", "result": "T07: clean"},
+                ],
+            },
+        ],
     },
 }
 SEED: list[str] = []

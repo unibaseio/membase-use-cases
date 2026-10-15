@@ -14,9 +14,9 @@ tasting is dated by the day it was tasted, which needs the local engine.
 
 ## Video
 
-https://github.com/user-attachments/assets/4e7d1362-9378-4a89-a79c-f2497d50e3ad
+https://github.com/user-attachments/assets/5be70d9e-0792-4b1c-9f7e-06dc4854cdfc
 
-70 s · local engine. After a card that shows how the app and Membase fit together:
+75 s · local engine. After a short explainer of how the app and Membase fit together:
 
 1. **Sam adds tonight's wine.** Etna Rosso, Mount Etna, 2022, in his own words, rated 5 of 5. A wine label draws itself as he types. It lands at the top of the journal and as a dot on the palate map.
 2. **It joins five months of tastings.** Hovering two dots opens their journal pages: a Fleurie he loved, a Barossa Shiraz he rated 2 of 5. Seconds later the new entry says *remembered, for the sommelier*.

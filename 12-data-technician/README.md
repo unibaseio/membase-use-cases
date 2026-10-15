@@ -18,9 +18,9 @@ directory of its own; **New lab** starts with an empty memory.
 
 ## Video
 
-https://github.com/user-attachments/assets/2f793acd-c926-43f8-b104-aeccbdb0a21e
+https://github.com/user-attachments/assets/9422ec0e-c766-4079-a58e-ef8845d642c9
 
-64 s · local engine, agent memory. After a card that shows how the app and Membase fit together:
+67 s · local engine, agent memory. After a short explainer of how the app and Membase fit together:
 
 1. **The QC agent labels T01.** It calls its tools one at a time; each result is inked on the
    plot (the reading at z 6.1 is circled). It stamps the window *spike*. The lab's label is *clean*.

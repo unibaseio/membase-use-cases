@@ -12,9 +12,9 @@ instead.
 
 ## Video
 
-https://github.com/user-attachments/assets/42dfe50f-952c-4c9a-856e-aa89f62cd403
+https://github.com/user-attachments/assets/9ade94e4-a70a-4f99-947b-2e460dfdc279
 
-79 s · hosted Membase. After a card that shows how the app and Membase fit together:
+85 s · hosted Membase. After a short explainer of how the app and Membase fit together:
 
 1. **A deck from the lecture notes.** The *Cellular respiration* deck is dealt from passages
    Membase recalls: three cards. Two are missed: "mitochondrial matrix" for where glycolysis
