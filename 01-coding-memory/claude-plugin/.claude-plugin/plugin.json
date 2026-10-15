@@ -1,0 +1,9 @@
+{
+  "name": "membase-memory",
+  "description": "Automatic long-term memory for Claude Code: what you decided in past sessions comes back on its own, and each session is saved to Membase when it ends.",
+  "version": "0.1.0",
+  "author": { "name": "Unibase", "url": "https://app.membase.ai" },
+  "homepage": "https://app.membase.ai",
+  "license": "Apache-2.0",
+  "keywords": ["memory", "membase", "hooks", "mcp"]
+}

@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rin's Quest Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Almendra:ital,wght@0,400;0,700;1,400&family=Alegreya:ital,wght@0,400;0,500;0,700;1,400;1,500&family=Alegreya+SC:wght@500;700&display=swap">
+<style>
+  /* Rin's Quest Log: a cozy RPG quest log on a wooden desk. The day's quest board on the left,
+     the chronicle of past days on the right. Memory shows the way a game would: the scribe
+     turns to past days in the chronicle and leaves a note on the quest it rewrote. */
+  :root {
+    --wood: #3a2619; --wood-2: #4a3121; --wood-3: #2b1b11;
+    --parch: #f3e6c6; --parch-2: #ead9b0; --parch-edge: #c9ad78;
+    --ink: #33241a; --ink-2: #6b5440; --ink-3: #9a8162;
+    --red: #a53a2a; --green: #4c7a35; --gold: #d9a531; --gold-2: #f2cf6b; --blue: #3c5d7d;
+    --body: #b5492f; --mind: #6a4f99; --work: #3a6c8c; --home: #4f7d3d; --social: #b7832a;
+    --title: "Almendra", "Iowan Old Style", Georgia, serif;
+    --text: "Alegreya", Georgia, serif;
+    --sc: "Alegreya SC", Georgia, serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { color: var(--ink); font-family: var(--text); font-size: 16px; -webkit-font-smoothing: antialiased; overflow: hidden;
+    background-color: var(--wood);
+    background-image:
+      repeating-linear-gradient(90deg, rgba(0,0,0,.08) 0 2px, transparent 2px 9px, rgba(255,220,170,.03) 9px 11px, transparent 11px 23px),
+      repeating-linear-gradient(90deg, transparent 0 238px, rgba(0,0,0,.35) 238px 240px),
+      radial-gradient(ellipse at 30% 20%, rgba(255,200,140,.08), transparent 60%),
+      linear-gradient(180deg, var(--wood-2), var(--wood) 40%, var(--wood-3)); }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  textarea, input { font: inherit; color: inherit; }
+  svg { display: block; }
+  [hidden] { display: none !important; }
+
+  /* ---- the hero bar ------------------------------------------------------------------------- */
+  .hud { height: 84px; display: flex; align-items: center; gap: 18px; padding: 0 30px; color: #f6e7c4; }
+  .portrait { width: 60px; height: 60px; border-radius: 50%; background: #e9d4a6; box-shadow: 0 0 0 3px var(--gold), 0 0 0 5px #5a3a1e, 0 4px 10px rgba(0,0,0,.5); overflow: hidden; flex: none; }
+  .who b { display: block; font: 700 25px/1 var(--title); letter-spacing: .01em; }
+  .who span { display: block; font: italic 15px/1.3 var(--text); color: #d8c29a; margin-top: 4px; }
+  .xp { width: 300px; margin-left: 14px; }
+  .xp .row { display: flex; justify-content: space-between; font: 500 14px var(--sc); color: #e8d3a6; letter-spacing: .02em; }
+  .xp .row b { color: var(--gold-2); }
+  .bar { position: relative; height: 14px; margin-top: 6px; border-radius: 8px; background: #241710; box-shadow: inset 0 1px 3px rgba(0,0,0,.7), 0 0 0 1.5px #6b4a28; overflow: hidden; }
+  .bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 8px;
+    background: linear-gradient(180deg, #ffe08a, var(--gold) 55%, #b07d1c); transition: width 1.1s cubic-bezier(.3,.7,.2,1); }
+  .bar i::after { content: ""; position: absolute; left: 6px; right: 6px; top: 2px; height: 3px; border-radius: 3px; background: rgba(255,255,255,.45); }
+  .gain { position: absolute; font: 700 22px var(--title); color: var(--gold-2); text-shadow: 0 2px 6px rgba(0,0,0,.6); pointer-events: none; animation: gain 1.8s ease-out forwards; z-index: 9; }
+  @keyframes gain { from { opacity: 0; transform: translateY(8px); } 15% { opacity: 1; } to { opacity: 0; transform: translateY(-36px); } }
+  .streak { display: flex; align-items: center; gap: 8px; font: 500 15px var(--sc); color: #e8d3a6; margin-left: 10px; }
+  .streak svg { color: #f09a3e; }
+  .logo { margin-left: auto; text-align: right; }
+  .logo b { display: block; font: 700 31px/1 var(--title); color: #f6e7c4; text-shadow: 0 2px 0 rgba(0,0,0,.4); }
+  .logo span { display: block; font: italic 14px/1.3 var(--text); color: #c9b088; margin-top: 3px; }
+
+  /* ---- the two parchments ----------------------------------------------------------------------- */
+  .desk { height: calc(100% - 84px); display: grid; grid-template-columns: minmax(0, 1fr) 470px; gap: 22px; padding: 4px 26px 22px; }
+  .parch { position: relative; min-height: 0; background-color: var(--parch); border-radius: 3px; color: var(--ink);
+    background-image: radial-gradient(ellipse at 50% 40%, rgba(255,250,235,.6), transparent 70%), radial-gradient(ellipse at 100% 100%, rgba(150,110,50,.18), transparent 50%),
+      radial-gradient(ellipse at 0% 0%, rgba(150,110,50,.14), transparent 45%);
+    box-shadow: inset 0 0 0 1px rgba(120, 85, 40, .35), inset 0 0 40px rgba(140, 100, 40, .28), 0 18px 30px -12px rgba(0,0,0,.6), 0 2px 0 #c2a26a; }
+  .parch::before { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: 3px; opacity: .6; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .38  0 0 0 0 .2  0 0 0 .09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+  .orn { color: var(--ink-3); }
+
+  /* the board */
+  .board { padding: 22px 34px 20px; display: flex; flex-direction: column; overflow: hidden; }
+  .dayhead { display: flex; align-items: center; gap: 14px; }
+  .dayhead h1 { margin: 0; font: 700 38px/1.05 var(--title); letter-spacing: .005em; }
+  .dayhead .nav { width: 34px; height: 34px; border-radius: 50%; color: var(--ink-2); display: grid; place-items: center; }
+  .dayhead .nav:hover { background: rgba(120,85,40,.12); }
+  .dayhead .sub { margin-left: auto; font: italic 16px var(--text); color: var(--ink-3); }
+  .rule { display: block; margin: 10px 0 14px; width: 100%; height: 12px; color: var(--ink-3); }
+
+  .planbox { display: flex; flex-direction: column; gap: 12px; }
+  .planbox .ask { font: italic 19px/1.4 var(--text); color: var(--ink-2); margin: 4px 0 0; }
+  #plan { width: 100%; height: 162px; resize: none; border: 0; outline: none; padding: 2px 4px; font: 400 22px/36px var(--text); color: #2a3550;
+    background: repeating-linear-gradient(transparent 0 35px, rgba(120, 85, 40, .28) 35px 36px); }
+  #plan::placeholder { color: #b39a74; font-style: italic; }
+  .seal { align-self: flex-start; display: inline-flex; align-items: center; gap: 10px; height: 50px; padding: 0 24px 0 8px; border-radius: 26px;
+    background: linear-gradient(180deg, #b8442f, #8f2c1e); color: #fbe9c9; font: 700 19px var(--title); letter-spacing: .02em;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.25), inset 0 -2px 0 rgba(0,0,0,.25), 0 4px 8px rgba(90,30,15,.35); }
+  .seal .wax { width: 36px; height: 36px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #d65a42, #8a2618); display: grid; place-items: center;
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.15); }
+  .seal:disabled { opacity: .7; cursor: progress; }
+  .seal:hover:not(:disabled) { filter: brightness(1.07); }
+
+  .plansum { display: flex; gap: 12px; align-items: baseline; padding: 0 2px 12px; border-bottom: 1px dashed rgba(120,85,40,.4); margin-bottom: 14px; }
+  .plansum b { font: 500 15px var(--sc); color: var(--ink-3); white-space: nowrap; letter-spacing: .02em; }
+  .plansum span { flex: 1; font: italic 17px/1.4 var(--text); color: var(--ink-2); }
+  .plansum button { font: italic 15px var(--text); color: var(--blue); }
+  .working { display: flex; align-items: center; gap: 12px; font: italic 19px var(--text); color: var(--ink-2); padding: 18px 2px; }
+  .working svg { animation: write 1.1s ease-in-out infinite; transform-origin: 20% 90%; color: var(--ink-2); }
+  @keyframes write { 0%, 100% { transform: rotate(-6deg) translateX(0); } 50% { transform: rotate(4deg) translateX(5px); } }
+  .err { font: 15px var(--text); color: var(--red); background: rgba(165,58,42,.08); border-radius: 3px; padding: 8px 12px; margin: 6px 0; }
+
+  /* the scribe's tally */
+  .tally { position: relative; margin: 0 0 16px; }
+  .tally h2 { margin: 0 0 8px; font: 700 21px var(--title); display: flex; align-items: center; gap: 9px; }
+  .tally h2 small { font: italic 400 15px var(--text); color: var(--ink-3); margin-left: 4px; }
+  .ev { padding: 12px 16px 12px; border-radius: 3px; background: rgba(255,250,235,.5); box-shadow: inset 0 0 0 1px rgba(120,85,40,.25); display: grid; gap: 8px; margin-bottom: 8px; }
+  .ev .item { font: 700 19px var(--text); }
+  .ev .line { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 16.5px; }
+  .ev .line > span:first-child { min-width: 152px; color: var(--ink-2); font-style: italic; }
+  .count { font: 700 16.5px var(--text); }
+  .count.bad { color: var(--red); } .count.good { color: var(--green); }
+  .ev .none { color: var(--ink-3); font-style: italic; font-size: 15px; }
+  .chip-d { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px 2px 6px; border-radius: 3px; font: 700 14px var(--sc); letter-spacing: .02em; cursor: default;
+    border: 1.6px solid currentColor; transform: rotate(-2deg); background: rgba(255,250,235,.6); }
+  .chip-d:nth-child(odd) { transform: rotate(1.5deg); }
+  .chip-d.skipped { color: var(--red); } .chip-d.done { color: var(--green); }
+  .chip-d:hover { background: rgba(255,240,200,.95); }
+  .others summary { cursor: pointer; font: italic 15px var(--text); color: var(--ink-3); padding: 2px 2px 6px; list-style: none; }
+  .others summary::before { content: "❧ "; color: var(--ink-3); }
+
+  /* the quests */
+  .qhead { margin: 0 0 10px; font: 700 21px var(--title); display: flex; align-items: center; gap: 9px; }
+  .quests { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+  .quest { position: relative; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; gap: 0 12px; align-items: center; padding: 10px 12px 10px 10px;
+    border-radius: 4px; background: #f8eed5; box-shadow: inset 0 0 0 1px rgba(120,85,40,.3), 0 2px 0 rgba(120,85,40,.25); overflow: hidden; }
+  .quest .ico { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; color: #fbf1da; background: var(--c);
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.2), 0 0 0 1.5px rgba(60,40,20,.35); }
+  .quest .t { font: 700 17.5px/1.25 var(--text); }
+  .quest .meta { display: flex; align-items: center; gap: 10px; margin-top: 3px; font: italic 14px var(--text); color: var(--ink-2); }
+  .quest .meta span { display: inline-flex; align-items: center; gap: 4px; }
+  .pips { display: inline-flex; gap: 2px; color: var(--gold); }
+  .quest .act { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .coin { display: inline-flex; align-items: center; gap: 5px; font: 700 15px var(--sc); color: #8a6214; }
+  .coin i { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe9a0, var(--gold) 60%, #a77412); box-shadow: 0 0 0 1px #8a6214; }
+  .btns { display: flex; gap: 6px; }
+  .btns button { height: 28px; padding: 0 11px; border-radius: 3px; font: 700 14px var(--sc); letter-spacing: .02em; }
+  .btns .done { background: var(--green); color: #f4ead0; }
+  .btns .skip { color: var(--ink-2); box-shadow: inset 0 0 0 1px rgba(120,85,40,.45); }
+  .btns button:disabled { opacity: .6; cursor: progress; }
+  .stamp { position: absolute; right: 16px; top: 50%; transform: translateY(-50%) rotate(-12deg); padding: 3px 10px 1px; border: 3px double currentColor; border-radius: 4px;
+    font: 700 21px var(--sc); letter-spacing: .08em; opacity: .85; animation: stamp .4s cubic-bezier(.2,1.6,.4,1) both; pointer-events: none; }
+  .stamp.done { color: var(--green); } .stamp.skipped { color: var(--red); }
+  @keyframes stamp { from { opacity: 0; transform: translateY(-50%) rotate(-12deg) scale(2); } }
+  .quest.closed .act { visibility: hidden; }
+  .quest.done .t, .quest.skipped .t { color: var(--ink-2); }
+  /* the rewritten quest spans the board */
+  .quest.adapted { grid-column: 1 / -1; grid-template-columns: 52px minmax(0, 1fr) auto; padding: 14px 16px 14px 14px; background: #fbf3dd;
+    box-shadow: inset 0 0 0 1.5px var(--gold), inset 0 0 0 4px #fbf3dd, inset 0 0 0 5px rgba(201,154,46,.5), 0 3px 0 rgba(120,85,40,.3); }
+  .quest.adapted .ico { width: 52px; height: 52px; }
+  .quest.adapted .t { font-size: 22px; }
+  .quest.adapted .act { margin: 22px 26px 0 0; align-self: start; }
+  .quest.adapted .stamp { top: 26px; right: 150px; transform: rotate(-10deg); }
+  @keyframes stamp-a { from { opacity: 0; transform: rotate(-10deg) scale(2); } }
+  .quest.adapted .stamp { animation-name: stamp-a; }
+  .quest .was { font: italic 16px var(--text); color: var(--red); margin-bottom: 2px; }
+  .quest .was s { text-decoration-thickness: 1.5px; }
+  .ribbon { position: absolute; top: 12px; right: -34px; width: 140px; transform: rotate(35deg); background: var(--gold); color: #3b2a0f; text-align: center;
+    font: 700 12.5px/22px var(--sc); letter-spacing: .08em; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+  .scribe { grid-column: 2 / -1; margin-top: 12px; position: relative; padding: 11px 16px 12px 46px; background: #fffaf0; border-radius: 2px; transform: rotate(-.4deg);
+    box-shadow: 0 2px 6px rgba(90,60,20,.22), inset 0 0 0 1px rgba(120,85,40,.18); }
+  .scribe .quill { position: absolute; left: 13px; top: 12px; color: var(--ink-2); }
+  .scribe .said { font: italic 500 18px/1.35 var(--title); color: #2a3550; }
+  .scribe .why { margin-top: 6px; font: 15.5px/1.5 var(--text); color: var(--ink-2); }
+  .scribe .why b { font-weight: 700; }
+
+  /* ---- the chronicle ------------------------------------------------------------------------------ */
+  .chron { padding: 20px 22px 14px; display: flex; flex-direction: column; overflow: hidden; }
+  .chron h2 { margin: 0; font: 700 28px/1.1 var(--title); text-align: center; }
+  .chron .cs { text-align: center; font: italic 15.5px var(--text); color: var(--ink-3); margin-top: 3px; min-height: 22px; }
+  .chron .cs .pen { display: inline-flex; align-items: center; gap: 6px; }
+  .days { list-style: none; margin: 4px 0 0; padding: 0; flex: 1; min-height: 0; overflow: hidden; }
+  .cday { display: grid; grid-template-columns: 84px auto minmax(0, 1fr); align-items: center; gap: 0 10px; height: 37px; padding: 0 8px; border-bottom: 1px dotted rgba(120,85,40,.35);
+    transition: opacity .5s, background .4s; position: relative; }
+  .cday .dl { font: 500 16px var(--text); white-space: nowrap; }
+  .cday .dl b { font: 700 15px var(--sc); color: var(--ink-2); margin-right: 3px; letter-spacing: .02em; }
+  .cday .marks { display: flex; gap: 4px; }
+  .mark { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; position: relative; color: #fbf1da; background: var(--c); opacity: .9; }
+  .mark.skipped { background: transparent; color: var(--c); box-shadow: inset 0 0 0 1.5px var(--c); opacity: .75; }
+  .mark.skipped::after { content: ""; position: absolute; inset: 9px -1px; background: var(--red); transform: rotate(-35deg); border-radius: 2px; height: 2px; top: 10px; }
+  .cday .mnote { font: italic 14.5px/1.25 var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); }
+  .cday .mnote.bad { color: var(--red); } .cday .mnote.good { color: var(--green); }
+  .reading .cday:not(.turned) { opacity: .32; }
+  .cday.turned::before { content: ""; position: absolute; left: -10px; top: 8px; width: 7px; height: 24px; background: var(--red); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 75%, 0 100%); opacity: .85; }
+  .cday.same { background: rgba(255,248,225,.55); }
+  .cday.hot { background: rgba(242,207,107,.4); box-shadow: inset 0 0 0 1.5px var(--gold); }
+  .cday.fresh { animation: inkin 1.2s ease-out; background: rgba(242,207,107,.28); }
+  .reading .cday.fresh { opacity: 1; }
+  @keyframes inkin { from { background: rgba(242,207,107,.6); } }
+  .chron .foot { font: 12.5px var(--text); color: var(--ink-3); text-align: center; padding-top: 8px; }
+
+  @media (max-width: 1360px) { body { overflow: auto; } .desk { grid-template-columns: 1fr; height: auto; } }
+</style>
+</head>
+<body>
+<header class="hud">
+  <div class="portrait" aria-hidden="true">
+    <!-- Rin: dark bob with a fringe, round glasses, a green scarf -->
+    <svg viewBox="0 0 60 60" width="60" height="60">
+      <rect width="60" height="60" fill="#e9d4a6"/>
+      <path d="M8 62c2-12 10-17 22-17s20 5 22 17z" fill="#3f6b45"/>
+      <path d="M21 46c3 4 15 4 18 0l-1 6H22z" fill="#5a8a5c"/>
+      <ellipse cx="30" cy="29" rx="12.5" ry="14" fill="#f2c9a0"/>
+      <path d="M16 33c-2-14 4-22 14-22s16 8 14 22c-1-5-2-8-4-10-5 2-12 2-19-2-2 3-4 7-5 12z" fill="#2c2420"/>
+      <path d="M16 33c0 6 1 9 3 11l1-12zM44 33c0 6-1 9-3 11l-1-12z" fill="#2c2420"/>
+      <circle cx="25" cy="31" r="3.6" fill="none" stroke="#5a3a1e" stroke-width="1.2"/><circle cx="35" cy="31" r="3.6" fill="none" stroke="#5a3a1e" stroke-width="1.2"/>
+      <path d="M28.6 31h2.8" stroke="#5a3a1e" stroke-width="1.2"/>
+      <circle cx="25" cy="31.5" r="1" fill="#2c2420"/><circle cx="35" cy="31.5" r="1" fill="#2c2420"/>
+      <path d="M27 38.5c2 1.4 4 1.4 6 0" stroke="#a0573d" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+      <circle cx="21.5" cy="36" r="2" fill="#f0a98a" opacity=".6"/><circle cx="38.5" cy="36" r="2" fill="#f0a98a" opacity=".6"/>
+    </svg>
+  </div>
+  <div class="who"><b>Rin</b><span id="title">Planner of Days</span></div>
+  <div class="xp" id="xp">
+    <div class="row"><span>Level <b id="lvl">·</b></span><span id="xpnum"></span></div>
+    <div class="bar" id="xpbar"><i></i></div>
+  </div>
+  <div class="streak" id="streak"></div>
+  <div class="logo"><b>Quest Log</b><span>every day an adventure, every quest remembered</span></div>
+</header>
+
+<main class="desk">
+  <section class="parch board" id="stage">
+    <div class="dayhead">
+      <button class="nav" id="prevday" type="button" title="The day before"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <h1 id="dayname">&nbsp;</h1>
+      <button class="nav" id="nextday" type="button" title="The day after"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button>
+      <span class="sub" id="daysub"></span>
+      <input id="day" type="hidden">
+    </div>
+    <svg class="rule" viewBox="0 0 800 12" preserveAspectRatio="none" aria-hidden="true"><path d="M0 6h370M430 6h370" stroke="currentColor" stroke-width="1"/><path d="M400 1l6 5-6 5-6-5z M384 6a3 3 0 1 0 0 .1M416 6a3 3 0 1 0 0 .1" fill="currentColor"/></svg>
+
+    <form class="planbox" id="planbox" autocomplete="off">
+      <p class="ask">Tell the scribe your plan for the day, the way you’d say it.</p>
+      <textarea id="plan" placeholder="Gym at 7:00 before work, finish the slide deck, call Jun, read before bed…"></textarea>
+      <button class="seal" id="go" type="submit"><span class="wax"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbe9c9" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l9-9M13 11c2-6 6-8 8-8-1 3-2 7-8 8zM10 14c-2 0-3 1-3 3"/></svg></span><span id="golabel">Draw up the quests</span></button>
+    </form>
+
+    <div id="folded" hidden></div>
+    <div id="err"></div>
+    <div id="evidence" class="tally" hidden></div>
+    <div id="working" class="working" hidden></div>
+    <div id="questcard" hidden>
+      <h2 class="qhead" id="qhead">Today’s quests</h2>
+      <div id="quests" class="quests"></div>
+    </div>
+  </section>
+
+  <aside class="parch chron" id="rail">
+    <h2>The Chronicle</h2>
+    <div class="cs" id="chronstat">&nbsp;</div>
+    <svg class="rule" viewBox="0 0 420 12" preserveAspectRatio="none" aria-hidden="true" style="margin:8px 0 2px"><path d="M0 6h190M230 6h190" stroke="currentColor" stroke-width="1"/><path d="M210 1l6 5-6 5-6-5z" fill="currentColor"/></svg>
+    <ol class="days" id="recalled"></ol>
+    <div class="foot" id="foot"></div>
+  </aside>
+</main>
+
+<script type="module">
+  import { $, el, api, stream } from "/kit/kit.js";
+
+  const icon = (markup, w = 18, h = 18, sw = 1.8) => {
+    const t = document.createElement("template");
+    t.innerHTML = `<svg width="${w}" height="${h}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${markup}</svg>`;
+    return t.content.firstChild;
+  };
+  // drawn for this log: a quest's kind, and the time of day it is for
+  const KIND = {
+    body: '<path d="M6.5 7.5v9M17.5 7.5v9M3.5 10v4M20.5 10v4M6.5 12h11"/>',
+    mind: '<path d="M3 6.5c2.5-1.2 5.5-1.2 9 .5 3.5-1.7 6.5-1.7 9-.5V19c-2.5-1.2-5.5-1.2-9 .5-3.5-1.7-6.5-1.7-9-.5z"/><path d="M12 7v12.5"/>',
+    work: '<path d="M8 4h10a2 2 0 0 1 2 2v1h-4M8 4a2 2 0 0 0-2 2v12a2 2 0 0 1-2 2h11a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2"/><path d="M9.5 9.5h5M9.5 13h5"/>',
+    home: '<path d="M4 11.5l8-7 8 7"/><path d="M6.5 9.5V19.5h11V9.5"/><path d="M10.5 19.5v-5h3v5"/>',
+    social: '<path d="M3.5 5.5h11v7H8.5l-3.5 3v-3H3.5z"/><path d="M14.5 9.5h6v7h-1.5v3l-3-3h-4v-2"/>',
+  };
+  const SLOT = {
+    morning: '<path d="M3 18h18M6.5 18a5.5 5.5 0 0 1 11 0M12 7v3M5.2 10.7l2 2M18.8 10.7l-2 2"/>',
+    midday: '<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/>',
+    afternoon: '<circle cx="12" cy="13" r="4"/><path d="M3 20h18M12 4v2M5 7l1.4 1.4M19 7l-1.4 1.4"/>',
+    evening: '<path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/>',
+    anytime: '<path d="M7 3.5h10M7 20.5h10M8 3.5c0 4.5 8 4.5 8 8.5s-8 4-8 8.5M16 3.5c0 4.5-8 4.5-8 8.5s8 4 8 8.5"/>',
+  };
+  const QUILL = (s = 20) => icon('<path d="M4 20l9-9"/><path d="M20.5 3.5c-6 0-11 4-11.5 10.5l1.5 1.5C17 15 21 10 20.5 3.5z"/><path d="M9 14l4.5-4.5"/>', s, s, 1.6);
+  const FLAME = () => icon('<path d="M12 21c-4 0-6.5-2.6-6.5-6 0-4 3.5-6 4-10 3 2 4 4.5 4 6.5 1-1 1.5-2.2 1.6-3.5 2 2 3.4 4.4 3.4 7 0 3.4-2.5 6-6.5 6z" fill="currentColor" stroke="none"/>', 20, 20);
+  const PIP = () => icon('<path d="M12 3.5l2.4 5.6 6 .5-4.6 4 1.4 5.9L12 16.4 6.8 19.5l1.4-5.9-4.6-4 6-.5z" fill="currentColor" stroke="none"/>', 13, 13);
+  const DIFF = { easy: 1, normal: 2, hard: 3 };
+  const SLOTWORD = { morning: "morning", midday: "midday", afternoon: "afternoon", evening: "evening", anytime: "any time" };
+
+  const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const D = (d) => new Date(d + "T12:00:00");
+  const longDay = (d) => D(d).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  const shortDay = (d) => `${D(d).toLocaleDateString("en-GB", { weekday: "short" })} ${D(d).getDate()} ${MON[D(d).getMonth()]}`;
+  const weekdayOf = (d) => D(d).toLocaleDateString("en-GB", { weekday: "long" });
+  const addDays = (d, n) => { const x = D(d); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
+
+  let S = null, poll = null, passages = [], lastXp = null;
+  // what the chronicle shows besides the days: those memory gave back, the planned weekday, and
+  // a margin note per day from the scribe's tally (the quote memory gave back)
+  const chron = { turned: new Set(), weekday: null, notes: new Map(), fresh: null };
+
+  // ---- the hero bar and the chronicle -------------------------------------------------------------
+  async function load() {
+    try {
+      S = await api("/api/state");
+      if (!$("#day").value) setDay(S.plan_day);
+      const st = S.stats;
+      $("#lvl").textContent = st.level;
+      $("#xpnum").replaceChildren(el("b", {}, st.xp), " XP · ", `${st.level_size - st.level_xp} to level ${st.level + 1}`);
+      $("#xpbar i").style.width = `${(st.level_xp / st.level_size) * 100}%`;
+      if (lastXp !== null && st.xp > lastXp) gain(st.xp - lastXp);
+      lastXp = st.xp;
+      $("#streak").replaceChildren(...(st.streak ? [FLAME(), `${st.streak}-day streak`] : []));
+      $("#chronstat").replaceChildren(S.pending
+        ? el("span", { class: "pen" }, QUILL(16), "the scribe is writing it down…")
+        : st.days_in_memory ? `${st.days_in_memory} days remembered · ${shortDay(st.first)} – ${shortDay(st.last)}` : "No days yet: run 10-quest-log/seed.py");
+      $("#foot").replaceChildren(S.error ? el("div", { class: "err" }, S.error) : el("span", { title: S.directory }, "Rin’s days are remembered by Membase, on this computer."));
+      renderChronicle();
+      clearTimeout(poll);
+      if (S.pending) poll = setTimeout(load, 1000);
+    } catch (e) {
+      $("#err").replaceChildren(el("div", { class: "err" }, e.message || String(e)));
+    }
+  }
+  function gain(n) {
+    const b = $("#xpbar").getBoundingClientRect();
+    const g = el("div", { class: "gain", style: `left:${b.right - 40}px;top:${b.top - 8}px` }, `+${n} XP`);
+    document.body.append(g);
+    setTimeout(() => g.remove(), 1900);
+  }
+
+  function renderChronicle() {
+    const days = Object.keys(S.days).filter((d) => S.days[d].quests.some((q) => q.status !== "open")).sort().reverse();
+    $("#rail").classList.toggle("reading", chron.turned.size > 0);
+    $("#recalled").replaceChildren(...days.map((d) => {
+      const qs = S.days[d].quests.filter((q) => q.status !== "open");
+      const note = chron.notes.get(d);
+      return el("li", {
+        class: ["cday", chron.turned.has(d) ? "turned" : "", chron.weekday && weekdayOf(d) === chron.weekday && chron.turned.has(d) ? "same" : "", chron.fresh === d ? "fresh" : ""].join(" ").trim(),
+        "data-day": d, title: passages.filter((p) => p.day === d).map((p) => p.content).join("\n\n") || null,
+      },
+        el("span", { class: "dl" }, el("b", {}, D(d).toLocaleDateString("en-GB", { weekday: "short" })), `${D(d).getDate()} ${MON[D(d).getMonth()]}`),
+        el("span", { class: "marks" }, ...qs.map((q) => {
+          const m = el("span", { class: `mark ${q.status}`, style: `--c: var(--${q.category})`, title: `${q.title}: ${q.status}` });
+          m.append(icon(KIND[q.category] || KIND.work, 13, 13, 2.2));
+          return m;
+        })),
+        note ? el("span", { class: `mnote ${note.cls}` }, note.text) : el("span"));
+    }));
+  }
+  function light(day, on) {
+    for (const n of document.querySelectorAll("#recalled .cday")) n.classList.toggle("hot", on && n.dataset.day === day);
+  }
+
+  // ---- the day being planned ---------------------------------------------------------------------
+  function setDay(d) {
+    $("#day").value = d;
+    $("#dayname").textContent = longDay(d);
+    const off = Math.round((D(d) - D(S.today)) / 864e5);
+    $("#daysub").textContent = off === 0 ? "today" : off === 1 ? "tomorrow" : off > 1 ? `in ${off} days` : `${-off} days ago`;
+    $("#qhead").textContent = `${weekdayOf(d)}’s quests`;
+  }
+  $("#prevday").addEventListener("click", () => setDay(addDays($("#day").value, -1)));
+  $("#nextday").addEventListener("click", () => setDay(addDays($("#day").value, 1)));
+
+  // ---- the scribe's tally: per plan item, counted by the app, not the model ------------------------
+  const rin = (t) => t.replace(/\b[Tt]he user's\b/g, "Rin's").replace(/\b[Tt]he user\b/g, "Rin").replace(/^(\W*)They\b/, "$1Rin");
+  const stampWord = (r) => (r.status === "skipped" ? "✗" : "✓");
+  const chip = (r) => el("span", { class: `chip-d ${r.status}`, "data-day": r.day, title: `“${r.quote}”`,
+    onmouseenter: () => light(r.day, true), onmouseleave: () => light(null, false) }, stampWord(r), " ", shortDay(r.day));
+  const said = (h) => {
+    const many = h.consecutive && h.skipped === h.total;
+    return !h.skipped ? `done ${h.done} of ${h.total}` : many ? `skipped on each of the last ${h.total}` : `skipped ${h.skipped} of ${h.total}`;
+  };
+  function evRow(e, wd) {
+    const h = e.habit, w = e.works;
+    return el("div", { class: "ev" + (e.adapt ? " flag" : ""), id: `ev-${e.index}` },
+      el("div", { class: "item" }, e.item),
+      h ? el("div", { class: "line" }, el("span", {}, `${h.where}:`), el("span", { class: "count " + (h.skipped > h.done ? "bad" : "good") }, said(h)), ...h.days.map(chip))
+        : el("div", { class: "none" }, `Nothing on a past ${wd} in the chronicle.`),
+      w ? el("div", { class: "line" }, el("span", {}, `${w.where}:`), el("span", { class: "count good" }, `done ${w.done} of ${w.total}`), ...w.days.map(chip)) : null);
+  }
+  function renderEvidence(items, wd, folded) {
+    const box = $("#evidence");
+    box.hidden = false;
+    const flagged = items.filter((e) => e.adapt), rest = items.filter((e) => !e.adapt);
+    const head = el("h2", {}, QUILL(22), "The scribe’s tally", el("small", {}, `from ${passages.length} days in the chronicle`));
+    if (!folded) { box.replaceChildren(head, ...flagged.map((e) => evRow(e, wd)), ...rest.map((e) => evRow(e, wd))); return; }
+    // the quests are drawn up: the rows that changed nothing fold away, the rest move onto the quest
+    box.replaceChildren(head, ...flagged.map((e) => evRow(e, wd)),
+      rest.length ? el("details", { class: "others" }, el("summary", {}, `${rest.length} other quest${rest.length > 1 ? "s" : ""}: nothing in the chronicle says to change ${rest.length > 1 ? "them" : "it"}`), ...rest.map((e) => evRow(e, wd))) : null);
+  }
+
+  // ---- the quests ----------------------------------------------------------------------------------
+  function card(day, q, ev) {
+    const e = q.evidence !== null && q.evidence !== undefined ? ev[q.evidence] : null;
+    const close = async (status, button) => {
+      button.disabled = true;
+      try {
+        S = await api("/api/quest", { date: day, id: q.id, status });
+        chron.fresh = day;
+        chron.notes.set(day, { text: `${status === "done" ? "✓" : "✗"} ${q.title}`, cls: status === "done" ? "good" : "bad" });
+        renderQuests(day, S.days[day]);
+        await load();
+      } catch (err) { $("#err").replaceChildren(el("div", { class: "err" }, err.message || String(err))); button.disabled = false; }
+    };
+    const closed = q.status !== "open";
+    const node = el("div", { class: `quest ${q.status}${closed ? " closed" : ""}${e ? " adapted" : ""}`, style: `--c: var(--${q.category})`, "data-id": q.id },
+      el("div", { class: "ico" }, icon(KIND[q.category] || KIND.work, e ? 26 : 22, e ? 26 : 22, 1.9)),
+      el("div", {},
+        e ? el("div", { class: "was" }, "Planned: ", el("s", {}, q.planned)) : null,
+        el("div", { class: "t" }, q.title),
+        el("div", { class: "meta" },
+          el("span", {}, icon(SLOT[q.slot] || SLOT.anytime, 15, 15), SLOTWORD[q.slot] || q.slot),
+          el("span", { class: "pips", title: q.difficulty }, ...Array.from({ length: DIFF[q.difficulty] || 2 }, PIP)))),
+      el("div", { class: "act" },
+        el("span", { class: "coin" }, el("i"), `${q.xp} XP`),
+        el("div", { class: "btns" },
+          el("button", { class: "done", type: "button", onclick: (x) => close("done", x.currentTarget) }, "Done"),
+          el("button", { class: "skip", type: "button", onclick: (x) => close("skipped", x.currentTarget) }, "Skip"))),
+      e ? el("div", { class: "scribe", id: "scribe" }, el("span", { class: "quill" }, QUILL(22)),
+        el("div", { class: "said" }, q.change || "The scribe moved this quest."), why(e)) : null,
+      e ? el("div", { class: "ribbon" }, "Rewritten") : null,
+      closed ? el("div", { class: `stamp ${q.status}` }, q.status === "done" ? "Complete" : "Skipped") : null);
+    return node;
+  }
+  // the rewritten quest carries its evidence, so it still says why when the day is opened again
+  function why(e) {
+    const h = e.habit, w = e.works;
+    return el("div", { class: "why" }, `${h.where}: `, el("b", { style: "color:var(--red)" }, said(h)),
+      ` (${h.days.map((r) => shortDay(r.day)).join(", ")})`,
+      w ? el("span", {}, `. ${w.where}: `, el("b", { style: "color:var(--green)" }, `done ${w.done} of ${w.total}`)) : null, ".");
+  }
+  function renderQuests(day, d) {
+    $("#questcard").hidden = false;
+    $("#qhead").replaceChildren(icon('<path d="M12 3l2.5 5.5L20 9.3l-4 4 1 5.7-5-2.8-5 2.8 1-5.7-4-4 5.5-.8z"/>', 22, 22, 1.7), `${weekdayOf(day)}’s quests`);
+    const qs = [...d.quests].sort((a, b) => (b.evidence != null) - (a.evidence != null));
+    $("#quests").replaceChildren(...qs.map((q) => card(day, q, d.evidence || [])));
+  }
+
+  // ---- plan → recall → tally → quests -------------------------------------------------------------
+  function working(text) {
+    $("#working").hidden = !text;
+    if (text) $("#working").replaceChildren(QUILL(24), text);
+  }
+  $("#planbox").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const plan = $("#plan").value.trim(), day = $("#day").value;
+    if (!plan) return;
+    const wd = weekdayOf(day);
+    const button = $("#go");
+    button.disabled = true; $("#golabel").textContent = "The scribe is reading…";
+    $("#err").replaceChildren();
+    $("#evidence").hidden = true; $("#questcard").hidden = true;
+    chron.turned = new Set(); chron.notes = new Map(); chron.weekday = wd; chron.fresh = null; passages = [];
+    renderChronicle();
+    $("#planbox").hidden = true;
+    $("#folded").hidden = false;
+    $("#folded").replaceChildren(el("div", { class: "plansum", id: "plansum" }, el("b", {}, "The plan"), el("span", {}, plan),
+      el("button", { type: "button", onclick: () => { $("#planbox").hidden = false; $("#folded").hidden = true; } }, "change")));
+    working(`The scribe turns through the chronicle for past ${wd}s…`);
+    window.__plan = null;
+    try {
+      let ev = null;
+      await stream("/api/plan", { date: day, plan }, (m) => {
+        if (m.type === "waiting") working("The scribe is still writing the last entry…");
+        else if (m.type === "memories") {
+          passages = m.hits;
+          chron.turned = new Set(m.hits.map((h) => h.day));
+          const same = m.hits.filter((h) => h.weekday === wd).length;
+          $("#chronstat").textContent = m.hits.length ? `The scribe turned to ${chron.turned.size} days · ${same} ${same === 1 ? wd : wd + "s"}` : "Nothing in the chronicle bears on this plan.";
+          renderChronicle();
+          working(`Reading ${chron.turned.size} days for each quest, and counting…`);
+        } else if (m.type === "evidence") {
+          ev = m.items;
+          // each counted outcome leaves a margin note on its day: the words memory gave back
+          for (const it of ev.filter((x) => x.adapt)) {
+            for (const r of [...it.habit.days, ...(it.works?.days || [])]) chron.notes.set(r.day, { text: `${r.status === "skipped" ? "✗" : "✓"} ${rin(r.quote)}`, cls: r.status === "skipped" ? "bad" : "good" });
+          }
+          renderChronicle();
+          renderEvidence(ev, wd, false);
+          working("Drawing up the quests…");
+        } else if (m.type === "quests") {
+          working("");
+          renderEvidence(ev, wd, true);
+          S.days[m.date] = { plan: m.plan, quests: m.quests, evidence: m.evidence };
+          renderQuests(m.date, S.days[m.date]);
+          window.__plan = { date: m.date, weekday: wd, quests: m.quests, evidence: m.evidence };
+        }
+      });
+    } catch (err) {
+      working("");
+      $("#err").replaceChildren(el("div", { class: "err" }, err.message || String(err)));
+    } finally {
+      button.disabled = false; $("#golabel").textContent = "Draw up the quests";
+    }
+  });
+
+  await document.fonts.ready.catch(() => {});
+  load();
+</script>
+</body>
+</html>

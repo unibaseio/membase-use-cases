@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hearth · Margaret's day</title>
+<link rel="stylesheet" href="/static/fonts/fonts.css">
+<style>
+  /* Hearth: two devices on a kitchen table. Margaret's tablet is a day clock with three big
+     questions; Sofia's phone keeps the care log. Memory shows as "from Sofia's note" on the
+     tablet, and as a note crossed out and forgotten on the phone. */
+  :root {
+    --wall: #ece2d3; --wall-2: #e3d6c3; --wood: #a87a52; --wood-2: #8f6441;
+    --cream: #fbf5ea; --ink: #2a2017; --ink-2: #5d4f41; --ink-3: #85745f; --line: #e6d8c4;
+    --ember: #a8471f; --ember-soft: #fbe6d4; --sun: #e9a23b; --leaf: #2f6b4f;
+    --phone-bg: #f8f6f2; --p-ink: #1f1d1a; --p-ink-2: #5f5a52; --p-ink-3: #8f887d; --p-line: #ebe6dd;
+    --teal: #2c6b66; --teal-soft: #e2efec; --mark: #fff0b8;
+    --k-meds: #2f6b4f; --k-meal: #b07a1f; --k-visitor: #7a4d7a; --k-appointment: #a8471f; --k-note: #4f6570;
+    --big: "Hearth Figures", "Atkinson Hyperlegible Next", "Verdana", sans-serif;
+    --warm: "Fraunces", Georgia, serif;
+    --app: "Figtree", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font-family: var(--app); color: var(--p-ink); overflow: hidden; -webkit-font-smoothing: antialiased;
+    background:
+      linear-gradient(180deg, transparent 0 79%, var(--wood) 79%, var(--wood-2) 100%),
+      radial-gradient(ellipse 70% 60% at 30% 20%, #f6efe4 0%, transparent 70%),
+      linear-gradient(180deg, var(--wall) 0%, var(--wall-2) 79%); }
+  body::before { /* the grain of the table */
+    content: ""; position: fixed; left: 0; right: 0; top: 79%; bottom: 0; pointer-events: none; opacity: .35;
+    background-image: repeating-linear-gradient(176deg, rgba(60, 35, 15, .18) 0 1px, transparent 1px 9px),
+      repeating-linear-gradient(181deg, rgba(255, 230, 200, .12) 0 2px, transparent 2px 23px); }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  svg { display: block; }
+  [hidden] { display: none !important; }
+
+  .notice { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); white-space: nowrap; z-index: 2;
+    font: 500 13.5px/1 var(--app); color: var(--ink-2); background: rgba(255, 252, 246, .78); border-radius: 999px;
+    padding: 8px 16px 8px 12px; display: flex; gap: 8px; align-items: center; box-shadow: 0 0 0 1px rgba(120, 90, 60, .14); }
+  .notice svg { color: var(--ember); flex: none; }
+
+  .room { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 58px; padding: 44px 0 30px; }
+
+  /* ---- Margaret's tablet ------------------------------------------------------------------- */
+  .tablet { width: 880px; height: 624px; border-radius: 40px; padding: 22px; position: relative; flex: none;
+    background: linear-gradient(145deg, #3a332d, #231f1b); margin-top: 14px;
+    box-shadow: 0 0 0 1px #15120f, inset 0 0 0 2px rgba(255, 255, 255, .06), 0 40px 60px -28px rgba(60, 35, 10, .55), 0 6px 0 -2px #1a1714; }
+  .tablet::after { /* the camera */ content: ""; position: absolute; left: 50%; top: 9px; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: #0e0d0c; box-shadow: 0 0 0 1px #3d3631; }
+  .t-screen { width: 100%; height: 100%; border-radius: 20px; background: var(--cream); overflow: hidden; position: relative;
+    font-family: var(--big); color: var(--ink); padding: 26px 34px 28px; display: grid; grid-template-rows: auto auto 1fr; gap: 20px; }
+  .t-screen::before { content: ""; position: absolute; right: -120px; top: -160px; width: 420px; height: 420px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(233, 162, 59, .16), transparent 68%); pointer-events: none; }
+  .dayclock { display: grid; grid-template-columns: 92px 1fr auto; gap: 22px; align-items: center; position: relative; }
+  .dayclock .sky { width: 92px; height: 92px; }
+  .hello { font-size: 21px; color: var(--ink-2); }
+  .day { font-family: var(--warm); font-weight: 600; font-size: 60px; line-height: 1; letter-spacing: -.01em; margin-top: 4px; font-variation-settings: "opsz" 144; }
+  .day em { font-style: normal; font-weight: 400; color: var(--ember); }
+  .date { font-size: 21px; color: var(--ink-2); margin-top: 8px; }
+  .wordmark { align-self: start; display: flex; align-items: center; gap: 7px; font-family: var(--warm); font-size: 17px; color: var(--ink-3); }
+  .wordmark svg { color: var(--ember); }
+
+  .asks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .ask { display: grid; grid-template-columns: 58px 1fr; gap: 14px; align-items: center; text-align: left; min-height: 118px;
+    padding: 14px 18px 14px 14px; border-radius: 22px; background: #fff; font: 700 21px/1.22 var(--big); color: var(--ink);
+    box-shadow: 0 0 0 2px var(--line), 0 6px 0 0 var(--line); transition: transform .12s, box-shadow .12s, background .2s; }
+  .ask:hover:not(:disabled) { box-shadow: 0 0 0 2px var(--ember), 0 6px 0 0 #e7c3a6; }
+  .ask:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 0 0 2px var(--ember), 0 2px 0 0 #e7c3a6; }
+  .ask.on { background: var(--ember-soft); box-shadow: 0 0 0 3px var(--ember), 0 6px 0 0 #e7c3a6; }
+  .ask:disabled { cursor: default; }
+  .ask .ill { width: 58px; height: 58px; }
+
+  .reply { position: relative; min-height: 0; }
+  .idle { height: 100%; display: grid; align-content: center; gap: 16px; }
+  .idle p { margin: 0; font-size: 22px; color: var(--ink-2); }
+  .own { display: flex; gap: 12px; }
+  .own input { flex: 1; min-width: 0; height: 58px; border-radius: 16px; border: 2px solid var(--line); background: #fff; padding: 0 18px;
+    font: 400 21px var(--big); color: var(--ink); outline: none; }
+  .own input:focus { border-color: var(--ember); }
+  .own input::placeholder { color: var(--ink-3); }
+  .own button { height: 58px; padding: 0 28px; border-radius: 16px; background: var(--ember); color: #fff; font: 700 21px var(--big); }
+  .own button:disabled { opacity: .55; cursor: default; }
+
+  .bubble { height: 100%; border-radius: 26px; background: #fff; padding: 20px 28px 18px; position: relative; display: flex; flex-direction: column;
+    box-shadow: 0 0 0 2px var(--line); animation: rise .45s cubic-bezier(.2, .8, .2, 1); }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+  .bubble .you { font-size: 18px; color: var(--ink-3); margin: 0 190px 8px 0; }
+  .bubble .say { font-size: 30px; line-height: 1.28; color: var(--ink); text-wrap: pretty; }
+  .bubble .from { margin-top: 18px; display: grid; gap: 7px; }
+  .note-slip { display: flex; gap: 10px; align-items: baseline; font-size: 17.5px; color: var(--ink-2); line-height: 1.35; min-width: 0; }
+  .note-slip svg { flex: none; color: var(--leaf); transform: translateY(3px); }
+  .note-slip b { color: var(--ink); white-space: nowrap; }
+  .note-slip span.t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .note-slip.gone { color: var(--ink-3); }
+  .note-slip.gone svg { color: var(--ember); }
+  .note-slip.gone s { white-space: nowrap; text-decoration-thickness: 2px; text-decoration-color: var(--ember); }
+  .note-slip.gone em { font-style: normal; color: var(--ember); white-space: nowrap; }
+  .thinking { height: 100%; display: grid; place-content: center; justify-items: center; gap: 14px; font-size: 22px; color: var(--ink-2); }
+  .dots { display: flex; gap: 9px; }
+  .dots i { width: 12px; height: 12px; border-radius: 50%; background: var(--sun); animation: dot 1.2s ease-in-out infinite; }
+  .dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
+  @keyframes dot { 0%, 100% { transform: translateY(0); opacity: .5; } 40% { transform: translateY(-8px); opacity: 1; } }
+  .again { position: absolute; right: 18px; top: 14px; font: 700 16px var(--big); color: var(--ember); padding: 6px 10px; border-radius: 10px; }
+  .again:hover { background: var(--ember-soft); }
+  .t-err { font-size: 17px; color: var(--ember); background: var(--ember-soft); border-radius: 12px; padding: 12px 14px; }
+
+  /* ---- Sofia's phone ----------------------------------------------------------------------- */
+  .phone { width: 392px; height: 800px; border-radius: 54px; padding: 13px; flex: none; position: relative;
+    background: linear-gradient(160deg, #3b3936, #1b1a19);
+    box-shadow: 0 0 0 1px #0f0e0d, inset 0 0 0 2px rgba(255, 255, 255, .08), 0 40px 60px -26px rgba(60, 35, 10, .6); }
+  .p-screen { width: 100%; height: 100%; border-radius: 42px; background: var(--phone-bg); overflow: hidden; position: relative; display: flex; flex-direction: column; }
+  .p-status { height: 46px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 6px 30px 0 34px; font: 600 15px var(--app); }
+  .p-status .island { width: 112px; height: 30px; border-radius: 20px; background: #111; }
+  .p-status .sig { display: flex; gap: 5px; align-items: center; }
+  .p-head { padding: 6px 20px 12px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--p-line); }
+  .p-head .who { flex: 1; min-width: 0; }
+  .p-head h1 { margin: 0; font: 700 23px/1.1 var(--app); letter-spacing: -.01em; }
+  .p-head .sub { font-size: 14px; color: var(--p-ink-2); margin-top: 3px; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; flex: none; background: #f0d9c4; display: grid; place-items: center; overflow: hidden; }
+  .p-list { flex: 1; overflow-y: auto; padding: 4px 0 90px; scrollbar-width: none; }
+  .p-list::-webkit-scrollbar { display: none; }
+  .p-day { padding: 0 14px; }
+  .p-day h2 { margin: 0; padding: 14px 6px 6px; font: 700 14.5px var(--app); color: var(--p-ink-2); display: flex; justify-content: space-between; }
+  .p-day h2 small { font-weight: 500; color: var(--p-ink-3); font-size: 13.5px; }
+  .entry { width: 100%; display: grid; grid-template-columns: 34px 46px minmax(0, 1fr); gap: 0 10px; align-items: start; text-align: left;
+    padding: 9px 8px; border-radius: 14px; position: relative; transition: background .3s; }
+  .entry:hover { background: rgba(0, 0, 0, .03); }
+  .entry .ic { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; color: #fff; }
+  .entry .tm { font: 600 15px/1.2 var(--app); font-variant-numeric: tabular-nums; color: var(--p-ink); white-space: nowrap; padding-top: 7px; }
+  .entry .tm small { display: block; font-weight: 500; font-size: 12.5px; color: var(--p-ink-3); margin-top: 1px; }
+  .entry .tx { font-size: 15px; line-height: 1.35; padding-top: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .entry .st { grid-column: 3; font-size: 13px; color: var(--p-ink-3); margin-top: 3px; display: flex; gap: 6px; align-items: center; }
+  .entry.saving .st, .entry.correcting .st { color: var(--teal); }
+  .entry.replaced .tx, .entry.replaced .tm { color: var(--p-ink-3); text-decoration: line-through; text-decoration-color: var(--ember); text-decoration-thickness: 2px; }
+  .entry.replaced .ic { filter: grayscale(1); opacity: .45; }
+  .entry.replaced .st { color: var(--ember); font-weight: 600; }
+  .entry.error .st { color: var(--ember); }
+  .entry.fresh { background: var(--teal-soft); }
+  .entry.used { background: var(--mark); }
+  .entry.used .st { color: #6e5300; font-weight: 600; }
+  .spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .fab { position: absolute; right: 20px; bottom: 26px; height: 52px; padding: 0 20px 0 16px; border-radius: 26px; background: var(--teal); color: #fff;
+    display: flex; align-items: center; gap: 8px; font: 600 16px var(--app); box-shadow: 0 10px 20px -8px rgba(30, 80, 75, .6); z-index: 3; }
+  .homebar { position: absolute; left: 50%; bottom: 8px; width: 130px; height: 5px; margin-left: -65px; border-radius: 3px; background: #1a1a1a; z-index: 9; }
+
+  /* a banner when Margaret asks */
+  .ping { position: absolute; left: 10px; right: 10px; top: 52px; z-index: 5; background: rgba(255, 255, 255, .97); border-radius: 20px; padding: 12px 14px;
+    display: grid; grid-template-columns: 36px 1fr; gap: 10px; box-shadow: 0 12px 30px -10px rgba(0, 0, 0, .35), 0 0 0 1px rgba(0, 0, 0, .05);
+    transform: translateY(-150%); transition: transform .5s cubic-bezier(.2, .8, .2, 1); }
+  .ping.on { transform: none; }
+  .ping .app-ic { width: 36px; height: 36px; border-radius: 10px; background: var(--ember); color: #fff; display: grid; place-items: center; }
+  .ping .h { display: flex; justify-content: space-between; font-size: 13px; color: var(--p-ink-3); }
+  .ping .h b { color: var(--p-ink); font-weight: 600; }
+  .ping .b { font-size: 14.5px; line-height: 1.35; margin-top: 2px; }
+
+  /* the sheet: a note edited, or a new one */
+  .scrim { position: absolute; inset: 0; background: rgba(20, 18, 15, .32); z-index: 7; opacity: 0; transition: opacity .3s; }
+  .scrim.on { opacity: 1; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 8; background: #fff; border-radius: 26px 26px 0 0; padding: 10px 20px 34px;
+    transform: translateY(105%); transition: transform .38s cubic-bezier(.2, .8, .2, 1); box-shadow: 0 -10px 30px rgba(0, 0, 0, .12); }
+  .sheet.on { transform: none; }
+  .sheet .grab { width: 40px; height: 5px; border-radius: 3px; background: #ddd7cd; margin: 0 auto 14px; }
+  .sheet h3 { margin: 0 0 4px; font: 700 20px var(--app); }
+  .sheet .help { font-size: 14px; color: var(--p-ink-2); margin: 0 0 6px; line-height: 1.4; }
+  .sheet .was { font-size: 14px; color: var(--p-ink-3); margin: 0 0 10px; }
+  .sheet label { display: block; font: 600 13.5px var(--app); color: var(--p-ink-2); margin: 12px 0 5px; }
+  .sheet textarea, .sheet input { width: 100%; border: 1.5px solid var(--p-line); border-radius: 12px; padding: 11px 13px; font: 400 16px/1.4 var(--app); color: var(--p-ink); background: var(--phone-bg); outline: none; }
+  .sheet textarea { min-height: 96px; resize: none; }
+  .sheet textarea:focus, .sheet input:focus { border-color: var(--teal); }
+  .sheet .row { display: flex; gap: 10px; margin-top: 18px; }
+  .pbtn { height: 48px; border-radius: 14px; padding: 0 18px; font: 600 16px var(--app); }
+  .pbtn.go { flex: 1; background: var(--teal); color: #fff; }
+  .pbtn.go:disabled { opacity: .6; }
+  .pbtn.ghost { background: #f1ede6; color: var(--p-ink); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { height: 32px; padding: 0 12px; border-radius: 16px; background: #f1ede6; font: 500 14px var(--app); color: var(--p-ink-2); display: inline-flex; align-items: center; gap: 6px; }
+  .chip.on { background: var(--teal); color: #fff; }
+  .p-err { font-size: 13.5px; color: var(--ember); margin-top: 8px; }
+  .p-empty { padding: 30px 24px; color: var(--p-ink-2); font-size: 15px; line-height: 1.5; }
+  .p-empty code { font-size: 13px; background: #efe9df; padding: 2px 5px; border-radius: 5px; }
+
+  @media (max-width: 1380px) { body { overflow: auto; } .room { position: static; flex-wrap: wrap; padding-top: 70px; } }
+</style>
+</head>
+<body>
+<div class="notice" id="notice">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg>
+  A demo with a made-up person and made-up care notes. Not a medical device, a reminder service or a substitute for care.
+</div>
+
+<main class="room">
+  <!-- Margaret's tablet -->
+  <section class="tablet" id="tablet" aria-label="Margaret's tablet">
+    <div class="t-screen" id="tscreen">
+      <div class="dayclock" id="dayclock">
+        <svg class="sky" id="sky" viewBox="0 0 92 92" aria-hidden="true"></svg>
+        <div>
+          <div class="hello" id="greet">Hello, Margaret</div>
+          <div class="day" id="day">&nbsp;</div>
+          <div class="date" id="date">&nbsp;</div>
+        </div>
+        <div class="wordmark">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9H4z"/><path d="M12 19c-2.2 0-3.4-1.5-3.4-3.1 0-1.9 1.8-2.6 2.2-4.4 1.6 1 4.6 3 4.6 4.6 0 1.6-1.2 2.9-3.4 2.9z" fill="currentColor" stroke="none"/></svg>
+          Hearth
+        </div>
+      </div>
+      <div class="asks" id="qs"></div>
+      <div class="reply" id="answer"></div>
+    </div>
+  </section>
+
+  <!-- Sofia's phone -->
+  <section class="phone" id="phone" aria-label="Sofia's phone">
+    <div class="p-screen" id="pscreen">
+      <div class="p-status">
+        <span id="ptime">12:30</span>
+        <span class="island"></span>
+        <span class="sig">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+          <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x=".5" y=".5" width="22" height="11" rx="3.5" stroke="currentColor" opacity=".45"/><rect x="2.5" y="2.5" width="15" height="7" rx="2" fill="currentColor"/><rect x="23.5" y="4" width="2" height="4" rx="1" fill="currentColor" opacity=".45"/></svg>
+        </span>
+      </div>
+      <div class="ping" id="ping">
+        <div class="app-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9H4z"/></svg></div>
+        <div><div class="h"><b>Hearth</b><span>now</span></div><div class="b" id="ping-text"></div></div>
+      </div>
+      <header class="p-head">
+        <div class="avatar" aria-hidden="true">
+          <svg width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="44" r="17" fill="#8d6b8f"/><circle cx="22" cy="19" r="9" fill="#f6d5bb"/><path d="M12.5 19c0-7 4.5-10.5 9.5-10.5S31.5 12 31.5 19c-1.5-3.5-5-5.4-9.5-5.4s-8 1.9-9.5 5.4z" fill="#e7e2dc"/><path d="M13 18c-1.5 2-1 5 .8 6.5M31 18c1.5 2 1 5-.8 6.5" stroke="#e7e2dc" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>
+        </div>
+        <div class="who"><h1>Margaret's day</h1><div class="sub" id="psub">Care log · kept by Sofia</div></div>
+      </header>
+      <div class="p-list" id="log"></div>
+      <button class="fab" id="addnote" type="button">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Note
+      </button>
+      <div class="scrim" id="scrim" hidden></div>
+      <div class="sheet" id="sheet"></div>
+      <div class="homebar"></div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+  import { $, el, api } from "/kit/kit.js";
+
+  const SVG = (markup, w = 18, h = 18, vb = "0 0 24 24", sw = 1.9) => {
+    const t = document.createElement("template");
+    t.innerHTML = `<svg width="${w}" height="${h}" viewBox="${vb}" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${markup}</svg>`;
+    return t.content.firstChild;
+  };
+  const ICONS = {
+    meds: '<rect x="2.5" y="8.5" width="19" height="7" rx="3.5" transform="rotate(-35 12 12)"/><path d="M9.8 8.9l4.4 6.2"/>',
+    meal: '<path d="M4 10h12v3a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H15.5"/><path d="M8 3.5c-.8 1 .8 2 0 3M12 3.5c-.8 1 .8 2 0 3"/>',
+    visitor: '<circle cx="12" cy="8" r="3.6"/><path d="M5 20c1-4 3.8-6 7-6s6 2 7 6"/>',
+    appointment: '<rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 10h16M9 3v4M15 3v4"/><path d="M12 13v4M10 15h4"/>',
+    note: '<path d="M6 3.5h8.5L19 8v12.5H6z"/><path d="M14 3.5V8h5M9 12.5h7M9 16h5"/>',
+  };
+  const kindIcon = (k, size = 18) => SVG(ICONS[k] || ICONS.note, size, size);
+  const NOTE = () => SVG(ICONS.note, 18, 18);
+  const CROSSED = () => SVG('<path d="M6 3.5h8.5L19 8v12.5H6z"/><path d="M4 21L20 3"/>', 18, 18);
+
+  // The three questions, each with a drawn tile.
+  const ILL = {
+    pills: `<rect x="8" y="16" width="26" height="34" rx="5" fill="#fff" stroke="#2f6b4f" stroke-width="2.4"/><rect x="6" y="9" width="30" height="9" rx="3" fill="#2f6b4f"/><path d="M13 27h16M13 33h12" stroke="#a9c7b6" stroke-width="2.4" stroke-linecap="round"/>
+            <g transform="rotate(-30 44 38)"><rect x="34" y="32" width="22" height="11" rx="5.5" fill="#e9a23b"/><rect x="45" y="32" width="11" height="11" rx="5.5" fill="#fbf5ea" stroke="#e9a23b" stroke-width="2"/></g>`,
+    visit: `<rect x="10" y="8" width="28" height="44" rx="2" fill="#f4e3cf" stroke="#7a4d7a" stroke-width="2.4"/><rect x="15" y="13" width="18" height="15" rx="1.5" fill="#fff" stroke="#7a4d7a" stroke-width="1.8"/><circle cx="32" cy="33" r="2" fill="#7a4d7a"/>
+            <path d="M47 19c2.6-3.6 8-1.9 7.2 2.7-.8 3.6-7.2 7.3-7.2 7.3s-6.4-3.7-7.2-7.3c-.8-4.6 4.6-6.3 7.2-2.7z" fill="#d9614b"/><path d="M4 52h48" stroke="#7a4d7a" stroke-width="2.4" stroke-linecap="round"/>`,
+    doctor: `<rect x="6" y="12" width="40" height="38" rx="5" fill="#fff" stroke="#a8471f" stroke-width="2.4"/><path d="M6 17a5 5 0 0 1 5-5h30a5 5 0 0 1 5 5v5H6z" fill="#a8471f"/><path d="M16 8v8M36 8v8" stroke="#2a2017" stroke-width="2.6" stroke-linecap="round"/>
+            <path d="M26 29v13M19.5 35.5h13" stroke="#e9a23b" stroke-width="5" stroke-linecap="round"/>`,
+  };
+  const QUESTIONS = [
+    ["q-pills", "pills", "Did I take my pills this morning?"],
+    ["q-visit", "visit", "Who came to see me yesterday?"],
+    ["q-doctor", "doctor", "When is my next doctor visit?"],
+  ];
+  const QUICK = {
+    meds: ["Morning pills taken.", "Evening pills taken.", "Refused pills, will try again later."],
+    visitor: ["Daughter Anna visited.", "Neighbour Mr. Okafor dropped in."],
+    meal: ["Lunch: soup and a sandwich. Ate all of it.", "Tea and biscuits."],
+    appointment: ["Appointment booked with Dr. Reyes."],
+    note: ["Short walk to the duck pond.", "Phone call with her sister Jean."],
+  };
+
+  let S = null;             // the last /api/state
+  const asked = {};         // question -> the last answer to it
+  const fresh = new Set();  // entries logged or corrected on this page
+  let used = new Set();     // entries the last answer used
+  let poll = null, pingTimer = null, thinking = false, lastGone = null;
+
+  const hhmm = (iso) => iso.slice(11, 16);
+  const parse = (iso) => new Date(iso);
+  const dayKey = (iso) => iso.slice(0, 10);
+  const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const weekday = (iso, form = "long") => parse(iso).toLocaleDateString("en-GB", { weekday: form });
+  const dayMonth = (iso) => parse(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+  const part = (h) => (h < 12 ? "morning" : h < 18 ? "afternoon" : "evening");
+  const shift = (days) => { const d = parse(S.now); d.setDate(d.getDate() + days); return ymd(d); };
+  // how the tablet says when a note was: "today, 08:15", "yesterday, 15:00", "Thursday 15 October, 10:30"
+  function spoken(iso, lower = false) {
+    const d = dayKey(iso);
+    const near = d === dayKey(S.now) ? "Today" : d === shift(-1) ? "Yesterday" : d === shift(1) ? "Tomorrow" : null;
+    const day = near ? (lower ? near.toLowerCase() : near) : `${weekday(iso)} ${dayMonth(iso)}`;
+    return `${day}, ${hhmm(iso)}`;
+  }
+
+  // ---- the day clock ---------------------------------------------------------------------------
+  function sky(h) {
+    // the sun climbs the window by the hour; after dark, a moon
+    const night = h >= 19 || h < 6;
+    const k = Math.max(-1, Math.min(1, (h - 12.5) / 6.5));
+    const x = 46 + k * 26, y = 58 - Math.cos(k * 1.25) * 30;
+    $("#sky").innerHTML = `
+      <rect x="4" y="4" width="84" height="84" rx="20" fill="${night ? "#2b3550" : "#fde9cf"}"/>
+      ${night ? `<circle cx="58" cy="30" r="11" fill="#f5e7c4"/><circle cx="63" cy="26" r="10" fill="#2b3550"/>`
+              : `<circle cx="${x}" cy="${y}" r="18" fill="#e9a23b" opacity=".2"/><circle cx="${x}" cy="${y}" r="11.5" fill="#e9a23b"/>`}
+      <path d="M4 64c14-8 28-8 42-2s28 6 42-2v6a20 20 0 0 1-20 20H24A20 20 0 0 1 4 68z" fill="${night ? "#3d4a68" : "#e6c79d"}"/>
+      <path d="M4 74c18-6 34-4 50 1s24 3 34-1v-2 4a12 12 0 0 1-2 6" fill="none" stroke="${night ? "#4c5a7a" : "#d8b483"}" stroke-width="2"/>
+      <rect x="5.5" y="5.5" width="81" height="81" rx="18.5" fill="none" stroke="${night ? "#2b3550" : "#e7cfae"}" stroke-width="3"/>`;
+  }
+  function renderClock() {
+    const now = parse(S.now), p = part(now.getHours());
+    $("#greet").textContent = `Good ${p}, ${S.person}`;
+    $("#day").replaceChildren(weekday(S.now), " ", el("em", {}, p));
+    $("#date").textContent = `${dayMonth(S.now)} ${now.getFullYear()} · ${hhmm(S.now)}`;
+    $("#ptime").textContent = hhmm(S.now);
+    sky(now.getHours() + now.getMinutes() / 60);
+  }
+
+  // ---- the tablet: three questions, one answer ---------------------------------------------------
+  for (const [id, ill, q] of QUESTIONS) {
+    const t = document.createElement("template");
+    t.innerHTML = `<svg class="ill" viewBox="0 0 58 58" aria-hidden="true">${ILL[ill]}</svg>`;
+    $("#qs").append(el("button", { class: "ask", type: "button", id, "data-q": q, onclick: () => ask(q) }, t.content.firstChild, el("span", {}, q)));
+  }
+
+  function idle(message) {
+    const input = el("input", { id: "q", placeholder: "Or ask me something else", autocomplete: "off" });
+    const button = el("button", { id: "askbtn", type: "submit" }, "Ask");
+    const form = el("form", { class: "own", id: "askform" }, input, button);
+    form.addEventListener("submit", (e) => { e.preventDefault(); ask(input.value.trim()); });
+    $("#answer").replaceChildren(el("div", { class: "idle", id: "idle" }, el("p", { id: "idle-msg" }, message || "Tap a question. I’ll look at Sofia’s notes."), form));
+    document.querySelectorAll(".ask").forEach((b) => b.classList.remove("on"));
+  }
+
+  function answerCard(out, before) {
+    // A note an earlier answer to this question used that Sofia has since changed: its memory
+    // is forgotten, so the tablet says what it no longer goes by.
+    const gone = before ? before.cited.map((c) => S.entries.find((e) => e.id === c.id)).filter((e) => e && e.status === "replaced") : [];
+    const recalled = new Set(out.recalled.map((h) => h.memory_id));
+    return el("div", { class: "bubble", id: "answer-card" },
+      el("div", { class: "you" }, `You asked: “${out.question}”`),
+      el("div", { class: "say", id: "answer-text" }, out.answer),
+      el("div", { class: "from", id: "cites" },
+        ...out.cited.slice(0, 2).map((c) => el("div", { class: "note-slip cite", "data-entry": c.id, "data-when": c.when }, NOTE(),
+          el("b", {}, `Sofia’s note, ${spoken(c.when, true)}`),
+          el("span", { class: "t" }, `· ${c.text}`))),
+        ...gone.map((e) => el("div", { class: "note-slip gone", id: "gone-cite" }, CROSSED(),
+          el("s", {}, spoken(e.when)),
+          el("em", {}, (e.forgotten || []).some((m) => recalled.has(m))
+            ? "Sofia changed this, but I still found the old note."
+            : "Sofia moved it, so I forgot the old note.")))),
+      el("button", { class: "again", type: "button", id: "again", onclick: () => idle() }, "Ask something else"));
+  }
+
+  async function ask(question) {
+    if (!question || thinking) return;
+    thinking = true;
+    const tile = [...document.querySelectorAll(".ask")].find((b) => b.dataset.q === question);
+    document.querySelectorAll(".ask").forEach((b) => { b.disabled = true; b.classList.toggle("on", b === tile); });
+    $("#answer").replaceChildren(el("div", { class: "thinking", id: "thinking" }, el("div", { class: "dots" }, el("i"), el("i"), el("i")), "Let me look at Sofia’s notes…"));
+    try {
+      const out = await api("/api/ask", { question });
+      await load();
+      $("#answer").replaceChildren(answerCard(out, asked[question]));
+      used = new Set(out.cited.map((c) => c.id));
+      renderLog();
+      ping(out);
+      asked[question] = out;
+    } catch (e) {
+      $("#answer").replaceChildren(el("div", { class: "t-err" }, "I couldn’t look at the notes just now. ", e.message || String(e)));
+    } finally {
+      thinking = false;
+      document.querySelectorAll(".ask").forEach((b) => (b.disabled = false));
+    }
+  }
+
+  // Sofia's phone hears what Margaret asked, and which note answered it.
+  function ping(out) {
+    const c = out.cited[0];
+    $("#ping-text").textContent = `Margaret asked “${out.question}”` + (c ? ` Answered from your note, ${weekday(c.when, "short")} ${hhmm(c.when)}.` : " No note answered it.");
+    $("#ping").classList.add("on");
+    clearTimeout(pingTimer);
+    pingTimer = setTimeout(() => $("#ping").classList.remove("on"), 6500);
+  }
+
+  // ---- the phone: Sofia's care log ----------------------------------------------------------------
+  async function load() {
+    S = await api("/api/state");
+    renderClock();
+    const gone = S.entries.filter((e) => e.status === "replaced").length;
+    if (lastGone !== null && gone !== lastGone && !thinking) {
+      // a change landed: what the tablet said before may be out of date
+      used = new Set();
+      idle("Sofia has just changed a note. Ask me again any time.");
+    }
+    lastGone = gone;
+    const pending = S.entries.some((e) => e.status === "saving" || e.status === "correcting");
+    if (pending && !poll) poll = setInterval(refresh, 1000);
+    if (!pending && poll) { clearInterval(poll); poll = null; }
+  }
+  async function refresh() {
+    try { await load(); renderLog(); } catch (e) { console.error(e); }
+  }
+
+  function status(e) {
+    if (e.status === "saving") return el("div", { class: "st" }, el("i", { class: "spin" }), "Telling Margaret’s companion…");
+    if (e.status === "correcting") return el("div", { class: "st" }, el("i", { class: "spin" }), "Updating Margaret’s companion…");
+    if (e.status === "replaced") {
+      const by = S.entries.find((x) => x.id === e.replaced_by);
+      return el("div", { class: "st" }, by ? `Forgotten · moved to ${weekday(by.when, "short")} ${hhmm(by.when)}` : "Forgotten");
+    }
+    if (e.status === "error") return el("div", { class: "st", title: e.error || "" }, "Not saved for Margaret: " + (e.error || "unknown error"));
+    if (used.has(e.id)) return el("div", { class: "st" }, "In Margaret’s answer just now");
+    if (e.replaces && fresh.has(e.id)) return el("div", { class: "st" }, "Changed just now");
+    return null;
+  }
+
+  function renderLog() {
+    if (!S) return;
+    if ($("#sheet").classList.contains("on")) return; // never redraw under an open sheet
+    if (!S.entries.length) {
+      $("#log").replaceChildren(el("div", { class: "p-empty" }, "No notes yet. Run ", el("code", {}, "uv run 14-care-companion/seed.py"), " for a sample week, or add one with Note."));
+      return;
+    }
+    const groups = new Map();
+    for (const e of [...S.entries].sort((a, b) => b.when.localeCompare(a.when))) {
+      const d = dayKey(e.when);
+      const key = e.when > S.now ? "Coming up" : d === dayKey(S.now) ? "Today" : d === shift(-1) ? "Yesterday" : `${weekday(e.when)} ${dayMonth(e.when)}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(e);
+    }
+    const top = $("#log").scrollTop;
+    $("#log").replaceChildren(...[...groups].map(([label, list]) => {
+      const upcoming = label === "Coming up";
+      if (upcoming) list.reverse();
+      const side = label === "Today" ? `${weekday(S.now, "short")} ${dayMonth(S.now)}` : label === "Yesterday" ? `${weekday(shift(-1) + "T12:00", "short")} ${dayMonth(shift(-1) + "T12:00")}` : "";
+      return el("section", { class: "p-day", "data-day": label }, el("h2", {}, label, side ? el("small", {}, side) : null),
+        ...list.map((e) => entryRow(e, upcoming)));
+    }));
+    $("#log").scrollTop = top;
+  }
+
+  function entryRow(e, upcoming) {
+    const cls = ["entry", e.status, fresh.has(e.id) && e.status !== "replaced" ? "fresh" : "", used.has(e.id) && e.status === "saved" ? "used" : ""].filter(Boolean).join(" ");
+    return el("button", { class: cls, type: "button", id: "e-" + e.id, "data-text": e.text, "data-kind": e.kind, onclick: () => e.status === "saved" && edit(e) },
+      el("span", { class: "ic", style: `background: var(--k-${e.kind})` }, kindIcon(e.kind)),
+      el("span", { class: "tm" }, upcoming ? el("small", { style: "margin:0 0 1px;color:var(--p-ink-2)" }, weekday(e.when, "short")) : null, hhmm(e.when)),
+      el("span", { class: "tx" }, e.text),
+      status(e));
+  }
+
+  // ---- the sheet: change a note, or add one --------------------------------------------------------
+  function openSheet(...children) {
+    $("#sheet").replaceChildren(el("div", { class: "grab" }), ...children);
+    $("#scrim").hidden = false;
+    requestAnimationFrame(() => requestAnimationFrame(() => { $("#scrim").classList.add("on"); $("#sheet").classList.add("on"); }));
+  }
+  function closeSheet() {
+    $("#sheet").classList.remove("on");
+    $("#scrim").classList.remove("on");
+    renderLog();
+    setTimeout(() => { $("#scrim").hidden = true; }, 380);
+  }
+  $("#scrim").addEventListener("click", closeSheet);
+
+  function edit(e) {
+    const text = el("textarea", { id: "fix-text" });
+    text.value = e.text;
+    const when = el("input", { id: "fix-when", type: "datetime-local" });
+    when.value = e.when;
+    const save = el("button", { class: "pbtn go", type: "button", id: "fix-save" }, "Save change");
+    const err = el("div", { class: "p-err", id: "fix-err" });
+    save.addEventListener("click", async () => {
+      save.disabled = true; save.textContent = "Saving…";
+      try {
+        const neu = await api(`/api/entries/${e.id}/correct`, { kind: e.kind, text: text.value, when: when.value });
+        fresh.add(neu.id);
+        used = new Set();
+        await load();
+        closeSheet();
+      } catch (x) { err.textContent = x.message || String(x); save.disabled = false; save.textContent = "Save change"; }
+    });
+    openSheet(
+      el("h3", {}, "Edit note"),
+      el("div", { class: "was" }, `${S.kinds[e.kind]} · ${weekday(e.when)} ${dayMonth(e.when)}, ${hhmm(e.when)}`),
+      el("p", { class: "help" }, "Margaret’s companion forgets the old note and goes by this one."),
+      el("label", { for: "fix-text" }, "What happened"), text,
+      el("label", { for: "fix-when" }, "When"), when,
+      el("div", { class: "row" }, el("button", { class: "pbtn ghost", type: "button", onclick: closeSheet }, "Cancel"), save), err);
+  }
+
+  $("#addnote").addEventListener("click", () => {
+    let kind = "meds";
+    const text = el("input", { id: "text", placeholder: "What happened?", autocomplete: "off" });
+    const when = el("input", { id: "when", type: "datetime-local" });
+    when.value = S.now;
+    const kinds = el("div", { class: "chips", id: "kinds" });
+    const quick = el("div", { class: "chips", id: "quick", style: "margin-top:8px" });
+    const drawKinds = () => {
+      kinds.replaceChildren(...Object.entries(S.kinds).map(([k, label]) =>
+        el("button", { type: "button", class: "chip" + (k === kind ? " on" : ""), onclick: () => { kind = k; drawKinds(); } }, kindIcon(k, 15), label)));
+      quick.replaceChildren(...(QUICK[kind] || []).map((t) => el("button", { type: "button", class: "chip", onclick: () => { text.value = t; text.focus(); } }, t)));
+    };
+    drawKinds();
+    const go = el("button", { class: "pbtn go", type: "submit", id: "logbtn" }, "Add to the log");
+    const err = el("div", { class: "p-err", id: "logerr" });
+    const form = el("form", { id: "logform" }, kinds, el("label", { for: "text" }, "What happened"), text, quick, el("label", { for: "when" }, "When"), when,
+      el("div", { class: "row" }, el("button", { class: "pbtn ghost", type: "button", onclick: closeSheet }, "Cancel"), go), err);
+    form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      if (!text.value.trim()) return;
+      go.disabled = true;
+      try {
+        const e = await api("/api/entries", { kind, text: text.value.trim(), when: when.value });
+        fresh.add(e.id);
+        await load();
+        closeSheet();
+      } catch (x) { err.textContent = x.message || String(x); go.disabled = false; }
+    });
+    openSheet(el("h3", {}, "New note"), el("p", { class: "help" }, "Margaret’s companion remembers it, dated when it happened."), form);
+  });
+
+  await document.fonts.ready.catch(() => {});
+  load().then(() => { renderLog(); idle(); }).catch((e) => {
+    $("#log").replaceChildren(el("div", { class: "p-empty" }, e.message || String(e)));
+    idle("I can’t reach the care log right now.");
+  });
+</script>
+</body>
+</html>

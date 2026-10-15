@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Browser Memory · demo window</title>
+<!-- For recording the demo video: a Chrome-like window with the real page on the left and the
+     real side panel (panel.html) on the right. The panel reads the page from a real tab that
+     shows the same URL (`?tab=`), exactly as when it is docked. Not part of normal use. -->
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+  :root { --frame: #dfe3e8; --toolbar: #f8fafd; --omni: #e9eef6; --ink: #1f1f1f; --ink-2: #444746; --ink-3: #747775; --line: #d3d7dc; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--frame); color: var(--ink); font: 13px/1.3 "Google Sans Text", "Google Sans", Roboto, Arial, sans-serif; -webkit-font-smoothing: antialiased; overflow: hidden; }
+  svg { display: block; flex: none; }
+  .win { display: grid; grid-template-rows: 40px 46px 1fr; height: 100%; }
+
+  /* tab strip */
+  .tabs { display: flex; align-items: flex-end; padding: 0 8px 0 10px; gap: 0; }
+  .tab { position: relative; height: 34px; width: 236px; padding: 0 10px 0 12px; display: flex; align-items: center; gap: 10px; color: var(--ink-2); cursor: pointer; border-radius: 10px 10px 0 0; }
+  .tab + .tab::before { content: ""; position: absolute; left: 0; top: 9px; height: 18px; width: 1px; background: #a9afb7; }
+  .tab.on::before, .tab.on + .tab::before { display: none; }
+  .tab:hover:not(.on) { background: rgba(255, 255, 255, .35); }
+  .tab.on { background: var(--toolbar); color: var(--ink); }
+  .tab.on::after { content: ""; position: absolute; bottom: 0; left: -10px; right: -10px; height: 10px; pointer-events: none;
+    background: radial-gradient(circle at 0 0, transparent 9.5px, var(--toolbar) 10px) left bottom / 10px 10px no-repeat,
+                radial-gradient(circle at 100% 0, transparent 9.5px, var(--toolbar) 10px) right bottom / 10px 10px no-repeat; }
+  .tab img { width: 16px; height: 16px; }
+  .tab .t { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; }
+  .tab .x { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; color: var(--ink-2); }
+  .newtab { width: 28px; height: 28px; margin: 0 0 3px 6px; border-radius: 50%; display: grid; place-items: center; color: var(--ink-2); }
+
+  /* toolbar */
+  .toolbar { background: var(--toolbar); display: flex; align-items: center; gap: 4px; padding: 0 8px; border-bottom: 1px solid #e3e6ea; }
+  .ib { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: var(--ink-2); }
+  .ib.dim { color: #a8acb0; }
+  .ib.on { background: #dde3ea; color: var(--ink); }
+  .ib img { width: 18px; height: 18px; }
+  .omni { flex: 1; height: 36px; border-radius: 18px; background: var(--omni); display: flex; align-items: center; gap: 10px; padding: 0 6px 0 6px; margin: 0 6px; font-size: 14px; }
+  .omni .chip { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: var(--ink-2); background: var(--toolbar); }
+  .omni .u { flex: 1; color: var(--ink-3); white-space: nowrap; overflow: hidden; }
+  .omni .u b { color: var(--ink); font-weight: 400; }
+  .omni .star { color: var(--ink-2); padding-right: 6px; }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; background: #a8c7fa; color: #062e6f; display: grid; place-items: center; font: 500 13px "Google Sans", sans-serif; margin: 0 4px; }
+
+  /* the page and the docked side panel */
+  .body { display: grid; grid-template-columns: 1fr 420px; min-height: 0; background: var(--toolbar); }
+  #page { border: 0; width: 100%; height: 100%; background: #fff; }
+  .side { display: grid; grid-template-rows: 44px 1fr; min-height: 0; padding: 0 8px 8px 8px; }
+  .side-h { display: flex; align-items: center; gap: 8px; padding: 0 4px 0 10px; }
+  .side-h img { width: 16px; height: 16px; }
+  .side-h .n { font: 500 14px "Google Sans", sans-serif; display: flex; align-items: center; gap: 4px; }
+  .side-h .sp { flex: 1; }
+  .side-h .ib { width: 30px; height: 30px; }
+  #panel { border: 0; width: 100%; height: 100%; border-radius: 16px; background: #fff; }
+</style>
+</head>
+<body>
+<div class="win">
+  <div class="tabs" id="tabs"><div class="newtab" id="newtab"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div></div>
+  <div class="toolbar">
+    <span class="ib"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></span>
+    <span class="ib dim"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    <span class="ib"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/></svg></span>
+    <div class="omni">
+      <span class="chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></svg></span>
+      <span class="u" id="url"></span>
+      <span class="star"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg></span>
+    </div>
+    <span class="ib"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M10 4.5a2 2 0 1 1 4 0V6h4v4h-1.5a2 2 0 1 0 0 4H18v4h-4v-1.5a2 2 0 1 0-4 0V18H6v-4h1.5a2 2 0 1 0 0-4H6V6h4z"/></svg></span>
+    <span class="ib on" title="Browser Memory"><img src="icons/icon32.png" alt=""></span>
+    <span class="avatar">A</span>
+    <span class="ib"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5.5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="18.5" r="1.7"/></svg></span>
+  </div>
+  <div class="body">
+    <iframe id="page" title="page"></iframe>
+    <div class="side">
+      <div class="side-h"><img src="icons/icon32.png" alt=""><span class="n">Browser Memory<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10l5 5 5-5"/></svg></span><span class="sp"></span>
+        <span class="ib"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15 3l6 6-2 1-3 3 .5 4.5L15 19l-4-4-5 5-1-1 5-5-4-4 1.5-1.5L12 9l3-3z"/></svg></span>
+        <span class="ib"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></div>
+      <iframe id="panel" title="Browser Memory side panel"></iframe>
+    </div>
+  </div>
+</div>
+<script src="demo.js"></script>
+</body>
+</html>

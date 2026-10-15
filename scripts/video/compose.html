@@ -1,0 +1,286 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<style>
+  :root {
+    --blue: #3e61ff; --ink: #0f172b; --body: #54637a; --line: #d9dfea; --surface: #f2f5fa;
+    --panel: #3e61ff;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: #fff; }
+  body { font-family: 'Instrument Sans', system-ui, sans-serif; color: var(--ink); }
+  .stage { position: absolute; inset: 0; overflow: hidden; background: var(--surface); }
+
+  /* the field: membase.ai's glow and hatched clouds, in place of EverOS's oil paint */
+  .field { position: absolute; inset: 0; background: #f6f8fd; }
+  .field .glow { position: absolute; left: 50%; top: 46%; width: 2200px; height: 1150px; transform: translate(-50%, -50%);
+    background: url(assets/glow.png) center / 100% 100% no-repeat; opacity: .55; }
+  .field .clouds { position: absolute; left: -2%; right: -2%; bottom: -60px; height: 760px;
+    background: url(assets/clouds.jpg) center bottom / cover no-repeat; mix-blend-mode: multiply; opacity: .9; }
+
+  /* the browser window holding the recording */
+  .cam { position: absolute; left: 0; top: 0; transform-origin: 0 0; }  /* no will-change: it would raster the 2x frame small, then blur it up */
+  .window { position: absolute; border-radius: 14px; overflow: hidden; background: #fff;
+    box-shadow: 0 30px 80px rgba(15, 23, 43, .22), 0 2px 6px rgba(15, 23, 43, .12), 0 0 0 1px rgba(15, 23, 43, .08); }
+  .chrome { height: 44px; display: flex; align-items: center; gap: 14px; padding: 0 16px;
+    background: #eef1f6; border-bottom: 1px solid #dde2ea; }
+  .lights { display: flex; gap: 8px; }
+  .lights i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+  .lights i:nth-child(1) { background: #ff5f57; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+  .url { flex: 0 1 520px; margin: 0 auto; height: 28px; border-radius: 8px; background: #fff; border: 1px solid #dde2ea;
+    font: 500 14px 'Instrument Sans'; color: #6b7487; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .url b { color: var(--ink); font-weight: 600; }
+  .shot { display: block; width: 100%; background: #f7f7f5; }
+  /* the spotlight: a ring round what matters, the rest of the page dimmed */
+  .spot { position: absolute; border-radius: 12px; border: 3px solid var(--blue); pointer-events: none;
+    box-shadow: 0 0 0 4000px rgba(15, 23, 43, .18), 0 0 24px rgba(62, 97, 255, .30); }
+
+  /* step label, bottom centre */
+  .step { position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); display: flex; align-items: center; gap: 16px;
+    padding: 14px 28px 14px 14px; border-radius: 999px; background: rgba(255, 255, 255, .94);
+    box-shadow: 0 10px 30px rgba(15, 23, 43, .14), 0 0 0 1px rgba(62, 97, 255, .14); white-space: nowrap;
+    transition: none; }
+  .step .n { width: 44px; height: 44px; border-radius: 50%; background: var(--blue); color: #fff;
+    font: 700 22px 'Bricolage Grotesque'; display: grid; place-items: center; }
+  .step .t { font: 700 30px 'Bricolage Grotesque'; letter-spacing: -.01em; }
+  .step .d { font: 500 22px 'Instrument Sans'; color: var(--body); }
+
+  /* a sped-up wait, top right: honest about time */
+  .wait { position: absolute; right: 40px; top: 34px; display: flex; align-items: center; gap: 10px; padding: 10px 18px;
+    border-radius: 12px; background: var(--ink); color: #fff; font: 600 20px 'Instrument Sans';
+    box-shadow: 0 8px 24px rgba(15, 23, 43, .25); }
+  .wait .ff { color: #9fb2ff; font-size: 22px; }
+  .wait .x { color: #9fb2ff; font-weight: 500; }
+
+  .corner { position: absolute; left: 32px; top: 28px; display: flex; align-items: center; gap: 12px; padding: 9px 16px;
+    border-radius: 12px; background: rgba(255, 255, 255, .92); box-shadow: 0 4px 16px rgba(15, 23, 43, .08), 0 0 0 1px rgba(15, 23, 43, .06);
+    font: 600 18px 'Instrument Sans'; color: var(--body); }
+  .corner img { height: 26px; }
+  .corner .sep { width: 1px; height: 18px; background: var(--line); }
+
+  /* intro: the banner layout at full frame */
+  .intro { position: absolute; inset: 0; display: grid; grid-template-columns: 50% 50%; will-change: transform; }
+  .intro .left { background: var(--panel); color: #fff; padding: 0 110px; display: flex; flex-direction: column; justify-content: center; gap: 34px; }
+  .intro .kick { font: 600 22px 'Instrument Sans'; letter-spacing: .08em; text-transform: uppercase; opacity: .78; }
+  .intro h1 { font: 700 92px/1.02 'Bricolage Grotesque'; letter-spacing: -.025em; }
+  .intro p { font: 400 34px/1.42 'Instrument Sans'; opacity: .92; max-width: 760px; }
+  .intro .base { align-self: flex-start; padding: 8px 18px; border-radius: 999px; background: rgba(255,255,255,.16);
+    font: 600 20px 'Instrument Sans'; }
+  .intro .right { position: relative; overflow: hidden; }
+
+  /* outro */
+  .outro { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(246, 248, 253, .97); }
+  .outro .card { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 26px; }
+  .outro img { height: 44px; }
+  .outro h2 { font: 700 76px/1.05 'Bricolage Grotesque'; letter-spacing: -.02em; }
+  .outro p { font: 400 32px 'Instrument Sans'; color: var(--body); max-width: 1100px; }
+  .outro .chips { display: flex; gap: 14px; }
+  .outro .chip { padding: 10px 20px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font: 600 22px 'Instrument Sans'; }
+  .outro .chip.blue { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+  /* banner: 1300x553, the README card */
+  .banner { position: absolute; left: 0; top: 0; width: 1300px; height: 553px; display: grid; grid-template-columns: 52% 48%; overflow: hidden; }
+  .banner .left { background: var(--panel); color: #fff; padding: 0 60px; display: flex; flex-direction: column; justify-content: center; gap: 30px; }
+  .banner h1 { font: 700 54px/1.05 'Bricolage Grotesque'; letter-spacing: -.02em; }
+  .banner p { font: 400 25px/1.42 'Instrument Sans'; opacity: .93; }
+  .banner .tag { font: 600 15px 'Instrument Sans'; letter-spacing: .08em; text-transform: uppercase; opacity: .75; }
+  .banner .right { position: relative; overflow: hidden; }
+
+  /* architecture card: the chain behind the demo, nodes appearing one by one */
+  .archcard { position: absolute; inset: 0; background: rgba(246, 248, 253, .97); display: grid; place-items: center; }
+  .archcard .wrap { width: 1640px; display: grid; gap: 34px; }
+  .archcard .kick { font: 600 22px 'Instrument Sans'; letter-spacing: .08em; text-transform: uppercase; color: var(--blue); }
+  .archcard h2 { font: 700 54px/1.1 'Bricolage Grotesque'; letter-spacing: -.02em; margin: -18px 0 0; }
+  .archcard .chain { display: flex; align-items: stretch; gap: 18px; }
+  .archcard .node { flex: 1; background: #fff; border: 1.5px solid var(--line); border-radius: 18px; padding: 22px 24px; display: grid; gap: 8px; align-content: start;
+    box-shadow: 0 10px 30px rgba(15, 23, 43, .06); }
+  .archcard .node.mb { border-color: var(--blue); background: #f2f5ff; }
+  .archcard .node b { font: 700 26px 'Bricolage Grotesque'; }
+  .archcard .node span { font: 400 21px/1.4 'Instrument Sans'; color: var(--body); }
+  .archcard .arrow { align-self: center; font: 600 34px 'Instrument Sans'; color: var(--blue); }
+  .archcard .foot { font: 400 24px/1.4 'Instrument Sans'; color: var(--body); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="field"><div class="glow"></div><div class="clouds"></div></div>
+  <div class="cam" id="cam">
+    <div class="window" id="win">
+      <div class="chrome"><div class="lights"><i></i><i></i><i></i></div><div class="url" id="url"></div><div style="width:52px"></div></div>
+      <img class="shot" id="shot">
+      <div class="spot" id="spot" hidden></div>
+    </div>
+  </div>
+  <div class="corner" id="corner"><img src="assets/membase-logo.svg"><span class="sep"></span><span id="cornerText"></span></div>
+  <div class="wait" id="wait" hidden><span class="ff">⏩</span><span id="waitText"></span><span class="x" id="waitX"></span></div>
+  <div class="step" id="step" hidden><span class="n" id="stepN"></span><span class="t" id="stepT"></span><span class="d" id="stepD"></span></div>
+  <div class="intro" id="intro" hidden>
+    <div class="left"><div class="kick" id="iKick"></div><h1 id="iTitle"></h1><p id="iPitch"></p><div class="base" id="iBase"></div></div>
+    <div class="right"><div class="field"><div class="glow"></div><div class="clouds"></div></div>
+      <div class="window" id="iWin" style="width:1180px; left:120px; top:190px;">
+        <div class="chrome"><div class="lights"><i></i><i></i><i></i></div><div class="url" id="iUrl"></div><div style="width:52px"></div></div>
+        <img class="shot" id="iShot">
+      </div>
+    </div>
+  </div>
+  <div class="archcard" id="arch" hidden><div class="wrap">
+    <div class="kick" id="archKick"></div><h2 id="archTitle"></h2>
+    <div class="chain" id="archChain"></div><div class="foot" id="archFoot"></div></div></div>
+  <div class="outro" id="outro" hidden>
+    <div class="card"><img src="assets/membase-logo.svg"><h2 id="oTitle"></h2><p id="oPitch"></p>
+      <div class="chips"><span class="chip blue" id="oBase"></span><span class="chip">github.com/unibaseio/membase-use-cases</span></div></div>
+  </div>
+</div>
+
+<div class="banner" id="banner" hidden>
+  <div class="left"><div class="tag" id="bTag"></div><h1 id="bTitle"></h1><p id="bPitch"></p></div>
+  <div class="right"><div class="field"><div class="glow"></div><div class="clouds"></div></div>
+    <div class="window" style="width:860px; left:70px; top:66px;">
+      <div class="chrome"><div class="lights"><i></i><i></i><i></i></div><div class="url" id="bUrl"></div><div style="width:52px"></div></div>
+      <img class="shot" id="bShot">
+    </div>
+  </div>
+</div>
+
+<script>
+// Layout of the window on the stage at camera rest: the recording's CSS viewport scaled to fit.
+const STAGE = { w: 1920, h: 1080 }, CHROME = 44;
+let VIEW = { w: 1440, h: 900 };
+const $ = (id) => document.getElementById(id);
+const loaded = new Map();
+
+function load(img, src) {
+  if (!src) return Promise.resolve();
+  if (img.dataset.src === src) return Promise.resolve();
+  img.dataset.src = src;
+  img.src = src;
+  return img.decode().catch(() => {});
+}
+
+// Window size and position when the camera shows the whole page.
+function rest() {
+  const scale = Math.min((STAGE.w - 160) / VIEW.w, (STAGE.h - 184) / (VIEW.h + CHROME));
+  const w = VIEW.w * scale, h = (VIEW.h + CHROME) * scale;
+  return { scale, w, h, x: (STAGE.w - w) / 2, y: 64 };
+}
+
+// The camera: frame a box of the page (CSS px), or the whole page when box is null.
+function camera(box) {
+  const r = rest();
+  if (!box) return { s: 1, tx: 0, ty: 0 };
+  const bw = box[2] * r.scale, bh = box[3] * r.scale;
+  // a gentle push-in only: the spotlight says where to look, so the camera never has to fill the frame
+  const s = Math.max(1, Math.min(1.2, (STAGE.w * 0.92) / bw, (STAGE.h * 0.8) / bh));
+  const cx = r.x + (box[0] + box[2] / 2) * r.scale, cy = r.y + (CHROME + box[1] + box[3] / 2) * r.scale;
+  // put the box's centre a little above the stage centre, keeping room for the step label
+  // keep the scaled window over the place it sits at rest: no zoom means no movement at all,
+  // and a push-in can only pan within the margin it creates
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  const tx = clamp(STAGE.w / 2 - cx * s, (r.x + r.w) * (1 - s), r.x * (1 - s));
+  const ty = clamp(STAGE.h * 0.45 - cy * s, (r.y + r.h) * (1 - s), r.y * (1 - s));
+  return { s, tx, ty };
+}
+
+window.render = async (st) => {
+  if (st.view) VIEW = st.view;
+  document.documentElement.style.setProperty('--panel', st.panel || '#3e61ff');
+  const mode = st.mode;
+  $('banner').hidden = mode !== 'banner';
+  $('stage').hidden = mode === 'banner';
+  const tasks = [];
+  if (mode === 'banner') {
+    $('bTag').textContent = st.tag; $('bTitle').innerHTML = st.title; $('bPitch').textContent = st.pitch;
+    $('bUrl').innerHTML = st.url;
+    tasks.push(load($('bShot'), st.shot));
+    await Promise.all(tasks);
+    return;
+  }
+  const r = rest();
+  const win = $('win');
+  win.style.left = r.x + 'px'; win.style.top = r.y + 'px'; win.style.width = r.w + 'px';
+  $('url').innerHTML = st.url;
+  $('cornerText').textContent = st.corner || '';
+  tasks.push(load($('shot'), st.frame));
+  // ease from the previous framing to this one (k: 0 -> 1)
+  const a = camera(st.prev ?? null), b = camera(st.box ?? null), k = st.k ?? 1;
+  const c = { s: a.s + (b.s - a.s) * k, tx: a.tx + (b.tx - a.tx) * k, ty: a.ty + (b.ty - a.ty) * k };
+  $('cam').style.transform = `translate(${c.tx}px, ${c.ty}px) scale(${c.s})`;
+
+  // spotlight: slides from the previous box to this one, fades in from none and out to none
+  const spot = $('spot'), sc = r.w / VIEW.w;
+  let sb = null, alpha = 1;
+  // between two boxes: fade out where it was, fade in where it goes (a sliding hole reads as a blank card)
+  if (st.box && st.prev && st.slide) sb = st.prev.map((v, i) => v + (st.box[i] - v) * k);  // same element, moved
+  else if (st.box && st.prev) { sb = k < 0.5 ? st.prev : st.box; alpha = Math.abs(1 - 2 * k); }
+  else if (st.box) { sb = st.box; alpha = k; }
+  else if (st.prev) { sb = st.prev; alpha = 1 - k; }
+  spot.hidden = !sb || alpha <= 0.01;
+  if (sb) {
+    Object.assign(spot.style, { left: sb[0] * sc + 'px', top: CHROME + sb[1] * sc + 'px',
+      width: sb[2] * sc + 'px', height: sb[3] * sc + 'px', opacity: alpha });
+  }
+
+  // step label
+  const step = $('step');
+  step.hidden = !st.step;
+  if (st.step) {
+    $('stepN').textContent = st.step.n; $('stepT').textContent = st.step.title; $('stepD').textContent = st.step.detail || '';
+    step.style.opacity = st.step.alpha ?? 1;
+    step.style.transform = `translateX(-50%) translateY(${(1 - (st.step.alpha ?? 1)) * 18}px)`;
+  }
+  // wait badge
+  $('wait').hidden = !st.wait;
+  if (st.wait) { $('waitText').textContent = st.wait.text; $('waitX').textContent = st.wait.x; }
+
+  // intro: the banner at full frame, sliding away to the left at the end
+  const intro = $('intro');
+  intro.hidden = st.intro == null;
+  if (st.intro != null) {
+    $('iKick').textContent = st.kick; $('iTitle').innerHTML = st.title; $('iPitch').textContent = st.pitch;
+    $('iBase').textContent = st.base; $('iUrl').innerHTML = st.url;
+    tasks.push(load($('iShot'), st.introShot || st.frame));
+    const q = st.intro;             // 0 = fully shown, 1 = gone
+    const ease = q * q * (3 - 2 * q);
+    intro.style.transform = `translateX(${-ease * 100}%)`;
+    const enter = st.enter ?? 1;    // the window drifts in during the first second
+    const e2 = 1 - Math.pow(1 - enter, 3);
+    $('iWin').style.transform = `translate(${(1 - e2) * 160}px, ${(1 - e2) * 30}px)`;
+    $('iWin').style.opacity = 0.3 + 0.7 * e2;
+  }
+  // architecture card: fades in and out; nodes appear one after another
+  const arch = $('arch');
+  arch.hidden = st.arch == null;
+  if (st.arch != null) {
+    arch.style.opacity = st.arch;
+    $('archKick').textContent = st.archKick || 'How it works'; $('archTitle').textContent = st.archTitle || '';
+    $('archFoot').textContent = st.archFoot || '';
+    const chain = $('archChain');
+    if (chain.dataset.key !== JSON.stringify(st.archNodes)) {
+      chain.dataset.key = JSON.stringify(st.archNodes);
+      chain.replaceChildren();
+      st.archNodes.forEach((n, i) => {
+        if (i) { const a = document.createElement('div'); a.className = 'arrow'; a.textContent = '→'; chain.append(a); }
+        const d = document.createElement('div'); d.className = 'node' + (n.mb ? ' mb' : '');
+        d.innerHTML = `<b>${n.t}</b><span>${n.d}</span>`; chain.append(d);
+      });
+    }
+    [...chain.children].forEach((c, i) => {
+      const k = Math.max(0, Math.min(1, (st.archT - 0.35 * Math.floor(i / 2 + 0.5)) / 0.4));
+      c.style.opacity = k; c.style.transform = `translateY(${(1 - k) * 16}px)`;
+    });
+  }
+  // outro
+  const outro = $('outro');
+  outro.hidden = st.outro == null;
+  if (st.outro != null) {
+    outro.style.opacity = st.outro;
+    $('oTitle').innerHTML = st.title; $('oPitch').textContent = st.pitch; $('oBase').textContent = st.base;
+  }
+  await Promise.all(tasks);
+};
+</script>
+</body>
+</html>

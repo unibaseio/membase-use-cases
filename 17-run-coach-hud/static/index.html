@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pacenote · Jamie's run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+  /* Pacenote: a running coach for smart glasses. The page is the view through the glasses: a
+     park path drawn on a canvas, the HUD at the lens edges, the coach's cue in the lens. Before
+     and after the run, the phone companion holds the brief and the saved run. */
+  :root {
+    --lime: #c8f53c; --amber: #ffae3b; --hud: #f1f7ea; --hud-dim: rgba(241, 247, 234, .66);
+    --ph-bg: #0f1210; --ph-card: #191d1a; --ph-line: #262b27; --ph-ink: #eef2ea; --ph-dim: #8f998f; --ph-dim2: #646d65;
+    --cond: "Barlow Condensed", "Arial Narrow", sans-serif; --ui: "Barlow", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: #0b0d0c; color: var(--hud); font: 15px/1.4 var(--ui); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  svg { display: block; }
+  [hidden] { display: none !important; }
+  #scene { position: fixed; inset: 0; width: 100vw; height: 100vh; }
+  .lens { position: fixed; inset: 0; pointer-events: none; }
+  .lens svg { width: 100%; height: 100%; }
+
+  /* ---- the HUD, at the edges of the lens ---- */
+  .hud { position: fixed; inset: 0; pointer-events: none; transition: opacity .6s; text-shadow: 0 1px 2px rgba(0,0,0,.55), 0 0 18px rgba(200, 245, 60, .22); }
+  .hud.idle .g { opacity: .5; }
+  .g { position: absolute; display: flex; align-items: flex-end; gap: 10px; transition: opacity .6s; }
+  .g svg { width: 26px; height: 26px; color: var(--lime); margin-bottom: 9px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+  .g .n { font: 600 60px/.9 var(--cond); letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+  .g .u { font: 500 20px/1 var(--cond); color: var(--hud-dim); margin-bottom: 6px; }
+  .g .sub { position: absolute; left: 36px; top: 100%; margin-top: 6px; font: 500 17px/1 var(--cond); color: var(--hud-dim); white-space: nowrap; }
+  .g .sub b { color: var(--lime); font-weight: 600; }
+  #g-dist { left: 78px; top: 70px; }
+  #g-time { right: 78px; top: 70px; }
+  #g-time .n { font-size: 44px; }
+  #g-pace { left: 78px; bottom: 132px; }
+  #g-hr { right: 78px; bottom: 132px; }
+  #g-hr svg { color: #ff6b6b; }
+  .track { position: absolute; left: 36px; top: 100%; margin-top: 12px; width: 230px; height: 4px; border-radius: 2px; background: rgba(241,247,234,.22); }
+  .track i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: var(--lime); }
+  .track .mark { position: absolute; top: -4px; width: 2px; height: 12px; background: var(--amber); border-radius: 1px; }
+  .track .mark b { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); font: 600 14px/1 var(--cond); color: var(--amber); white-space: nowrap; }
+  .plan { position: absolute; left: 50%; top: 92px; transform: translateX(-50%); font: 500 22px/1 var(--cond); color: var(--hud-dim); display: flex; gap: 10px; align-items: center; white-space: nowrap; }
+  .plan b { color: var(--hud); font-weight: 600; }
+  .plan i { width: 6px; height: 6px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 8px var(--lime); }
+
+  /* ---- the coach's cue, in the lens ---- */
+  .cue { position: fixed; left: 50%; top: 140px; width: 780px; transform: translate(-50%, 10px); opacity: 0; transition: opacity .45s, transform .45s; pointer-events: none;
+    background: rgba(9, 13, 11, .72); border-radius: 18px; padding: 20px 26px 20px; box-shadow: inset 0 2px 0 var(--lime), 0 10px 30px rgba(0,0,0,.25); }
+  .cue.on { opacity: 1; transform: translate(-50%, 0); }
+  .cue-at { display: flex; align-items: center; gap: 9px; font: 600 19px/1 var(--cond); color: var(--lime); margin-bottom: 10px; }
+  .cue-at svg { width: 20px; height: 20px; }
+  .cue-t { font: 500 32px/1.2 var(--ui); color: #fff; letter-spacing: -.01em; }
+  .cue-b { margin-top: 10px; font-size: 17px; color: var(--hud-dim); }
+  .cue-runs { display: flex; gap: 12px; margin-top: 16px; }
+  .cue-runs .r { flex: 1; min-width: 0; }
+  .cue-runs .r svg { width: 100%; height: 44px; }
+  .cue-runs .r div { display: flex; justify-content: space-between; margin-top: 5px; font: 500 16px/1 var(--cond); color: var(--hud-dim); white-space: nowrap; }
+  .cue-runs .r div b { color: var(--amber); font-weight: 600; }
+  .cue-runs .r.held div b { color: var(--lime); }
+
+  /* ---- the phone ---- */
+  .phone { position: fixed; left: 74px; top: 30px; width: 392px; height: 760px; border-radius: 56px; padding: 11px; background: #050605;
+    box-shadow: 0 0 0 1.5px #2b2f2c, 0 30px 70px rgba(0,0,0,.55), inset 0 0 0 1px #1b1e1c; transition: transform .8s cubic-bezier(.5,0,.2,1), opacity .8s; z-index: 5; }
+  .phone.away { transform: translateY(105%) rotate(5deg); opacity: .0; }
+  .screen { position: relative; height: 100%; border-radius: 46px; background: var(--ph-bg); color: var(--ph-ink); overflow: hidden; display: flex; flex-direction: column; }
+  .island { position: absolute; left: 50%; top: 11px; width: 108px; height: 31px; border-radius: 20px; background: #000; transform: translateX(-50%); }
+  .status { display: flex; justify-content: space-between; align-items: center; padding: 17px 30px 0 34px; height: 46px; font: 600 15px/1 var(--ui); }
+  .status .icons { display: flex; gap: 6px; align-items: center; }
+  .appbar { display: flex; align-items: center; gap: 8px; padding: 10px 22px 0; font: 600 15px/1 var(--ui); }
+  .appbar .mark { width: 22px; height: 22px; }
+  .appbar .glasses { margin-left: auto; display: flex; align-items: center; gap: 6px; font: 500 13px/1 var(--ui); color: var(--ph-dim); }
+  .appbar .glasses svg { width: 22px; height: 12px; color: var(--lime); }
+  /* the glasses' live light breathes (this also keeps the page painting, so a screen
+     recording always catches the last change) */
+  .appbar .glasses i, .plan i { animation: breathe 2.4s ease-in-out infinite; }
+  .appbar .glasses i { width: 6px; height: 6px; border-radius: 50%; background: var(--lime); }
+  @keyframes breathe { 50% { opacity: .35; } }
+  .body { flex: 1; min-height: 0; padding: 14px 22px 0; display: flex; flex-direction: column; }
+  .kicker { font: 500 14px/1 var(--ui); color: var(--ph-dim); }
+  .big { font: 600 40px/1 var(--cond); margin-top: 6px; letter-spacing: -.005em; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 6px 11px; border-radius: 99px; background: rgba(200, 245, 60, .12); color: var(--lime); font: 600 15px/1 var(--cond); }
+  .say { display: flex; gap: 9px; margin-top: 12px; font: 500 16px/1.35 var(--ui); color: var(--ph-ink); }
+  .say svg { width: 18px; height: 18px; color: var(--lime); flex: none; margin-top: 2px; }
+  .read { margin-top: 10px; font-size: 13px; color: var(--ph-dim); display: flex; align-items: center; gap: 6px; }
+  .read svg { width: 14px; height: 14px; }
+  .count { display: flex; align-items: baseline; gap: 10px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--ph-line); }
+  .count .of { font: 700 34px/1 var(--cond); color: var(--amber); white-space: nowrap; }
+  .count .w { font-size: 14px; line-height: 1.25; color: var(--ph-ink); }
+  .count .w b { color: var(--lime); font-weight: 500; }
+  .runs { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 2px; }
+  .runs li { display: grid; grid-template-columns: 84px 1fr 44px 50px; align-items: center; gap: 8px; height: 28px; padding: 0 8px; border-radius: 8px; font-size: 13.5px; }
+  .runs li .d { color: var(--ph-dim); white-space: nowrap; }
+  .runs li svg { width: 100%; height: 20px; }
+  .runs li .k { color: var(--ph-dim); text-align: right; font: 500 15px/1 var(--cond); }
+  .runs li .v { text-align: right; font: 600 16px/1 var(--cond); color: var(--amber); }
+  .runs li.held .v { color: var(--lime); }
+  .runs li.today { background: rgba(200, 245, 60, .1); }
+  .runs li.today .d { color: var(--lime); font-weight: 500; }
+  .cues { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--ph-line); display: grid; gap: 8px; }
+  .cues h4 { margin: 0; font: 500 13px/1 var(--ui); color: var(--ph-dim); }
+  .cues .c b { display: block; font: 500 15px/1.25 var(--ui); }
+  .cues .c small { display: block; font-size: 12.5px; line-height: 1.3; color: var(--ph-dim); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bottom { margin-top: auto; padding: 10px 0 16px; display: grid; gap: 10px; }
+  .seg { display: flex; background: var(--ph-card); border-radius: 12px; padding: 3px; }
+  .seg button { flex: 1; padding: 8px 0; border-radius: 9px; font: 600 15px/1 var(--cond); color: var(--ph-dim); }
+  .seg button.on { background: #2a302b; color: var(--ph-ink); }
+  .go { width: 100%; padding: 15px 0; border-radius: 16px; background: var(--lime); color: #0d100b; font: 700 20px/1 var(--cond); letter-spacing: .01em; display: flex; justify-content: center; align-items: center; gap: 8px; }
+  .go:disabled { opacity: .5; cursor: progress; }
+  .go svg { width: 16px; height: 16px; }
+  .fine { position: absolute; left: 24px; right: 24px; top: 100%; margin-top: 12px; font-size: 12px; line-height: 1.35; color: rgba(241,247,234,.7); text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  .loading { display: grid; gap: 10px; margin-top: 18px; }
+  .loading i { display: block; height: 14px; border-radius: 7px; background: linear-gradient(90deg, var(--ph-card), #222823, var(--ph-card)); background-size: 200% 100%; animation: sheen 1.2s linear infinite; }
+  @keyframes sheen { to { background-position: -200% 0; } }
+  .err { color: #ff8a7a; font-size: 14px; margin-top: 14px; }
+  /* the saved run */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+  .stats div { background: var(--ph-card); border-radius: 12px; padding: 10px 12px; }
+  .stats small { display: block; font-size: 12px; color: var(--ph-dim); }
+  .stats b { display: block; font: 600 26px/1.1 var(--cond); margin-top: 3px; }
+  .splits { margin-top: 14px; background: var(--ph-card); border-radius: 14px; padding: 12px 12px 8px; }
+  .splits svg { width: 100%; height: 130px; }
+  .note { margin-top: 12px; font-size: 14.5px; line-height: 1.4; color: var(--ph-ink); }
+  .saved { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; padding: 11px 12px; border-radius: 12px; background: rgba(200, 245, 60, .1); color: var(--lime); font-size: 14px; line-height: 1.35; }
+  .saved svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
+  .saved.wait { background: var(--ph-card); color: var(--ph-dim); }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div class="lens" aria-hidden="true">
+  <svg viewBox="0 0 1440 900" preserveAspectRatio="none">
+    <defs>
+      <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="22"/></filter>
+      <linearGradient id="glare" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".48" stop-color="#fff" stop-opacity=".05"/><stop offset=".52" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    </defs>
+    <path filter="url(#soft)" fill="#070908" fill-rule="evenodd" opacity=".86"
+      d="M-200 -200H1640V1100H-200Z M70 70 Q90 18 300 22 L600 26 Q690 30 720 78 Q750 30 840 26 L1140 22 Q1350 18 1370 70 L1414 640 Q1420 860 1180 878 L260 878 Q20 860 26 640 Z"/>
+    <rect x="0" y="0" width="1440" height="900" fill="url(#glare)"/>
+  </svg>
+</div>
+
+<div class="hud idle" id="hud">
+  <div class="plan" id="plan" hidden><i></i><b id="plan-d"></b><span id="plan-p"></span></div>
+  <div class="g" id="g-dist">
+    <svg viewBox="0 0 26 26"><path d="M6 22c0-5 14-4 14-10S9 8 9 4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="9" cy="4" r="2.6" fill="currentColor"/><circle cx="6" cy="22" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+    <span class="n" id="dist">0.00</span><span class="u">km</span>
+    <div class="track" id="track"><i id="track-i" style="width:0"></i></div>
+  </div>
+  <div class="g" id="g-time">
+    <svg viewBox="0 0 26 26"><circle cx="13" cy="15" r="9" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M13 15V10M10 3h6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+    <span class="n" id="elapsed">0:00</span>
+  </div>
+  <div class="g" id="g-pace">
+    <svg viewBox="0 0 26 26"><path d="M4 18a9 9 0 1 1 18 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M13 18l5-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+    <span class="n" id="pace">–:––</span><span class="u">/km</span>
+    <div class="sub" id="target"></div>
+  </div>
+  <div class="g" id="g-hr">
+    <svg viewBox="0 0 26 26"><path d="M13 22S3 15.5 3 9.2A5 5 0 0 1 13 7a5 5 0 0 1 10 2.2C23 15.5 13 22 13 22Z" fill="currentColor"/></svg>
+    <span class="n" id="hr">–</span><span class="u">bpm</span>
+  </div>
+</div>
+
+<div class="cue" id="cue">
+  <div class="cue-at"><svg viewBox="0 0 20 20"><path d="M3 10h3l2-5 4 10 2-5h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="cue-at"></span></div>
+  <div class="cue-t" id="cue-t"></div>
+  <div class="cue-runs" id="cue-runs"></div>
+  <div class="cue-b" id="cue-b"></div>
+</div>
+
+<div class="phone" id="phone">
+  <div class="screen">
+    <div class="island"></div>
+    <div class="status"><span id="clock"></span><span class="icons">
+      <svg width="17" height="11" viewBox="0 0 17 11"><rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/><rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/><rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/><rect x="13.5" y="0" width="3" height="11" rx="1" fill="currentColor"/></svg>
+      <svg width="25" height="12" viewBox="0 0 25 12"><rect x=".5" y=".5" width="21" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="22.6" y="4" width="1.8" height="4" rx=".9" fill="currentColor" opacity=".5"/></svg>
+    </span></div>
+    <div class="appbar">
+      <svg class="mark" viewBox="0 0 22 22"><rect width="22" height="22" rx="6" fill="#c8f53c"/><path d="M6 15.5 9.5 7l3 6 1.5-3H17" fill="none" stroke="#0d100b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Pacenote
+      <span class="glasses"><svg viewBox="0 0 22 12"><circle cx="5.5" cy="6" r="4.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="16.5" cy="6" r="4.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 5.5q1-1 2 0" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Glasses on<i></i></span>
+    </div>
+    <div class="body" id="ph"></div>
+  </div>
+  <div class="fine">Jamie and the runs are made up; the run is simulated. Not training or medical advice.</div>
+</div>
+
+<script type="module">
+  import { $, el, api, stream } from "/kit/kit.js";
+
+  const FADE_KM = 7;
+  let distance = 10, brief = null, running = false, newRun = null, finished = false;
+  const svgEl = (markup) => { const t = document.createElement("template"); t.innerHTML = markup.trim(); return t.content.firstChild; };
+  const dayLabel = (iso) => new Date(iso).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const shortDate = (iso) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const pace = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+  const clock = (s) => s >= 3600 ? `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  const toSecs = (p) => { const [m, s] = p.split(":").map(Number); return m * 60 + s; };
+  const isToday = (memoryId) => newRun && newRun.memory_ids.includes(memoryId);
+  // a cue's runs: their dates when there are two or fewer, else how many
+  const runsOf = (uses) => { const d = [...new Set(uses.map((u) => shortDate(u.date)))]; return d.length <= 2 ? d.join(", ") : `${d.length} runs`; };
+  const tick = () => { const d = new Date(); $("#clock").textContent = `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`; };
+  tick(); setInterval(tick, 10000);
+
+  // A run's splits as bars: taller is faster; after km 7 amber when it faded, lime when it held.
+  function splitBars(splits, { faded, w = 120, h = 40, gap = 2, labels = false, target = null } = {}) {
+    const lo = 280, hi = 390, n = splits.length, bw = (w - gap * (n - 1)) / n, top = labels ? 16 : 0;
+    const y = (s) => top + (h - top) * Math.min(.86, Math.max(.06, (s - lo) / (hi - lo)));
+    let out = "";
+    splits.forEach((s, i) => {
+      const x = i * (bw + gap), after = i >= FADE_KM;
+      const fill = after ? (faded ? "#ffae3b" : "#c8f53c") : "rgba(241,247,234,.5)";
+      out += `<rect x="${x.toFixed(1)}" y="${y(s).toFixed(1)}" width="${bw.toFixed(1)}" height="${(h - y(s)).toFixed(1)}" rx="${Math.min(2, bw / 3)}" fill="${fill}"/>`;
+      if (labels) out += `<text x="${(x + bw / 2).toFixed(1)}" y="11" text-anchor="middle" font-family="Barlow Condensed" font-size="11" fill="${after ? fill : "#8f998f"}">${pace(s)}</text>`;
+    });
+    if (n > FADE_KM) { const x = FADE_KM * (bw + gap) - gap / 2; out += `<path d="M${x} ${top} V${h}" stroke="#ffae3b" stroke-opacity=".7" stroke-dasharray="2 3"/>`; }
+    if (target) out += `<path d="M0 ${y(target)} H${w}" stroke="#f1f7ea" stroke-opacity=".35" stroke-dasharray="4 4"/>`;
+    return svgEl(`<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${out}</svg>`);
+  }
+
+  // ---- the view through the glasses: a park path, drawn ------------------------------------
+  const cv = $("#scene"), g = cv.getContext("2d");
+  let W = 0, H = 0, camZ = 0, speed = 0, last = performance.now(), phase = 0;
+  const SEG = 4, AHEAD = 140, CAM_H = 1.65;
+  const rng = (seed) => { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); };
+  const cx = (i) => 16 * Math.sin(i * 0.011) + 6 * Math.sin(i * 0.029 + 1.3);
+  const sprites = {};
+  function sprite(kind, seed) {
+    const key = kind + seed;
+    if (sprites[key]) return sprites[key];
+    const r = rng(seed * 97 + kind.length), c = document.createElement("canvas"), x = c.getContext("2d");
+    if (kind === "tree") {
+      c.width = 220; c.height = 320;
+      x.fillStyle = "#4a3b2c"; x.fillRect(100, 170, 18, 150);
+      const greens = [["#3e6a3a", "#5d8a45", "#86ad5a"], ["#46703e", "#6b9450", "#9cbb68"], ["#355f3c", "#517e48", "#77a05a"]][Math.floor(r() * 3)];
+      for (let k = 0; k < 3; k++) for (let j = 0; j < 7; j++) {
+        x.fillStyle = greens[k];
+        const a = r() * Math.PI * 2, d = (1 - k * .3) * 55 * r();
+        x.beginPath(); x.arc(110 + Math.cos(a) * d + k * 10, 120 + Math.sin(a) * d * .8 - k * 12, 48 - k * 12 + r() * 10, 0, Math.PI * 2); x.fill();
+      }
+    } else if (kind === "poplar") {
+      c.width = 120; c.height = 340;
+      x.fillStyle = "#4a3b2c"; x.fillRect(54, 260, 12, 80);
+      for (const [col, dx] of [["#3a6337", 0], ["#58854a", 8], ["#7da35c", 14]]) { x.fillStyle = col; x.beginPath(); x.ellipse(60 + dx / 2, 150 - dx, 40 - dx, 140 - dx * 2, 0, 0, Math.PI * 2); x.fill(); }
+    } else if (kind === "bush") {
+      c.width = 160; c.height = 90;
+      for (let j = 0; j < 9; j++) { x.fillStyle = ["#41693b", "#5b8648", "#7ba45c"][j % 3]; x.beginPath(); x.arc(30 + r() * 100, 55 + r() * 20, 22 + r() * 14, 0, Math.PI * 2); x.fill(); }
+    } else if (kind === "lamp") {
+      c.width = 60; c.height = 360;
+      x.fillStyle = "#2d3431"; x.fillRect(27, 40, 6, 320); x.fillRect(18, 350, 24, 10);
+      x.fillStyle = "#3a433f"; x.beginPath(); x.moveTo(14, 44); x.lineTo(46, 44); x.lineTo(38, 18); x.lineTo(22, 18); x.closePath(); x.fill();
+      x.fillStyle = "#f6e6b8"; x.fillRect(22, 38, 16, 6);
+    } else if (kind === "bench") {
+      c.width = 200; c.height = 90;
+      x.fillStyle = "#2f3330"; x.fillRect(20, 50, 8, 40); x.fillRect(172, 50, 8, 40);
+      x.fillStyle = "#8a6a46"; for (let j = 0; j < 3; j++) x.fillRect(10, 20 + j * 12, 180, 8);
+    }
+    return (sprites[key] = c);
+  }
+  const SIZE = { tree: [7.5, 10.5], poplar: [3.2, 11], bush: [2.6, 1.4], lamp: [0.5, 4.2], bench: [1.8, 0.8] };
+  function objectsAt(i) {
+    const r = rng(i * 7919 + 11), out = [];
+    if (r() < .55) out.push({ kind: r() < .75 ? "tree" : "poplar", x: -(4.5 + r() * 14), seed: i % 9 });
+    if (r() < .55) out.push({ kind: r() < .7 ? "tree" : "poplar", x: 4.5 + r() * 14, seed: (i + 4) % 9 });
+    if (r() < .35) out.push({ kind: "bush", x: (r() < .5 ? -1 : 1) * (2.4 + r() * 3), seed: i % 5 });
+    if (i % 11 === 0) out.push({ kind: "lamp", x: 2.4, seed: 0 });
+    if (i % 37 === 5) out.push({ kind: "bench", x: -2.9, seed: 0 });
+    return out;
+  }
+  function ridge(seed, x, amp) { return amp * (Math.sin(x * 0.006 + seed) * .5 + Math.sin(x * 0.017 + seed * 2) * .3 + Math.sin(x * 0.041 + seed * 3) * .2); }
+  // drawn at 0.7x of the CSS size and scaled up: the art is soft shapes, and a lighter canvas
+  // keeps the view moving smoothly; the HUD on top stays sharp
+  const RES = 0.7;
+  let dirty = true;
+  function resize() { W = innerWidth; H = innerHeight; cv.width = Math.round(W * RES); cv.height = Math.round(H * RES); g.setTransform(RES, 0, 0, RES, 0, 0); dirty = true; }
+  addEventListener("resize", resize); resize();
+
+  function frame(now) {
+    // standing still, nothing changes: draw once; moving, at most 30 times a second
+    if ((!speed && !dirty) || now - last < 31) { requestAnimationFrame(frame); return; }
+    dirty = false;
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    camZ += speed * dt;
+    if (speed > 0) phase += dt * 2.9 * Math.PI * 2;
+    const bob = speed > 0 ? Math.sin(phase) * 2.4 : 0, sway = speed > 0 ? Math.sin(phase / 2) * 1.6 : 0;
+    const horizon = H * .47 + bob, f = W * .78, i0 = Math.floor(camZ / SEG), frac = camZ / SEG - i0;
+    const heading = (cx(i0 + 1) - cx(i0));
+    // sky, sun, hills
+    const sky = g.createLinearGradient(0, 0, 0, horizon);
+    sky.addColorStop(0, "#9cc0db"); sky.addColorStop(.7, "#d7e0dc"); sky.addColorStop(1, "#f2dcc0");
+    g.fillStyle = sky; g.fillRect(0, 0, W, horizon + 2);
+    const sunX = W * .7 - heading * 40, sunY = horizon - 70;
+    const glow = g.createRadialGradient(sunX, sunY, 0, sunX, sunY, 260);
+    glow.addColorStop(0, "rgba(255, 236, 200, .95)"); glow.addColorStop(.12, "rgba(255, 226, 180, .55)"); glow.addColorStop(1, "rgba(255, 220, 170, 0)");
+    g.fillStyle = glow; g.fillRect(0, 0, W, horizon);
+    const shift = camZ * .02 + heading * 60;
+    for (const [seed, amp, base, col] of [[1, 34, 46, "#a9bcb6"], [4, 22, 22, "#86a08f"], [7, 14, 8, "#5f7f5a"]]) {
+      g.fillStyle = col; g.beginPath(); g.moveTo(0, horizon + 2);
+      for (let x = 0; x <= W; x += 8) g.lineTo(x, horizon - base - ridge(seed, x + shift * (seed / 7), amp));
+      g.lineTo(W, horizon + 2); g.closePath(); g.fill();
+    }
+    // the grass
+    const grass = g.createLinearGradient(0, horizon, 0, H);
+    grass.addColorStop(0, "#8aa86a"); grass.addColorStop(1, "#4f7a3b");
+    g.fillStyle = grass; g.fillRect(0, horizon, W, H - horizon);
+    // the path, far to near
+    const base = cx(i0) + heading * frac;
+    const proj = [];
+    for (let k = AHEAD; k >= 0; k--) {
+      const i = i0 + k, z = (i * SEG) - camZ;
+      if (z < 0.6) continue;
+      const rel = cx(i) - base - heading * (z / SEG);
+      const s = f / z;
+      proj.push({ i, z, s, x: W / 2 + sway + rel * s * 1 + (cx(i) - base - rel) * 0, y: horizon + CAM_H * s, rel });
+    }
+    for (let k = 0; k < proj.length - 1; k++) {
+      const a = proj[k], b = proj[k + 1];
+      if (a.i % 6 < 3) { g.fillStyle = "rgba(255,255,240,.035)"; g.fillRect(0, a.y, W, b.y - a.y + 1); }
+      const lane = (p, m) => [p.x - m * p.s, p.x + m * p.s];
+      const [a0, a1] = lane(a, 2.2), [b0, b1] = lane(b, 2.2);
+      g.fillStyle = "rgba(60, 80, 40, .25)"; g.beginPath(); g.moveTo(a0, a.y); g.lineTo(a1, a.y); g.lineTo(b1, b.y + 1); g.lineTo(b0, b.y + 1); g.closePath(); g.fill();
+      const [c0, c1] = lane(a, 1.5), [d0, d1] = lane(b, 1.5);
+      g.fillStyle = a.i % 2 ? "#cdb993" : "#c8b38c"; g.beginPath(); g.moveTo(c0, a.y); g.lineTo(c1, a.y); g.lineTo(d1, b.y + 1); g.lineTo(d0, b.y + 1); g.closePath(); g.fill();
+    }
+    // things beside the path, far to near
+    for (const p of proj) {
+      if (p.z > AHEAD * SEG - 8) continue;
+      for (const o of objectsAt(p.i)) {
+        const [mw, mh] = SIZE[o.kind], img = sprite(o.kind, o.seed);
+        const w = mw * p.s, h = mh * p.s, x = p.x + o.x * p.s;
+        if (x + w < -50 || x - w > W + 50 || h < 1.5) continue;
+        g.globalAlpha = Math.min(1, Math.max(0, 1.25 - p.z / (AHEAD * SEG * .8)));
+        g.drawImage(img, x - w / 2, p.y - h, w, h);
+      }
+    }
+    g.globalAlpha = 1;
+    // morning haze at the horizon
+    const haze = g.createLinearGradient(0, horizon - 40, 0, horizon + 60);
+    haze.addColorStop(0, "rgba(242, 226, 205, 0)"); haze.addColorStop(.45, "rgba(242, 226, 205, .45)"); haze.addColorStop(1, "rgba(242, 226, 205, 0)");
+    g.fillStyle = haze; g.fillRect(0, horizon - 40, W, 100);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  // the runner's speed, in the scene: a touch quicker than life so the path is seen to move
+  const runAt = (paceS) => { speed = (1000 / paceS) * 1.6; };
+  let stopTimer = null;
+  function slowToStop() { clearInterval(stopTimer); stopTimer = setInterval(() => { speed *= .9; if (speed < .1) { speed = 0; clearInterval(stopTimer); } }, 60); }
+
+  // ---- the HUD -----------------------------------------------------------------------------
+  function hudPlan() {
+    const p = brief?.plan;
+    $("#plan").hidden = !p || running;
+    if (p) { $("#plan-d").textContent = `${p.distance_km} km ${p.kind}`; $("#plan-p").textContent = `· ${brief.target_pace} /km`; }
+    $("#target").replaceChildren("target ", el("b", {}, brief ? brief.target_pace : "–"));
+    const marks = [...$("#track").querySelectorAll(".mark")]; marks.forEach((m) => m.remove());
+    if (p && p.distance_km > FADE_KM) $("#track").append(el("span", { class: "mark", style: `left:${(FADE_KM / p.distance_km) * 100}%` }, el("b", {}, `km ${FADE_KM}`)));
+  }
+  function hudReset() {
+    $("#dist").textContent = "0.00"; $("#elapsed").textContent = "0:00"; $("#pace").textContent = "–:––"; $("#hr").textContent = "–"; $("#track-i").style.width = "0";
+  }
+
+  // Cues queue up, so one that fires right after another never hides it before it is read.
+  const cues = [];
+  let cueBusy = false;
+  function showCue(c) { cues.push(c); if (!cueBusy) nextCue(); }
+  let cueTimer = null;
+  function clearCues() { cues.length = 0; clearTimeout(cueTimer); cueBusy = false; $("#cue").classList.remove("on"); }
+  function nextCue() {
+    const c = cues.shift();
+    if (!c) { cueBusy = false; $("#cue").classList.remove("on"); return; }
+    cueBusy = true;
+    $("#cue").dataset.counted = c.counted ? "1" : "";
+    $("#cue-at").textContent = c.at;
+    $("#cue-t").textContent = c.text;
+    $("#cue-b").textContent = c.because || "";
+    $("#cue-b").hidden = !c.because;
+    $("#cue-runs").replaceChildren(...(c.runs || []).map((r) => el("div", { class: "r" + (r.faded ? "" : " held") },
+      splitBars(r.splits, { faded: r.faded, w: 140, h: 44 }),
+      el("div", {}, el("span", {}, shortDate(r.date)), el("b", {}, r.faded ? `+${r.slower}s` : "held")))));
+    $("#cue-runs").hidden = !(c.runs || []).length;
+    $("#cue").classList.add("on");
+    cueTimer = setTimeout(() => { $("#cue").classList.remove("on"); cueTimer = setTimeout(nextCue, 450); }, c.counted ? 7500 : 4800);
+  }
+
+  // ---- the phone ---------------------------------------------------------------------------
+  const ph = (...children) => $("#ph").replaceChildren(...children);
+  const phone = (up) => $("#phone").classList.toggle("away", !up);
+  const ICON = {
+    coach: '<svg viewBox="0 0 18 18"><path d="M2 9h3l2-5 4 10 2-5h3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    mem: '<svg viewBox="0 0 14 14"><path d="M2 3.5h10M2 7h10M2 10.5h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+    go: '<svg viewBox="0 0 16 16"><path d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg>',
+    ok: '<svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5.5 9.2 8 11.5l4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  };
+
+  async function getBrief() {
+    const next = !!newRun;
+    finished = false;
+    phone(true);
+    ph(el("div", { class: "kicker" }, next ? "Your next run" : "Today's run"), el("div", { class: "big" }, `${distance} km steady`),
+      el("div", { class: "read" }, svgEl(ICON.mem), "Reading your last runs…"),
+      el("div", { class: "loading" }, el("i", { style: "width:92%" }), el("i", { style: "width:70%" }), el("i", { style: "width:84%" }), el("i", { style: "width:60%" })));
+    try {
+      brief = await api("/api/brief", { distance_km: distance, kind: "steady run" });
+      renderBrief();
+    } catch (e) {
+      ph(el("div", { class: "err" }, e.message), el("div", { class: "bottom" }, el("button", { class: "go", onclick: getBrief }, "Try again")));
+    }
+  }
+
+  function renderBrief() {
+    hudPlan(); hudReset();
+    const p = brief.pattern;
+    const fresh = newRun && brief.recalled.some((h) => isToday(h.memory_id));
+    const runs = p.long.map((r) => el("li", { class: (r.faded ? "faded" : "held") + (isToday(r.memory_id) ? " today" : ""), id: isToday(r.memory_id) ? "fresh" : null },
+      el("span", { class: "d" }, isToday(r.memory_id) ? "Today" : dayLabel(r.date)),
+      splitBars(r.splits, { faded: r.faded, w: 110, h: 20, gap: 1.5 }),
+      el("span", { class: "k" }, `${r.distance_km} km`),
+      el("span", { class: "v" }, r.faded ? `+${r.slower}s` : "held")));
+    const count = p.of
+      ? el("div", { class: "count", id: "count", "data-faded": p.faded, "data-of": p.of, "data-latest": String(p.latest_faded) },
+        el("span", { class: "of" }, `${p.faded} of ${p.of}`),
+        el("span", { class: "w" }, `runs over ${FADE_KM} km faded after km ${FADE_KM}.`, p.latest_faded === false ? el("b", {}, " The latest held.") : null))
+      : el("div", { class: "count", id: "count", "data-faded": 0, "data-of": 0 }, el("span", { class: "w" }, `No recent run went past km ${FADE_KM}.`));
+    ph(
+      el("div", { class: "kicker" }, fresh ? "Your next run" : "Today's run"),
+      el("div", { class: "big" }, `${brief.plan.distance_km} km steady`),
+      el("div", { class: "chip" }, `${brief.target_pace} /km target`),
+      el("div", { class: "say", id: "headline" }, svgEl(ICON.coach), el("span", {}, brief.headline)),
+      el("div", { class: "read", id: "rcount" }, svgEl(ICON.mem), `Read your last ${brief.recalled.length} runs`),
+      el("div", { id: "pattern" }, count, el("ul", { class: "runs", id: "counted" }, ...runs)),
+      brief.cues.length ? el("div", { class: "cues" }, ...brief.cues.map((c) => el("div", { class: "c" }, el("b", {}, c.text),
+        el("small", { title: [...new Set(c.uses.map((u) => shortDate(u.date)))].join(", ") }, c.because + (c.uses.length ? ` · ${runsOf(c.uses)}` : ""))))) : null,
+      el("div", { class: "bottom" },
+        el("div", { class: "seg" }, ...[5, 10, 12].map((d) => el("button", { class: d === distance ? "on" : "", onclick: () => { distance = d; getBrief(); } }, `${d} km`))),
+        el("button", { class: "go", id: "start", onclick: startRun }, svgEl(ICON.go), "Start run")));
+  }
+
+  async function startRun() {
+    phone(false);
+    running = true;
+    $("#hud").classList.remove("idle");
+    hudPlan(); hudReset();
+    clearInterval(stopTimer);
+    runAt(toSecs(brief.target_pace));
+    const byMemory = Object.fromEntries(brief.pattern.long.map((r) => [r.memory_id, r]));
+    try {
+      await stream("/api/run", { brief_id: brief.id }, (e) => {
+        if (e.type === "tick") {
+          $("#elapsed").textContent = clock(e.t);
+          $("#pace").textContent = e.pace;
+          $("#dist").textContent = e.km.toFixed(2);
+          $("#hr").textContent = String(e.hr);
+          $("#track-i").style.width = `${Math.min(100, (e.km / brief.plan.distance_km) * 100)}%`;
+          runAt(e.pace_s);
+        } else if (e.type === "cue") {
+          const dates = [...new Set((e.uses || []).map((u) => shortDate(u.date)))];
+          const where = e.km === 0 ? "Start" : "hr" in e ? `km ${e.km.toFixed(1)} · heart rate ${e.hr}` : `km ${e.at_km}`;
+          const runs = e.counted ? (e.uses || []).map((u) => byMemory[u.memory_id]).filter(Boolean) : [];
+          showCue({
+            at: e.counted ? `${where} · from your last ${runs.length} runs over ${FADE_KM} km` : where,
+            text: e.text,
+            because: e.counted ? "" : [e.because, dates.length ? dates.join(", ") : ""].filter(Boolean).join(" · "),
+            runs, counted: e.counted,
+          });
+        } else if (e.type === "finish") {
+          running = false; finished = true;
+          clearCues();
+          slowToStop();
+          $("#hud").classList.add("idle");
+          summary(e.run, null);
+          phone(true);
+        } else if (e.type === "saved") {
+          newRun = e.run;
+          summary(e.run, true);
+        }
+      });
+    } catch (x) {
+      running = false; slowToStop(); phone(true);
+      ph(el("div", { class: "err" }, x.message), el("div", { class: "bottom" }, el("button", { class: "go", onclick: getBrief }, "New brief")));
+    }
+  }
+
+  function summary(r, saved) {
+    const avg = r.seconds / r.distance_km, target = toSecs(brief.target_pace);
+    ph(
+      el("div", { class: "kicker" }, "Just now"),
+      el("div", { class: "big" }, `${r.distance_km} km ${r.kind}`),
+      el("div", { class: "stats" },
+        el("div", {}, el("small", {}, "Time"), el("b", {}, clock(r.seconds))),
+        el("div", {}, el("small", {}, "Avg pace"), el("b", {}, pace(avg))),
+        el("div", {}, el("small", {}, "Avg HR"), el("b", {}, String(r.hr_avg)))),
+      el("div", { class: "splits" }, splitBars(r.splits, { faded: false, w: 320, h: 130, gap: 5, labels: true, target })),
+      r.felt ? el("div", { class: "note", id: "felt" }, r.felt.replace(/\s*Simulated run, coached through the glasses\.?$/, "")) : null,
+      saved
+        ? el("div", { class: "saved", id: "saved" }, svgEl(ICON.ok), el("span", {}, "Saved to your runs. Pacenote reads it before the next one."))
+        : el("div", { class: "saved wait" }, svgEl(ICON.mem), el("span", {}, "Saving to your runs…")),
+      el("div", { class: "bottom" }, el("button", { class: "go", id: "next", disabled: !saved, onclick: getBrief }, "Next run's brief")));
+  }
+
+  getBrief();
+</script>
+</body>
+</html>

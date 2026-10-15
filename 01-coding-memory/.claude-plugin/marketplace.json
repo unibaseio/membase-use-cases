@@ -1,0 +1,14 @@
+{
+  "name": "membase-demos",
+  "owner": {
+    "name": "Unibase"
+  },
+  "description": "Membase demo plugins: automatic long-term memory for coding agents.",
+  "plugins": [
+    {
+      "name": "membase-memory",
+      "source": "./claude-plugin",
+      "description": "Automatic long-term memory for Claude Code, backed by Membase."
+    }
+  ]
+}

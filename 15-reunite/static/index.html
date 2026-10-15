@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reunite · Review desk</title>
+<link rel="stylesheet" href="/static/fonts/fonts.css">
+<style>
+  /* Reunite: a caseworker's review desk. The seeker's file and a family's file lie open side by
+     side; the reviewer's worksheet sits between them. Details that agree are highlighted green
+     in both files under the same number, conflicts are underlined in red pencil, and a
+     decision is a stamp only a person can put down. */
+  :root {
+    --felt: #2e3a33; --felt-2: #26302a; --edge: #1d2520;
+    --manila: #e8d6a8; --manila-2: #d9c48e; --sheet: #fbf6e6; --blue-folder: #c3ced0; --blue-folder-2: #a9b8bb; --sheet-2: #f6f7f1;
+    --ink: #24211c; --ink-2: #57514a; --ink-3: #8a8277; --rule: #ddd2b8; --rule-2: #d9ddd5;
+    --agree: rgba(126, 196, 98, .42); --agree-ink: #2f6a25; --pencil: #b8392a; --stamp: #b3261e; --blue-ink: #24375e;
+    --type: "Courier Prime", "Courier New", monospace;
+    --serif: "Source Serif 4", Georgia, serif;
+    --hand: "Kalam", "Segoe Print", cursive;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--felt); color: var(--ink); font-family: var(--serif); font-size: 14px; overflow: hidden; -webkit-font-smoothing: antialiased; }
+  body::before { /* felt */ content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .5;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .1  0 0 0 0 .14  0 0 0 0 .1  0 0 0 .22 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+      radial-gradient(ellipse 80% 70% at 50% 45%, rgba(255, 255, 255, .05), transparent 70%); }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  svg { display: block; }
+  [hidden] { display: none !important; }
+
+  /* ---- the bar: the tool, the tray of seeker files, a new file ---------------------------- */
+  .bar { height: 58px; display: flex; align-items: flex-end; gap: 22px; padding: 0 24px; background: var(--edge); position: relative; z-index: 3;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, .25); }
+  .brand { align-self: center; display: flex; align-items: center; gap: 10px; color: #efe6cf; white-space: nowrap; }
+  .brand b { font: 600 20px/1 var(--serif); letter-spacing: .01em; }
+  .brand small { display: block; font: italic 13px/1.2 var(--serif); color: #a9b2a8; margin-top: 2px; }
+  .tray { display: flex; gap: 3px; flex: 1; min-width: 0; }
+  .tab { height: 38px; padding: 0 12px; border-radius: 7px 7px 0 0; background: #c9b989; color: #3a3226; display: flex; align-items: center; gap: 7px;
+    font: 400 14px var(--serif); white-space: nowrap; position: relative; box-shadow: inset 0 -6px 8px -6px rgba(0, 0, 0, .25); }
+  .tab .id { font: 700 12.5px var(--type); color: #5e5238; }
+  .tab:hover { background: #d8c896; }
+  .tab.on { background: var(--manila); height: 42px; box-shadow: none; }
+  .tab .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .tab .dot.match { background: var(--stamp); box-shadow: 0 0 0 2px rgba(179, 38, 30, .25); }
+  .tab .dot.no_match { background: #6a6458; }
+  .tab .spin { width: 11px; height: 11px; border-width: 1.5px; }
+  .newfile { align-self: center; height: 34px; padding: 0 14px 0 11px; border-radius: 6px; color: #efe6cf; border: 1px solid rgba(239, 230, 207, .35);
+    display: flex; align-items: center; gap: 7px; font: 400 14.5px var(--serif); white-space: nowrap; }
+  .newfile:hover { border-color: #efe6cf; }
+
+  /* ---- the notice, pinned to the desk ------------------------------------------------------ */
+  .notice { position: relative; margin: 12px auto 0; width: max-content; max-width: calc(100% - 48px); background: #fffaf0; color: var(--ink);
+    padding: 9px 18px 9px 12px; display: flex; align-items: center; gap: 14px; font: 400 14.5px/1.35 var(--serif);
+    box-shadow: 0 0 0 1.5px var(--stamp), 0 8px 18px -10px rgba(0, 0, 0, .6); transform: rotate(-.25deg); }
+  .notice .tag { font: 700 13px/1 var(--type); color: var(--stamp); border: 2px solid var(--stamp); padding: 5px 7px 4px; transform: rotate(-3deg); letter-spacing: .04em; }
+  .notice b { font-weight: 600; }
+
+  /* ---- the desk: seeker file | worksheet | family file ------------------------------------ */
+  .desk { position: absolute; left: 0; right: 0; top: 134px; bottom: 18px; display: grid; grid-template-columns: 438px 456px 438px; justify-content: center; gap: 28px; padding: 0 24px; }
+  .folder { position: relative; border-radius: 4px 10px 10px 10px; padding: 10px 10px 10px 10px; min-height: 0; display: flex; flex-direction: column; }
+  .folder::before { /* the folder's own tab */ content: attr(data-label); position: absolute; left: 18px; top: -22px; height: 24px; padding: 4px 14px 0; border-radius: 7px 7px 0 0;
+    font: italic 600 14px var(--serif); color: #4b4231; background: inherit; }
+  .folder.seeker { background: linear-gradient(170deg, var(--manila), var(--manila-2)); }
+  .folder.family { background: linear-gradient(170deg, var(--blue-folder), var(--blue-folder-2)); }
+  .folder.family::before { color: #34444a; }
+  .sheet { flex: 1; min-height: 0; overflow: auto; background: var(--sheet); padding: 22px 26px 24px; position: relative; scrollbar-width: thin;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, .08), 0 10px 22px -14px rgba(0, 0, 0, .55); }
+  .family .sheet { background: var(--sheet-2); }
+  .sheet.empty { display: grid; place-content: center; justify-items: center; text-align: center; gap: 12px; color: #5d6b6e; background: transparent; box-shadow: inset 0 0 0 2px rgba(52, 68, 74, .25); border-radius: 4px; }
+  .sheet.empty p { margin: 0; font: italic 16px/1.4 var(--serif); max-width: 260px; }
+  .clip { position: absolute; top: -18px; right: 34px; width: 22px; height: 58px; z-index: 2; color: #8d959a; filter: drop-shadow(0 2px 1px rgba(0, 0, 0, .3)); }
+
+  .file-h { border-bottom: 1.5px solid var(--ink); padding-bottom: 10px; margin-bottom: 4px; }
+  .file-h .ref { font: 700 13px var(--type); color: var(--ink-2); display: flex; justify-content: space-between; }
+  .file-h h2 { margin: 6px 0 2px; font: 600 25px/1.15 var(--serif); }
+  .file-h .facts { font: 400 14px/1.45 var(--type); color: var(--ink-2); }
+  .f { padding: 10px 0 9px; border-bottom: 1px dashed var(--rule); }
+  .family .f { border-color: var(--rule-2); }
+  .f:last-child { border-bottom: 0; }
+  .f .l { font: italic 14px var(--serif); color: var(--ink-3); }
+  .f .v { font: 400 15px/1.5 var(--type); margin-top: 2px; }
+  mark { color: inherit; background: none; }
+  mark.ov { background: linear-gradient(transparent 12%, var(--agree) 12%, var(--agree) 88%, transparent 88%); border-radius: 2px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  mark.cf { text-decoration: underline wavy var(--pencil); text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
+  sup.pin { display: inline-grid; place-items: center; width: 19px; height: 19px; border-radius: 50%; font: 700 12px/1 var(--hand); vertical-align: 6px; margin: 0 1px 0 2px;
+    color: var(--agree-ink); box-shadow: inset 0 0 0 1.5px var(--agree-ink); }
+  sup.pin.cf { color: var(--pencil); box-shadow: inset 0 0 0 1.5px var(--pencil); }
+  .slip { margin-top: 14px; background: #fff; border: 1px solid var(--rule-2); padding: 8px 12px; font-size: 13.5px; transform: rotate(.4deg); box-shadow: 0 6px 12px -8px rgba(0, 0, 0, .4); }
+  .slip summary { cursor: pointer; font: italic 14px var(--serif); color: #47575c; }
+  .slip .p { font: 400 13px/1.45 var(--type); margin-top: 8px; padding-top: 8px; border-top: 1px dotted var(--rule-2); }
+  .slip .p i { font: italic 12.5px var(--serif); color: var(--ink-3); display: block; }
+
+  /* ---- the worksheet ---------------------------------------------------------------------- */
+  .work { position: relative; min-height: 0; display: flex; flex-direction: column; background: #fffdf6; border-radius: 2px; padding: 20px 24px 18px 70px;
+    background-image: linear-gradient(90deg, transparent 52px, rgba(184, 57, 42, .35) 52px 53.5px, transparent 53.5px),
+      repeating-linear-gradient(transparent 0 27px, rgba(95, 135, 170, .18) 27px 28px);
+    background-position: 0 0, 0 10px; box-shadow: 0 1px 0 rgba(0, 0, 0, .08), 0 14px 26px -14px rgba(0, 0, 0, .6); }
+  .work::before { /* binder holes */ content: ""; position: absolute; left: 18px; top: 60px; bottom: 60px; width: 14px; pointer-events: none;
+    background: radial-gradient(circle at 7px 7px, var(--felt) 6px, transparent 6.5px) 0 0 / 14px 33.3% repeat-y; opacity: .9; }
+  .ws-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .ws-h h3 { margin: 0; font: 600 21px/1.2 var(--serif); }
+  .ws-h small { font: 700 12.5px var(--type); color: var(--ink-3); white-space: nowrap; }
+  .ws-sub { font: italic 15px/1.4 var(--serif); color: var(--ink-2); margin: 3px 0 14px; }
+  .pullbtn { margin-top: 10px; align-self: flex-start; display: inline-flex; align-items: center; gap: 10px; height: 46px; padding: 0 20px 0 16px; border-radius: 6px;
+    background: var(--ink); color: #fbf3df; font: 600 16px var(--serif); box-shadow: 0 3px 0 #000; }
+  .pullbtn:hover:not(:disabled) { background: #3a352d; }
+  .pullbtn:disabled { opacity: .5; cursor: default; }
+  .linkbtn { font: italic 15px var(--serif); color: var(--blue-ink); text-decoration: underline; text-underline-offset: 3px; }
+  .probes { list-style: none; padding: 0; margin: 4px 0 0; display: grid; gap: 6px; font: 400 15px var(--type); }
+  .probes li { display: flex; gap: 10px; align-items: center; color: var(--ink-2); }
+  .probes .box { width: 18px; height: 18px; border: 1.5px solid var(--ink-2); border-radius: 2px; position: relative; flex: none; }
+  .probes .done .box::after { content: ""; position: absolute; left: 2px; top: -6px; width: 9px; height: 16px; border: solid var(--pencil); border-width: 0 3px 3px 0; transform: rotate(40deg); }
+  .working-line { margin-top: 18px; font: italic 16px var(--serif); color: var(--ink-2); display: flex; gap: 10px; align-items: center; }
+  .spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .8s linear infinite; display: inline-block; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* family files pulled: index cards */
+  .cards { display: grid; gap: 10px; overflow: auto; min-height: 0; padding: 2px 4px 6px 2px; }
+  .cand { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 2px 14px; text-align: left; width: 100%; padding: 10px 14px 11px 10px; background: #fff;
+    background-image: linear-gradient(var(--pencil), var(--pencil)), repeating-linear-gradient(transparent 0 21px, rgba(95, 135, 170, .2) 21px 22px);
+    background-size: 100% 1.5px, 100% 100%; background-position: 0 31px, 0 32px; background-repeat: no-repeat, no-repeat;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .12), 0 6px 12px -8px rgba(0, 0, 0, .45); transition: transform .15s; }
+  .cand:hover { transform: translateX(3px); }
+  .cand .s { grid-row: 1 / span 3; width: 52px; height: 52px; display: grid; place-items: center; font: 700 24px/1 var(--hand); color: var(--pencil); position: relative; }
+  .cand .s::before { content: ""; position: absolute; inset: 2px; border: 2px solid var(--pencil); border-radius: 50% 46% 52% 44%; transform: rotate(-8deg); }
+  .cand .s small { display: none; }
+  .cand .n { font: 700 14.5px/1.25 var(--type); padding-top: 2px; display: flex; justify-content: space-between; gap: 8px; }
+  .cand .by .v { font: 400 14px var(--hand); font-style: normal; color: var(--pencil); }
+  .cand .sum { font: 400 14px/22px var(--serif); color: var(--ink); margin-top: 6px; }
+  .cand .by { font: italic 12.5px/1.3 var(--serif); color: var(--ink-3); margin-top: 2px; }
+  .cand .dec { font: 700 12px var(--type); color: var(--stamp); border: 1.5px solid var(--stamp); padding: 1px 5px; transform: rotate(-4deg); display: inline-block; }
+
+  /* the comparison */
+  .scoreline { display: grid; grid-template-columns: 74px 1fr; gap: 14px; align-items: center; margin-bottom: 10px; }
+  .bigscore { width: 74px; height: 66px; display: grid; place-items: center; position: relative; font: 700 34px/1 var(--hand); color: var(--pencil); }
+  .bigscore::before { content: ""; position: absolute; inset: 0; border: 2.5px solid var(--pencil); border-radius: 50% 44% 52% 46%; transform: rotate(-7deg); }
+  .bigscore small { position: absolute; right: -8px; bottom: -4px; font: 400 14px var(--hand); }
+  .scoreline .sum { font: 400 15px/1.4 var(--serif); }
+  .scoreline .who { font: italic 13px var(--serif); color: var(--ink-3); margin-top: 3px; }
+  .pairs { list-style: none; margin: 0; padding: 0 0 14px; display: grid; gap: 0; overflow: auto; min-height: 0; flex: 0 1 auto;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent); }
+  .pair { display: grid; grid-template-columns: 22px minmax(0, 1fr) 20px minmax(0, 1fr); gap: 0 6px; align-items: start; padding: 6px 0 6px; border-bottom: 1px solid rgba(95, 135, 170, .18); font: 400 13.5px/1.35 var(--type); }
+  .pair .num { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font: 700 12px/1 var(--hand); margin-top: 1px;
+    color: var(--agree-ink); box-shadow: inset 0 0 0 1.5px var(--agree-ink); }
+  .pair .sym { text-align: center; font: 700 18px/1 var(--hand); color: var(--agree-ink); padding-top: 1px; }
+  .pair.cf .num { color: var(--pencil); box-shadow: inset 0 0 0 1.5px var(--pencil); }
+  .pair.cf .sym { color: var(--pencil); }
+  .pair .w { grid-column: 2 / -1; font: 400 13.5px/1.3 var(--hand); color: var(--agree-ink); margin-top: 1px; }
+  .pair.cf .w { color: var(--pencil); }
+  .pair.ov .q { background: linear-gradient(transparent 14%, var(--agree) 14%, var(--agree) 86%, transparent 86%); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  .pair.cf .q { text-decoration: underline wavy var(--pencil); text-underline-offset: 4px; }
+  .colh { display: grid; grid-template-columns: 22px minmax(0, 1fr) 20px minmax(0, 1fr); gap: 0 6px; margin: 0 0 2px; font: italic 13px var(--serif); color: var(--ink-3); }
+
+  /* the decision */
+  .decide { margin-top: auto; padding-top: 12px; display: grid; gap: 10px; }
+  .noteline { display: flex; align-items: baseline; gap: 10px; border-bottom: 1.5px solid var(--ink-2); padding-bottom: 2px; }
+  .noteline label { font: italic 14px var(--serif); color: var(--ink-3); white-space: nowrap; }
+  .noteline input { flex: 1; min-width: 0; border: 0; background: none; outline: none; font: 400 19px/1.2 var(--hand); color: var(--blue-ink); padding: 2px 0; }
+  .stamps { display: flex; gap: 12px; align-items: center; }
+  .stampbtn { height: 44px; padding: 0 16px 0 12px; border-radius: 6px; display: inline-flex; gap: 9px; align-items: center; font: 700 15px var(--type); letter-spacing: .02em;
+    background: #f3ecdc; box-shadow: inset 0 0 0 2px currentColor, 0 3px 0 rgba(0, 0, 0, .25); }
+  .stampbtn.yes { color: var(--stamp); }
+  .stampbtn.no { color: #3d3a35; }
+  .stampbtn:hover:not(:disabled) { background: #fff; }
+  .stampbtn:disabled { opacity: .5; }
+  .decide .fine { font: italic 13px var(--serif); color: var(--ink-3); }
+  .verdict { margin-top: auto; padding-top: 12px; position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px; align-items: center; }
+  .stampmark { color: var(--stamp); border: 4px double var(--stamp); border-radius: 6px; padding: 8px 16px 7px; text-align: center; transform: rotate(-6deg);
+    font: 700 13px/1.25 var(--type); letter-spacing: .04em; mix-blend-mode: multiply; opacity: .92; animation: thump .35s cubic-bezier(.3, 1.6, .5, 1);
+    -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='2'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.75'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+  .stampmark big { display: block; font-size: 38px; line-height: 1; letter-spacing: .06em; margin: 2px 0 3px; }
+  .verdict.no_match .stampmark { color: #3d3a35; border-color: #3d3a35; }
+  @keyframes thump { from { transform: rotate(-6deg) scale(1.6); opacity: 0; } }
+  .verdict .said { font: 400 18px/1.25 var(--hand); color: var(--blue-ink); }
+  .verdict .fine { font: italic 13px/1.4 var(--serif); color: var(--ink-3); margin-top: 6px; }
+  .verdict .linkbtn { font-size: 13px; }
+  .err { font: 400 13.5px var(--serif); color: var(--pencil); background: rgba(184, 57, 42, .08); padding: 8px 10px; margin-top: 8px; }
+  .others { display: flex; gap: 4px; margin: -4px 0 12px; flex-wrap: wrap; }
+  .others button { font: 700 12px var(--type); color: #34444a; padding: 3px 7px; border-radius: 3px; background: rgba(255, 255, 255, .45); }
+  .others button.on { background: var(--sheet-2); box-shadow: 0 0 0 1.5px #34444a; }
+  .others button b { font: 700 13px var(--hand); color: var(--pencil); margin-left: 4px; }
+
+  /* ---- a new file ------------------------------------------------------------------------- */
+  dialog { border: 0; padding: 0; background: transparent; }
+  dialog::backdrop { background: rgba(10, 14, 12, .55); }
+  .intake { width: 560px; max-height: 80vh; overflow: auto; background: var(--sheet); padding: 24px 28px; box-shadow: 0 20px 40px rgba(0, 0, 0, .5); }
+  .intake h3 { margin: 0 0 4px; font: 600 22px var(--serif); }
+  .intake p { margin: 0 0 12px; font: italic 14px var(--serif); color: var(--ink-2); }
+  .kinds { display: flex; gap: 6px; margin-bottom: 8px; }
+  .kinds button { height: 32px; padding: 0 12px; border-radius: 4px; font: 400 14px var(--serif); box-shadow: inset 0 0 0 1px var(--rule); }
+  .kinds button.on { background: var(--ink); color: #fbf3df; box-shadow: none; }
+  .form label { display: block; font: italic 14px var(--serif); color: var(--ink-3); margin: 10px 0 3px; }
+  .form input, .form textarea { width: 100%; border: 0; border-bottom: 1px solid var(--ink-3); background: transparent; font: 400 15px/1.45 var(--type); color: var(--ink); outline: none; padding: 3px 0; }
+  .form textarea { min-height: 44px; resize: vertical; }
+  .form .row { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
+  .form .row button { height: 40px; padding: 0 16px; border-radius: 5px; font: 600 15px var(--serif); }
+  .form .row .go { background: var(--ink); color: #fbf3df; }
+  .form .row .ghost { box-shadow: inset 0 0 0 1px var(--rule); }
+  .ok { font: italic 14px var(--serif); color: var(--agree-ink); margin-top: 8px; }
+
+  @media (max-width: 1400px) { body { overflow: auto; } .desk { position: static; grid-template-columns: 1fr; height: auto; padding: 30px 24px; } .folder, .work { min-height: 560px; } }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="#efe6cf" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <!-- two file folders, a thread tied between them -->
+      <path d="M3 10.5h7l2 2h7v12H3z"/><path d="M13 7.5h7l2 2h7v12h-3"/><path d="M8.5 18.5c3 3.5 8.5 3.5 11.5-2.5 1.6-3.2 3.5-3.6 5-2.2" stroke="#e0705f"/><circle cx="25.6" cy="14.2" r="1.3" fill="#e0705f" stroke="none"/>
+    </svg>
+    <div><b>Reunite</b><small>Review desk</small></div>
+  </div>
+  <nav class="tray" id="slist" aria-label="Seeker files"></nav>
+  <button class="newfile" id="newfile" type="button">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h7l2 2h9v11H3z"/><path d="M12 12v6M9 15h6"/></svg>New file
+  </button>
+</header>
+
+<div class="notice" id="notice">
+  <span class="tag">SYNTHETIC</span>
+  <span><b>Every person, family and town on this desk is made up.</b> This is a demo, not a tracing or reunification service. The system suggests; <b>a person decides.</b></span>
+</div>
+
+<main class="desk" id="desk">
+  <section class="folder seeker" id="seekerfolder" data-label="Seeker’s file"><div class="sheet" id="seeker"></div></section>
+  <section class="work" id="stage"></section>
+  <section class="folder family" id="familyfolder" data-label="Family’s file">
+    <svg class="clip" viewBox="0 0 22 58" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M7 20V8a4 4 0 0 1 8 0v34a6 6 0 0 1-12 0V14"/><path d="M19 14v30a8 8 0 0 1-8 8" opacity=".7"/></svg>
+    <div class="sheet empty" id="family"></div>
+  </section>
+</main>
+
+<dialog id="intake">
+  <div class="intake">
+    <h3>Open a new file</h3>
+    <p>Write what is remembered, in the person’s own words. The file goes into memory and a seeker is matched at once.</p>
+    <div class="kinds"><button class="on" type="button" data-kind="seeker">A seeker</button><button type="button" data-kind="family">A family</button></div>
+    <form class="form" id="form"></form>
+    <div id="formstatus"></div>
+  </div>
+</dialog>
+
+<script type="module">
+  import { $, el, api } from "/kit/kit.js";
+
+  let FIELDS = null, Q = null, current = null, D = null, step = "seeker", chosen = null, poll = null, kind = "seeker";
+  const name = (title) => title.replace(/^Seeker [^:]+: /, "");
+  const first = (title) => name(title).split(" ")[0];
+  const SEEKER_FIELDS = [["earliest", "Earliest memories"], ["objects", "Objects remembered"], ["people", "People remembered"], ["places", "Places remembered"], ["marks", "Marks or features"], ["story", "Anything else"]];
+  const FAMILY_FIELDS = [["lost", "When and where they lost touch"], ["looks", "Looks and marks"], ["loved", "Things the child loved or carried"], ["people", "People in the child’s life"], ["places", "Places the child knew"], ["story", "Anything else"]];
+  const PROBE_NAMES = { "whole account": "the whole account", earliest: "earliest memories", objects: "objects", people: "people", places: "places", marks: "marks" };
+  const SVG = (markup, w = 18, h = 18) => {
+    const t = document.createElement("template");
+    t.innerHTML = `<svg width="${w}" height="${h}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${markup}</svg>`;
+    return t.content.firstChild;
+  };
+  const DRAWER = () => SVG('<rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M3 11h18M9 14.5h6"/>', 20, 20);
+  const STAMP = () => SVG('<path d="M9 3h6v5l3 3v3H6v-3l3-3z"/><path d="M4 18h16v3H4z"/>', 18, 18);
+  const dateline = (iso) => new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+  // ---- the tray: one tab per seeker file ------------------------------------------------------
+  async function loadQueue() {
+    Q = await api("/api/queue");
+    if (!Q.seekers.length) {
+      $("#slist").replaceChildren(el("span", { class: "brand", style: "color:#a9b2a8;font-style:italic" }, "No files yet. Run uv run 15-reunite/seed.py"));
+      return;
+    }
+    $("#slist").replaceChildren(...Q.seekers.map((s) => {
+      const decided = Object.values(s.decided)[0];
+      const busy = s.match_status === "matching" || s.record_status === "saving";
+      return el("button", { class: "tab" + (s.id === current ? " on" : ""), type: "button", "data-id": s.id, title: s.title, onclick: () => open(s.id, "seeker") },
+        el("span", { class: "id" }, s.id), name(s.title).split(" ").slice(-1)[0],
+        busy ? el("i", { class: "spin" }) : decided ? el("i", { class: "dot " + decided }) : null);
+    }));
+  }
+
+  // ---- one seeker's file on the desk ---------------------------------------------------------
+  async function open(id, want) {
+    if (id !== current) chosen = null;
+    current = id;
+    D = await api(`/api/seekers/${id}`);
+    document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("on", b.dataset.id === id));
+    if (want) step = want;
+    if (D.match.status === "matching") step = "matching";
+    else if (step === "matching") step = D.candidates.length ? "recall" : "seeker";
+    if ((step === "recall" || step === "compare") && !D.candidates.length) step = "seeker";
+    if (step === "compare" && !D.candidates.some((c) => c.family_id === chosen)) step = "recall";
+    render();
+    const busy = D.match.status === "matching" || D.seeker.status === "saving";
+    if (busy && !poll) poll = setInterval(() => { open(current).catch(() => {}); loadQueue().catch(() => {}); }, 1500);
+    if (!busy && poll) { clearInterval(poll); poll = null; }
+  }
+
+  function render() {
+    const cand = step === "compare" ? D.candidates.find((c) => c.family_id === chosen) : null;
+    const items = cand ? [...cand.overlaps.map((o) => ({ ...o, cls: "ov" })), ...cand.conflicts.map((o) => ({ ...o, cls: "cf" }))].map((o, i) => ({ ...o, n: i + 1 })) : [];
+    $("#seeker").replaceChildren(...seekerFile(items));
+    renderFamily(cand, items);
+    const view = step === "matching" ? matchingView() : step === "recall" ? recallView() : step === "compare" ? compareView(cand, items) : startView();
+    $("#stage").replaceChildren(...view);
+    $("#stage").dataset.step = step;
+  }
+
+  // A record's words with the compared phrases marked where they occur, numbered as on the worksheet.
+  function marker(items, side) {
+    // a quote with an ellipsis is marked piece by piece; the number goes after its first piece
+    const left = items.flatMap((o) => (o[side] || "").split(/\s*(?:\.\.\.|…)\s*/).map((q, k) => ({ q: q.trim().replace(/[.;,]$/, ""), cls: o.cls, n: o.n, pin: k === 0, done: false })));
+    return (text) => {
+      const lower = text.toLowerCase(), spans = [];
+      for (const m of left) {
+        if (m.done) continue;
+        let q = m.q;
+        if (q && !lower.includes(q.toLowerCase())) q = q.replace(/^[^:]{2,40}:\s*/, "");
+        if (q.length < 3) continue;
+        const i = lower.indexOf(q.toLowerCase());
+        if (i >= 0 && !spans.some((s) => i < s.end && i + q.length > s.start)) { spans.push({ start: i, end: i + q.length, cls: m.cls, n: m.n, pin: m.pin }); m.done = true; }
+      }
+      spans.sort((a, b) => a.start - b.start);
+      const out = [];
+      let pos = 0;
+      for (const s of spans) {
+        out.push(text.slice(pos, s.start), el("mark", { class: s.cls, "data-n": s.n }, text.slice(s.start, s.end)), s.pin ? el("sup", { class: "pin " + s.cls }, String(s.n)) : null);
+        pos = s.end;
+      }
+      out.push(text.slice(pos));
+      return out;
+    };
+  }
+
+  function seekerFile(items) {
+    const s = D.seeker, f = s.fields, mark = marker(items, "seeker");
+    return [
+      el("div", { class: "file-h" },
+        el("div", { class: "ref" }, el("span", {}, `File ${s.id}`), el("span", {}, "In their own words")),
+        el("h2", {}, name(D.title)),
+        el("div", { class: "facts" }, ...mark([f.born && `Born ${f.born.replace(/^(About|Around)\b/, (w) => w.toLowerCase())}.`, f.placed].filter(Boolean).join(" ")))),
+      ...SEEKER_FIELDS.filter(([k]) => f[k]).map(([k, label]) => el("div", { class: "f", "data-field": k }, el("div", { class: "l" }, label), el("div", { class: "v" }, ...mark(f[k])))),
+      s.status === "error" ? el("div", { class: "err" }, "Not in memory: " + s.error) : null,
+    ].filter(Boolean);
+  }
+
+  function renderFamily(cand, items) {
+    const box = $("#family");
+    if (!cand) {
+      box.className = "sheet empty";
+      box.replaceChildren(DRAWER(), el("p", {}, step === "recall" ? "Open a family file from the worksheet." : step === "matching" ? "Pulling family files…" : "No family file open."));
+      return;
+    }
+    const fam = cand.family, f = fam.fields, mark = marker(items, "family");
+    box.className = "sheet";
+    box.replaceChildren(
+      el("div", { class: "others", id: "others" }, ...D.candidates.map((c) => el("button", { type: "button", class: c.family_id === chosen ? "on" : "", "data-family": c.family_id, onclick: () => { chosen = c.family_id; render(); } }, c.family_id, el("b", {}, String(c.score))))),
+      el("div", { class: "file-h" },
+        el("div", { class: "ref" }, el("span", {}, `File ${fam.id}`), el("span", {}, "Family’s account")),
+        el("h2", {}, f.child || "A child"),
+        el("div", { class: "facts" }, ...mark([f.born && `Born ${f.born}.`, f.contact && `Searching: ${f.contact}.`].filter(Boolean).join(" ")))),
+      ...FAMILY_FIELDS.filter(([k]) => f[k]).map(([k, label]) => el("div", { class: "f", "data-field": k }, el("div", { class: "l" }, label), el("div", { class: "v" }, ...mark(f[k])))),
+      (cand.passages || []).length ? el("details", { class: "slip", id: "slip" },
+        el("summary", {}, `Pulled from memory by ${cand.found_by.map((b) => PROBE_NAMES[b] || b).join(", ")}`),
+        ...cand.passages.map((p) => el("div", { class: "p" }, el("i", {}, `searching ${PROBE_NAMES[p.by] || p.by}`), p.text.length > 280 ? p.text.slice(0, 277) + "…" : p.text))) : null);
+  }
+
+  // ---- the worksheet, one stage at a time ------------------------------------------------------
+  function header(title, right) {
+    return el("div", { class: "ws-h" }, el("h3", {}, title), el("small", {}, right));
+  }
+
+  function startView() {
+    const s = D.seeker, ready = D.match.status === "ready" && D.candidates.length;
+    return [
+      header("Review worksheet", s.id),
+      el("div", { class: "ws-sub" }, ready
+        ? `${D.candidates.length} family files were pulled for ${first(D.title)} on ${dateline(D.match.checked_at)}.`
+        : `Read what ${first(D.title)} remembers, then pull the family files that could fit.`),
+      el("button", { class: "pullbtn", id: "find", type: "button", disabled: s.status !== "saved", onclick: find }, DRAWER(), ready ? "Pull the family files again" : "Pull family files that could fit"),
+      ready ? el("div", { style: "margin-top:14px" }, el("button", { class: "linkbtn", id: "to-cands", type: "button", onclick: () => { step = "recall"; render(); } }, `See the ${D.candidates.length} files pulled last time`)) : null,
+      D.match.stale ? el("div", { class: "ws-sub", style: "margin-top:12px" }, "New family files have come in since then.") : null,
+      D.match.status === "error" ? el("div", { class: "err" }, "Pulling files failed: " + D.match.error) : null,
+    ].filter(Boolean);
+  }
+
+  function matchingView() {
+    const compare = D.match.phase === "compare";
+    const probes = ["whole account", ...["earliest", "objects", "people", "places", "marks"].filter((k) => D.seeker.fields[k])];
+    return [
+      header("Pulling family files", D.seeker.id),
+      el("div", { class: "ws-sub" }, `Memory searches the family files with ${first(D.title)}’s account, then with each kind of detail on its own.`),
+      el("ul", { class: "probes", id: "working" }, ...probes.map((p) => el("li", { class: compare ? "done" : "" }, el("span", { class: "box" }), `by ${PROBE_NAMES[p]}`))),
+      el("div", { class: "working-line" }, el("i", { class: "spin" }), compare
+        ? `${D.match.recalled} files pulled. Reading the top ${D.match.comparing} against ${first(D.title)}’s account…`
+        : "Searching…"),
+    ];
+  }
+
+  async function find() {
+    try { await api(`/api/seekers/${current}/match`, {}); chosen = null; await open(current, "matching"); await loadQueue(); }
+    catch (e) { $("#stage").append(el("div", { class: "err" }, e.message || String(e))); }
+  }
+
+  function recallView() {
+    return [
+      header("Family files that could fit", D.seeker.id),
+      el("div", { class: "ws-sub" }, `Memory pulled ${D.match.recalled} of ${D.match.families} family files. The top ${D.candidates.length}, scored against ${first(D.title)}’s account. Suggestions only.`),
+      el("div", { class: "cards", id: "cands" }, ...D.candidates.map((c) => {
+        const dec = D.reviews[c.family_id];
+        const f = c.family.fields;
+        return el("button", { class: "cand", type: "button", "data-family": c.family_id, onclick: () => { chosen = c.family_id; step = "compare"; render(); } },
+          el("div", { class: "s" }, `${c.score} `, el("small", {}, "of 100")),
+          el("div", { class: "n" }, el("span", {}, `${c.family_id} · ${f.child || "a child"}`), dec ? el("span", { class: "dec" }, dec.decision === "match" ? "MATCH" : "NOT A MATCH") : null),
+          el("div", { class: "sum" }, c.summary),
+          el("div", { class: "by" }, el("span", { class: "v" }, c.verdict), ` · pulled by ${c.found_by.map((b) => PROBE_NAMES[b] || b).join(", ")}`));
+      })),
+    ];
+  }
+
+  function compareView(c, items) {
+    const review = D.reviews[c.family_id];
+    const decide = async (decision) => {
+      document.querySelectorAll(".stampbtn, #undo").forEach((b) => (b.disabled = true));
+      try {
+        await api("/api/reviews", { seeker_id: D.seeker.id, family_id: c.family_id, decision, note: $("#note") ? $("#note").value : "" });
+        await loadQueue(); await open(current, "compare");
+      } catch (e) { $("#decision-err").replaceChildren(el("div", { class: "err" }, e.message || String(e))); document.querySelectorAll(".stampbtn").forEach((b) => (b.disabled = false)); }
+    };
+    return [
+      header("Review worksheet", `${D.seeker.id} × ${c.family_id}`),
+      el("div", { class: "ws-sub" }, `${name(D.title)} and ${c.family.fields.child || "the child"} in file ${c.family_id}`),
+      el("div", { class: "scoreline", id: "score" }, el("div", { class: "bigscore" }, String(c.score), el("small", {}, "/100")),
+        el("div", {}, el("div", { class: "sum" }, c.summary), el("div", { class: "who" }, `Suggested by the matching assistant · ${c.verdict}`))),
+      items.length ? el("div", { class: "colh" }, el("span"), el("span", {}, `${first(D.title)} remembers`), el("span"), el("span", {}, "The family says")) : null,
+      el("ol", { class: "pairs", id: "pairs" }, ...(items.length ? items.map((o) => el("li", { class: "pair " + o.cls, "data-n": o.n },
+        el("span", { class: "num" }, String(o.n)), el("span", {}, el("span", { class: "q" }, o.seeker)), el("span", { class: "sym" }, o.cls === "ov" ? "≈" : "≠"), el("span", {}, el("span", { class: "q" }, o.family)),
+        o.why ? el("span", { class: "w" }, o.why) : null)) : [el("li", { class: "ws-sub" }, "No details in common.")])),
+      review
+        ? el("div", { class: "verdict " + review.decision, id: "verdict" },
+          el("div", { class: "stampmark" }, `${D.seeker.id} · ${c.family_id}`, el("big", {}, review.decision === "match" ? "MATCH" : "NO MATCH"), "REVIEWED BY A PERSON"),
+          el("div", {},
+            review.note ? el("div", { class: "said" }, `“${review.note}”`) : null,
+            el("div", { class: "fine" }, `${dateline(review.at)} · `, el("button", { class: "linkbtn", id: "undo", type: "button", onclick: () => decide("undecided") }, "withdraw"))))
+        : el("div", { class: "decide", id: "decide" },
+          el("div", { class: "noteline" }, el("label", { for: "note" }, "Reviewer’s note"), el("input", { id: "note", autocomplete: "off" })),
+          el("div", { class: "stamps" },
+            el("button", { class: "stampbtn yes", id: "yes", type: "button", onclick: () => decide("match") }, STAMP(), "Match"),
+            el("button", { class: "stampbtn no", id: "no", type: "button", onclick: () => decide("no_match") }, STAMP(), "Not a match"),
+            el("span", { class: "fine" }, "Only a person can stamp."))),
+      el("div", { id: "decision-err" }),
+    ].filter(Boolean);
+  }
+
+  // ---- a new file -------------------------------------------------------------------------------
+  $("#newfile").addEventListener("click", () => { buildForm(); $("#intake").showModal(); });
+  for (const b of document.querySelectorAll(".kinds button")) b.addEventListener("click", () => {
+    kind = b.dataset.kind;
+    document.querySelectorAll(".kinds button").forEach((x) => x.classList.toggle("on", x === b));
+    buildForm();
+  });
+  function buildForm() {
+    const form = $("#form");
+    const go = el("button", { class: "go", type: "submit" }, kind === "family" ? "File the family’s account" : "File and match the seeker");
+    form.replaceChildren(...FIELDS[kind].map((f) => el("div", {}, el("label", { for: `in-${f.key}` }, f.label),
+      ["contact", "born", "child"].includes(f.key) ? el("input", { id: `in-${f.key}`, name: f.key, autocomplete: "off" }) : el("textarea", { id: `in-${f.key}`, name: f.key }))),
+      el("div", { class: "row" }, el("button", { class: "ghost", type: "button", onclick: () => $("#intake").close() }, "Close"), go));
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      go.disabled = true;
+      try {
+        const rec = await api("/api/records", { kind, fields: Object.fromEntries(new FormData(form).entries()) });
+        form.reset();
+        $("#formstatus").replaceChildren(el("div", { class: "ok" }, `File ${rec.id} is going into memory` + (kind === "seeker" ? " and being matched." : ". Earlier matches are marked as out of date.")));
+        await loadQueue();
+        if (kind === "seeker") { $("#intake").close(); open(rec.id, "matching"); }
+      } catch (x) { $("#formstatus").replaceChildren(el("div", { class: "err" }, x.message || String(x))); }
+      finally { go.disabled = false; }
+    };
+  }
+
+  await document.fonts.ready.catch(() => {});
+  try {
+    FIELDS = await api("/api/fields");
+    await loadQueue();
+    if (Q.seekers.length) await open(new URLSearchParams(location.search).get("seeker") || Q.seekers[0].id, "seeker");
+    else $("#stage").replaceChildren(header("Review worksheet", ""), el("div", { class: "ws-sub" }, "No files on the desk yet. Run uv run 15-reunite/seed.py, or open a new file."));
+  } catch (e) { $("#stage").replaceChildren(el("div", { class: "err" }, e.message || String(e))); }
+</script>
+</body>
+</html>

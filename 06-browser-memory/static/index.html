@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Browser Memory</title>
+  <link rel="stylesheet" href="/kit/kit.css">
+  <style>
+    ol.steps { padding-left: 20px; margin: 0; }
+    ol.steps li + li { margin-top: 8px; }
+    code { background: var(--chip); padding: 1px 5px; border-radius: 5px; }
+    .page-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .page-row:last-child { border-bottom: none; }
+    .page-row .url { color: var(--muted); font-size: 12.5px; word-break: break-all; }
+    .state { font-size: 12.5px; white-space: nowrap; }
+    .state.learning { color: var(--warn); }
+    .state.learned { color: var(--good); }
+    .state.failed { color: var(--bad); }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="top">
+    <div>
+      <h1>Browser memory</h1>
+      <p class="sub">The companion for the Browser Memory side panel. It holds your Membase key on
+        this machine, so the extension never sees it. Ask your memory about the page you are on,
+        or remember the page for later.</p>
+    </div>
+    <div id="badge"></div>
+  </div>
+
+  <div class="grid two">
+    <div class="panel">
+      <h2>Set up the extension</h2>
+      <ol class="steps">
+        <li>Keep this companion running: <code>uv run 06-browser-memory/app.py</code>.</li>
+        <li>Open <code>chrome://extensions</code> and switch on <b>Developer mode</b>.</li>
+        <li><b>Load unpacked</b> and choose the <code>06-browser-memory/extension</code> folder.
+          Chrome shows the ID <code id="ext-id">lhojclgfedbhfpkjklfgjgnikckelabe</code>; it is the
+          only origin this companion answers.</li>
+        <li>Pin the extension and click its icon: the side panel opens beside the page.</li>
+        <li>On a page, press <b>Remember this page</b>, or type a question and press
+          <b>Ask about this page</b>. Localhost pages work at once; for other sites the panel
+          asks once for permission to read pages.</li>
+      </ol>
+      <p class="muted small" style="margin-top:14px">The extension stores nothing: no key, no
+        answers. Requests from any web page or other extension get 403, and so does any request
+        whose Host is not 127.0.0.1 or localhost.</p>
+    </div>
+    <div class="panel">
+      <h2>Remembered pages</h2>
+      <div id="pages"><div class="empty"><span class="spinner"></span> reading</div></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { $, el, api, showError, modeBadge } from "/kit/kit.js";
+  modeBadge($("#badge"));
+
+  // learned / learning (a run is queued or running) / waiting (the write waits behind the
+// container's current run) / failed / not learned (a run ended
+  // without counting this one: more arrived while it ran).
+  const state = (d) => d.learned ? ["learned", "learned"]
+    : ["queued", "running"].includes(d.learning) ? ["learning", "learning"]
+    : d.learning === "waiting" ? ["learning", "waiting for the last run"]
+    : d.learning === "write failed" ? ["failed", `write failed: ${d.error}`]
+    : d.learning === "failed" ? ["failed", `learning failed (${d.run_id})`]
+    : ["learning", "not learned yet"];
+  const pending = (d) => !d.learned && ["queued", "running", "waiting"].includes(d.learning);
+
+  let poll;
+  async function load() {
+    clearTimeout(poll);
+    try {
+      const { pages, error, extension_id } = await api("/api/pages");
+      const box = $("#pages");
+      box.replaceChildren();
+      if (error) return showError(box, new Error(error));
+      if (extension_id) $("#ext-id").textContent = extension_id;
+      if (!pages.length) return box.append(el("div", { class: "empty" }, "Nothing remembered yet. Use Remember this page in the side panel."));
+      for (const p of pages) {
+        box.append(el("div", { class: "page-row" },
+          el("div", {}, el("div", {}, p.title), el("a", { class: "url", href: p.url, target: "_blank" }, p.url)),
+          el("span", { class: `state ${state(p)[0]}`, title: p.run_id || "" }, state(p)[1])));
+      }
+      if (pages.some(pending)) poll = setTimeout(load, 10000);
+    } catch (e) {
+      showError($("#pages"), e);
+    }
+  }
+  load();
+</script>
+</body>
+</html>

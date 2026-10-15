@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pour · Sam's tasting journal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Kalam:wght@400;700&family=Jost:wght@400;500;600&display=swap">
+<style>
+  /* Pour: a tasting journal app. Sam's entries on the left, the palate map in the middle, the
+     sommelier on the right. Memory shows the way a journal would: the entries the sommelier
+     turned to, numbered, on the map and in the journal. */
+  :root {
+    --cover: #221a1b; --cover-2: #34282a; --cream: #f4ece0;
+    --desk: #ebe3d6; --paper: #fbf8f2; --paper-2: #f5efe5;
+    --ink: #2b2321; --ink-2: #67594f; --ink-3: #9c8e80; --rule: #e2d7c6;
+    --wine: #8e2a3d; --coffee: #a0662f; --tea: #5e8049;
+    --wine-wash: rgba(142, 42, 61, .1); --coffee-wash: rgba(160, 102, 47, .12); --tea-wash: rgba(94, 128, 73, .12);
+    --serif: "Fraunces", "Iowan Old Style", Georgia, serif;
+    --hand: "Kalam", "Segoe Print", cursive;
+    --ui: "Jost", "Futura", "Avenir Next", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--desk); color: var(--ink); font-family: var(--ui); font-size: 14px; -webkit-font-smoothing: antialiased; overflow: hidden; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  input, textarea { font: inherit; color: inherit; }
+  svg { display: block; }
+  [hidden] { display: none !important; }
+
+  /* ---- the cover band ----------------------------------------------------------------------- */
+  .bar { height: 58px; background: var(--cover); color: var(--cream); display: flex; align-items: center; gap: 14px; padding: 0 26px;
+    box-shadow: inset 0 -1px 0 rgba(255,255,255,.06), 0 2px 10px rgba(30, 15, 15, .25); position: relative; z-index: 3; }
+  .bar::after { /* the elastic */ content: ""; position: absolute; top: 0; bottom: 0; right: 86px; width: 9px; background: linear-gradient(90deg, #120c0d, #2c2122 45%, #120c0d); }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: var(--serif); font-size: 25px; font-style: italic; font-weight: 500; letter-spacing: .005em; }
+  .brand svg { color: #d7a1a9; }
+  .whose { font-family: var(--serif); font-size: 16px; color: #c9b9ad; padding-left: 16px; margin-left: 4px; border-left: 1px solid #4a3a3b; }
+  .whose b { color: var(--cream); font-weight: 500; }
+  .count { margin-left: auto; margin-right: 92px; font-size: 13.5px; color: #c9b9ad; letter-spacing: .01em; }
+
+  /* ---- three pages ---------------------------------------------------------------------------- */
+  .desk { height: calc(100% - 58px); display: grid; grid-template-columns: 330px minmax(0, 1fr) 424px; gap: 18px; padding: 18px 22px 20px; }
+  .sheet { background: var(--paper); border-radius: 4px; box-shadow: 0 0 0 1px rgba(90, 60, 40, .08), 0 14px 30px -20px rgba(70, 40, 30, .45); min-height: 0; position: relative; }
+
+  /* the journal */
+  .journal { display: flex; flex-direction: column; padding: 16px 0 10px; }
+  .jh { display: flex; align-items: baseline; justify-content: space-between; padding: 0 18px 10px; border-bottom: 1px solid var(--rule); }
+  .jh h2 { margin: 0; font: 500 21px/1.1 var(--serif); }
+  .jh span { font-family: var(--serif); font-style: italic; color: var(--ink-3); font-size: 14.5px; }
+  .entries { list-style: none; margin: 0; padding: 4px 0 0; overflow: hidden; flex: 1; }
+  .entry { display: grid; grid-template-columns: 44px 18px minmax(0, 1fr) auto; align-items: center; gap: 0 9px; padding: 0 16px 0 14px;
+    height: 29.5px; position: relative; transition: opacity .5s, background .4s; cursor: default; }
+  .entry .d { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .entry .g { color: var(--k); }
+  .entry .n { font-family: var(--serif); font-size: 15.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry .dots { justify-self: end; }
+  .entry.fresh { height: auto; padding-top: 6px; padding-bottom: 7px; background: var(--paper-2); margin: 2px 0 4px; }
+  .entry.fresh .n { font-weight: 500; }
+  .entry .said { grid-column: 3 / -1; font: 400 15px/1.3 var(--hand); color: #3d3a6b; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry .state { grid-column: 3 / -1; font: italic 13px/1.3 var(--serif); color: var(--ink-3); margin-top: 3px; display: flex; gap: 6px; align-items: center; }
+  .entry .state.kept { color: var(--tea); }
+  .entry .state svg { flex: none; }
+  .asking .entry:not(.recalled) { opacity: .28; }
+  .entry.cited { background: var(--wash); }
+  .entry.cited .n { font-weight: 500; }
+  .entry.hot { box-shadow: inset 3px 0 0 var(--k); }
+  .num { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--wine); color: #fff;
+    font: 600 11px/1 var(--ui); font-variant-numeric: tabular-nums; flex: none; }
+  .entry .num { position: absolute; left: 76px; top: 14.75px; transform: translate(-50%, -50%); }
+  .entry.cited .g { visibility: hidden; }
+  .entry.cited.fresh .num { top: 18px; }
+  .colophon { padding: 8px 18px 0; font-size: 11.5px; color: var(--ink-3); line-height: 1.45; border-top: 1px solid var(--rule); }
+
+  /* rating dots */
+  .dots { display: inline-flex; gap: 3px; }
+  .dots i { width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1.2px var(--k); }
+  .dots i.f { background: var(--k); }
+
+  /* the palate map */
+  .mapsheet { display: flex; flex-direction: column; padding: 16px 18px 14px; overflow: hidden; }
+  .mh { display: flex; align-items: baseline; gap: 12px; padding: 0 2px 10px; }
+  .mh h2 { margin: 0; font: 500 21px/1.1 var(--serif); }
+  .mh .legend { margin-left: auto; display: flex; gap: 14px; font-size: 13px; color: var(--ink-2); }
+  .mh .legend span { display: inline-flex; gap: 5px; align-items: center; }
+  .mh .legend svg { color: var(--k); }
+  .mapwrap { position: relative; flex: 1; min-height: 0; border-radius: 3px; overflow: hidden; background: #fdfaf4;
+    box-shadow: inset 0 0 0 1px var(--rule); }
+  #map { width: 100%; height: 100%; }
+  #map .axis { stroke: #cdbfab; stroke-width: 1; fill: none; }
+  #map .axl { font: 400 15px var(--hand); fill: #8e7f70; }
+  #map .dot { transition: opacity .6s; }
+  #map .dot circle.body { transition: fill .5s, stroke .5s; }
+  #map.asking .dot:not(.recalled) { opacity: .16; }
+  #map .dot .lbl { font: 400 13.5px var(--serif); fill: var(--ink-2); paint-order: stroke; stroke: #fdfaf4; stroke-width: 4px; stroke-linejoin: round; }
+  #map .dot.cited .lbl, #map .dot.fresh .lbl, #map .dot.hover .lbl { fill: var(--ink); font-weight: 500; }
+  #map .ring { fill: none; stroke: var(--wine); stroke-width: 1.8; }
+  #map .ring.draw { stroke-dasharray: 120; stroke-dashoffset: 120; animation: draw 1s ease-out forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  #map .pending { fill: none; stroke: var(--ink-2); stroke-width: 1.4; stroke-dasharray: 3 3; animation: spin 6s linear infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #map .pulse { fill: none; stroke: var(--k); stroke-width: 2; animation: pulse 1.8s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes pulse { from { opacity: .9; transform: scale(.7); } to { opacity: 0; transform: scale(1.9); } }
+  #map .badge circle { fill: var(--wine); stroke: #fdfaf4; stroke-width: 2; }
+  #map .badge text { font: 600 11px var(--ui); fill: #fff; text-anchor: middle; dominant-baseline: central; }
+  .tip { position: absolute; z-index: 4; width: 260px; pointer-events: none; background: var(--paper); border-radius: 3px; padding: 11px 14px 12px;
+    box-shadow: 0 0 0 1px rgba(90, 60, 40, .12), 0 12px 24px -10px rgba(60, 35, 25, .45); }
+  .tip .tn { font: 500 17px/1.2 var(--serif); }
+  .tip .tm { display: flex; gap: 8px; align-items: center; margin-top: 3px; font-size: 12.5px; color: var(--ink-3); }
+  .tip .tt { font: 400 16px/1.3 var(--hand); color: #3d3a6b; margin-top: 6px; }
+  .mapfoot { display: flex; justify-content: space-between; padding: 9px 2px 0; font-family: var(--serif); font-style: italic; font-size: 14px; color: var(--ink-3); min-height: 30px; }
+  .mapfoot b { font-style: normal; font-weight: 500; color: var(--ink-2); }
+
+  /* the sommelier */
+  .side { display: flex; flex-direction: column; padding: 16px 22px 18px; overflow: hidden; }
+  .sh { display: flex; align-items: center; gap: 11px; padding-bottom: 12px; border-bottom: 1px solid var(--rule); }
+  .sh .medal { width: 40px; height: 40px; border-radius: 50%; background: var(--cover); color: #e3b9a7; display: grid; place-items: center; flex: none; }
+  .sh h2 { margin: 0; font: 500 21px/1.1 var(--serif); }
+  .sh .sub { font-family: var(--serif); font-style: italic; color: var(--ink-3); font-size: 14px; margin-top: 2px; }
+  .sh .switch { margin-left: auto; font-family: var(--serif); font-size: 14.5px; color: var(--wine); padding: 6px 2px; }
+  .sh .switch:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+  /* a new entry */
+  form.new { display: flex; flex-direction: column; gap: 16px; padding-top: 16px; flex: 1; min-height: 0; }
+  .kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .kinds button { display: flex; align-items: center; justify-content: center; gap: 8px; height: 42px; border-radius: 3px; color: var(--ink-2);
+    box-shadow: inset 0 0 0 1px var(--rule); font-size: 14.5px; }
+  .kinds button svg { color: var(--k); }
+  .kinds button.on { box-shadow: inset 0 0 0 1.5px var(--k); background: var(--wash); color: var(--ink); font-weight: 500; }
+  .label { height: 128px; display: grid; place-items: center; }
+  .label svg { filter: drop-shadow(0 6px 10px rgba(70, 40, 30, .18)); }
+  .field label { display: block; font-family: var(--serif); font-style: italic; font-size: 14px; color: var(--ink-3); margin-bottom: 2px; }
+  .field input, .field textarea { width: 100%; border: 0; background: transparent; outline: none; padding: 4px 0 6px; border-bottom: 1px solid var(--rule); }
+  .field input:focus, .field textarea:focus { border-bottom-color: var(--ink-2); }
+  #name { font: 500 23px/1.2 var(--serif); }
+  #origin { font: italic 17px/1.3 var(--serif); color: var(--ink-2); }
+  #notes { font: 400 19px/30px var(--hand); color: #3d3a6b; resize: none; height: 122px; border: 0; padding: 1px 0 0;
+    background: repeating-linear-gradient(transparent 0 29px, var(--rule) 29px 30px); }
+  .field input::placeholder, .field textarea::placeholder { color: #c2b5a5; }
+  .rate { display: flex; align-items: center; gap: 14px; }
+  .rate .pips { display: flex; gap: 7px; }
+  .rate .pips button { width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--k); transition: background .15s; }
+  .rate .pips button.f { background: var(--k); }
+  .rate .word { font-family: var(--serif); font-style: italic; color: var(--ink-2); font-size: 16px; }
+  .rate .when { margin-left: auto; display: flex; align-items: center; gap: 6px; font-family: var(--serif); font-style: italic; color: var(--ink-3); font-size: 14px; }
+  .rate .when input { border: 0; background: none; font: 13px var(--ui); color: var(--ink-2); width: 118px; }
+  .go { margin-top: auto; display: flex; align-items: center; gap: 14px; }
+  .btn { height: 44px; padding: 0 22px; border-radius: 3px; background: var(--cover); color: var(--cream); font: 500 15.5px var(--ui); letter-spacing: .01em;
+    display: inline-flex; align-items: center; gap: 9px; }
+  .btn:hover:not(:disabled) { background: #3b2b2d; }
+  .btn:disabled { opacity: .75; cursor: progress; }
+  .hint { font-family: var(--serif); font-style: italic; color: var(--ink-3); font-size: 14px; }
+  .err { font-size: 13px; color: var(--wine); background: var(--wine-wash); border-radius: 3px; padding: 8px 10px; }
+
+  /* asking */
+  .askpane { display: flex; flex-direction: column; padding-top: 14px; flex: 1; min-height: 0; }
+  .ask { display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 14px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--rule); background: #fff; }
+  .ask input { flex: 1; min-width: 0; border: 0; outline: none; background: none; font: italic 18px/1.3 var(--serif); padding: 7px 0; }
+  .ask input::placeholder { color: #b9ab9a; }
+  .ask .btn { height: 38px; padding: 0 16px; font-size: 14.5px; }
+  .palate { align-self: flex-start; margin-top: 9px; font-family: var(--serif); font-size: 14.5px; color: var(--ink-3); }
+  .palate:hover { color: var(--wine); }
+  .note { margin-top: 14px; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .note .for { font: italic 400 24px/1.2 var(--serif); color: var(--ink); margin: 0 0 4px; text-wrap: balance; }
+  .note .by { font-family: var(--serif); font-style: italic; color: var(--ink-3); font-size: 14px; margin-bottom: 10px; min-height: 18px; }
+  .swirl { display: inline-flex; align-items: center; gap: 9px; }
+  .swirl svg { animation: swirl 1.4s ease-in-out infinite; transform-origin: 50% 90%; color: var(--wine); }
+  @keyframes swirl { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(10deg); } }
+  .picks { display: grid; gap: 11px; }
+  .pick .pn { font: 500 19px/1.25 var(--serif); }
+  .pick .pw { font: 400 16.5px/1.42 var(--serif); color: var(--ink-2); margin-top: 1px; }
+  .prose { font: 400 18px/1.5 var(--serif); color: var(--ink); }
+  sup.c { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; background: var(--wine); color: #fff; font: 600 10.5px/1 var(--ui);
+    vertical-align: 5px; margin-left: 3px; cursor: default; }
+  .nw { white-space: nowrap; }
+  sup.c:hover, sup.c.hot { background: var(--ink); }
+  .from { margin-top: 14px; padding-top: 8px; border-top: 1px solid var(--rule); }
+  .from h3 { margin: 0 0 6px; font: italic 400 15px var(--serif); color: var(--ink-3); }
+  .cref { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 0 10px; align-items: center; padding: 3px 6px; margin: 0 -6px; border-radius: 3px; cursor: default; }
+  .cref:hover, .cref.hot { background: var(--wash); }
+  .cref .cn { font: 500 15.5px/1.25 var(--serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cref .cn small { font-weight: 400; font-style: italic; color: var(--ink-3); font-size: 13.5px; margin-left: 5px; }
+  .cref .cs { grid-column: 2 / -1; font: 400 14.5px/1.25 var(--hand); color: #3d3a6b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  @media (max-width: 1380px) { body { overflow: auto; } .desk { grid-template-columns: 1fr; height: auto; } .mapsheet { height: 760px; } }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <svg width="22" height="26" viewBox="0 0 22 26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M5 2h12l-.6 7.2a5.4 5.4 0 0 1-10.8 0z"/><path d="M5.7 7.5c2 .9 3.6-.6 5.3 0s3.4.9 5.3 0" opacity=".7"/><path d="M11 14.6V22M6.5 23.5h9"/>
+    </svg>
+    Pour
+  </div>
+  <div class="whose"><b>Sam</b>’s tasting journal</div>
+  <div class="count" id="count"></div>
+</header>
+
+<main class="desk">
+  <section class="sheet journal" id="journal">
+    <div class="jh"><h2>Journal</h2><span id="since"></span></div>
+    <ol class="entries" id="entries"></ol>
+    <div class="colophon" id="colophon"></div>
+  </section>
+
+  <section class="sheet mapsheet" id="mapsheet">
+    <div class="mh">
+      <h2>Palate map</h2>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="mapwrap" id="mapwrap"><svg id="map" aria-label="Every tasting, placed by flavour"></svg><div class="tip" id="tip" hidden></div></div>
+    <div class="mapfoot" id="mapfoot"></div>
+  </section>
+
+  <aside class="sheet side" id="card">
+    <div class="sh">
+      <div class="medal" id="medal"></div>
+      <div><h2 id="sidetitle">Tonight’s tasting</h2><div class="sub" id="sidesub">A new page in your journal</div></div>
+      <button class="switch" id="switch" type="button"></button>
+    </div>
+
+    <form class="new" id="log" autocomplete="off">
+      <div class="kinds" id="kinds"></div>
+      <div class="label" id="label" aria-hidden="true"></div>
+      <div class="field"><label for="name">What did you taste?</label><input id="name" placeholder="Etna Rosso" required></div>
+      <div class="field"><label for="origin">From</label><input id="origin" placeholder="region, producer, year"></div>
+      <div class="field"><label for="notes">In your words</label><textarea id="notes" placeholder="cherry, a little smoke, light…" required></textarea></div>
+      <div class="rate"><div class="pips" id="stars"></div><span class="word" id="word"></span>
+        <label class="when">tasted <input id="date" type="date"></label></div>
+      <div id="logmsg"></div>
+      <div class="go"><button class="btn" id="save" type="submit">Add to journal</button><span class="hint" id="savehint">It goes on your map at once.</span></div>
+    </form>
+
+    <div class="askpane" id="askpane" hidden>
+      <form class="ask" id="askform" autocomplete="off">
+        <input id="hint" placeholder="What are you after? A red for Friday…">
+        <button class="btn" id="ask" type="submit">Ask</button>
+      </form>
+      <button class="palate" id="palate" type="button">or: what’s my palate?</button>
+      <div class="note" id="answer" hidden></div>
+    </div>
+  </aside>
+</main>
+
+<script type="module">
+  import { $, el, api, stream } from "/kit/kit.js";
+
+  const NS = "http://www.w3.org/2000/svg";
+  const S = (tag, attrs = {}, ...kids) => {
+    const n = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) if (v !== null && v !== undefined) n.setAttribute(k, v);
+    kids.flat().forEach((k) => k && n.append(k instanceof Node ? k : document.createTextNode(String(k))));
+    return n;
+  };
+  const icon = (markup, w = 18, h = 18, vb = "0 0 24 24", sw = 1.6) => {
+    const t = document.createElement("template");
+    t.innerHTML = `<svg width="${w}" height="${h}" viewBox="${vb}" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${markup}</svg>`;
+    return t.content.firstChild;
+  };
+  // drawn for this app: a glass with wine in it, a cup on its saucer, a tea bowl with a leaf
+  const GLYPH = {
+    wine: (s = 18) => icon('<path d="M7.5 3h9l-.5 6.2a4 4 0 0 1-8 0z"/><path d="M7.9 7.6c1.6.7 2.6-.4 4.1 0s2.6.7 4.1 0V9a4 4 0 0 1-8.2 0z" fill="currentColor" stroke="none" opacity=".75"/><path d="M12 13.2V19M8.5 20.5h7"/>', s, s),
+    coffee: (s = 18) => icon('<path d="M5 9.5h11v3.5a4.5 4.5 0 0 1-4.5 4.5h-2A4.5 4.5 0 0 1 5 13z"/><path d="M16 10.5h1.6a2.1 2.1 0 0 1 0 4.2H16"/><path d="M3.5 20h14"/><path d="M8.8 3.5c-.8 1 .8 1.7 0 2.8M12.2 3.5c-.8 1 .8 1.7 0 2.8" opacity=".7"/>', s, s),
+    tea: (s = 18) => icon('<path d="M3.5 11h17a8.5 6.5 0 0 1-17 0z"/><path d="M8 19.5h8"/><path d="M14.5 3.5c3 0 4.6 1.6 4.6 4.4-3 0-4.6-1.6-4.6-4.4z" fill="currentColor" stroke="none" opacity=".7"/><path d="M14.5 3.5c1.6 1.3 2.7 2.7 3.4 4"/>', s, s),
+  };
+  const KINDS = ["wine", "coffee", "tea"];
+  const KCOL = { wine: "#8e2a3d", coffee: "#a0662f", tea: "#5e8049" };
+  const KWASH = { wine: "rgba(142,42,61,.1)", coffee: "rgba(160,102,47,.12)", tea: "rgba(94,128,73,.13)" };
+  const WORD = ["", "Not for me", "Didn’t love it", "Fine", "Really good", "Loved it"];
+  const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const MONTH = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const day = (d) => { const x = new Date(d + "T12:00:00"); return `${x.getDate()} ${MON[x.getMonth()]}`; };
+
+  let DIMS = [], tastings = [], today = "", rating = 0, kind = "wine", poll = null;
+  // what the page shows besides the entries: the tasting just added, what the sommelier turned
+  // to for the question (recalled), what the note cites (number per tasting), the one in focus
+  const lit = { fresh: null, recalled: new Set(), cited: new Map(), focus: null };
+  const byId = (id) => tastings.find((t) => t.id === id);
+  const kvars = (k) => `--k:${KCOL[k]};--wash:${KWASH[k]}`;
+  const dots = (n, k) => el("span", { class: "dots", style: kvars(k), title: `${n} of 5` }, ...[1, 2, 3, 4, 5].map((i) => el("i", { class: i <= n ? "f" : "" })));
+  const when = (t) => (t.date === today ? "Tonight" : day(t.date));
+  $("#date").value = new Date().toISOString().slice(0, 10);
+
+  // ---- the journal ----------------------------------------------------------------------------
+  function renderJournal() {
+    const asking = lit.recalled.size > 0;
+    $("#journal").classList.toggle("asking", asking);
+    const rows = [...tastings].sort((a, b) => (b.date + b.id).localeCompare(a.date + a.id));
+    $("#entries").replaceChildren(...rows.map((t) => {
+      const fresh = t.id === lit.fresh;
+      const n = lit.cited.get(t.id);
+      return el("li", {
+        class: ["entry", fresh ? "fresh" : "", lit.recalled.has(t.id) ? "recalled" : "", n ? "cited" : "", lit.focus === t.id ? "hot" : ""].join(" ").trim(),
+        id: `entry-${t.id}`, "data-id": t.id, "data-name": t.name, style: kvars(t.kind),
+        onmouseenter: () => focus(t.id, true), onmouseleave: () => focus(null),
+      },
+        el("span", { class: "d" }, when(t)),
+        el("span", { class: "g" }, GLYPH[t.kind](17)),
+        el("span", { class: "n" }, t.name),
+        dots(t.rating, t.kind),
+        n ? el("span", { class: "num" }, n) : null,
+        fresh ? el("span", { class: "said" }, t.notes) : null,
+        fresh ? el("span", { class: "state" + (t.in_memory ? " kept" : "") },
+          t.in_memory ? [icon('<path d="M5 12.5l4.2 4L19 7"/>', 14, 14, "0 0 24 24", 2), "remembered, for the sommelier"] : "the sommelier is noting it…") : null);
+    }));
+  }
+
+  // ---- the palate map: the tastings' own two main directions of flavour -----------------------
+  const vec = (t) => DIMS.map((d) => t.flavor[d] || 0);
+  function hash(s) { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return (h >>> 0) / 4294967295; }
+  function axes(vectors) {
+    const n = vectors.length, d = DIMS.length;
+    const mean = Array(d).fill(0);
+    vectors.forEach((v) => v.forEach((x, i) => (mean[i] += x / n)));
+    const C = Array.from({ length: d }, () => Array(d).fill(0));
+    for (const v of vectors) for (let i = 0; i < d; i++) for (let j = 0; j < d; j++) C[i][j] += ((v[i] - mean[i]) * (v[j] - mean[j])) / Math.max(1, n - 1);
+    const comps = [];
+    for (let k = 0; k < 2; k++) {
+      let v = Array.from({ length: d }, (_, i) => 1 + ((i * 7 + k * 3) % 5) / 10);
+      for (let it = 0; it < 300; it++) {
+        let w = C.map((row) => row.reduce((s, c, j) => s + c * v[j], 0));
+        for (const u of comps) { const dot = w.reduce((s, x, i) => s + x * u[i], 0); w = w.map((x, i) => x - dot * u[i]); }
+        const norm = Math.hypot(...w) || 1;
+        v = w.map((x) => x / norm);
+      }
+      comps.push(v);
+    }
+    const at = (v, names) => names.reduce((s, name) => s + v[DIMS.indexOf(name)], 0);
+    if (at(comps[0], ["acidity", "fruit", "floral"]) < at(comps[0], ["roast", "bitterness", "earthy"])) comps[0] = comps[0].map((x) => -x);
+    if (at(comps[1], ["body", "sweetness"]) < 0) comps[1] = comps[1].map((x) => -x);
+    const used = new Set();
+    const ends = (v) => {
+      const order = DIMS.map((name, i) => [v[i], name]).filter((o) => !used.has(o[1])).sort((a, b) => b[0] - a[0]);
+      const lo = order.slice(-2).reverse().map((o) => o[1]), hi = order.slice(0, 2).map((o) => o[1]);
+      [...lo, ...hi].forEach((w) => used.add(w));
+      return [lo.join(", "), hi.join(", ")];
+    };
+    const project = (v) => comps.map((c) => c.reduce((s, x, i) => s + x * (v[i] - mean[i]), 0));
+    return { project, labels: comps.map(ends) };
+  }
+
+  const measure = document.createElement("canvas").getContext("2d");
+  let placed = [];
+  const drawn = new Set();  // cited rings already drawn in, so a redraw does not draw them again
+  function drawMap() {
+    const svg = $("#map"), W = svg.clientWidth, H = svg.clientHeight;
+    if (!W || !H) return;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    svg.classList.toggle("asking", lit.recalled.size > 0);
+    const sky = tastings.length >= 3 ? axes(tastings.map(vec)) : null;
+    const raw = tastings.map((t) => {
+      const [x, y] = sky ? sky.project(vec(t)) : [0, 0];
+      return [x + (hash(t.id) - 0.5) * 0.25, y + (hash(t.id + "y") - 0.5) * 0.25];
+    });
+    const span = (a) => [Math.min(-1, ...a), Math.max(1, ...a)];
+    const [x0, x1] = span(raw.map((p) => p[0])), [y0, y1] = span(raw.map((p) => p[1]));
+    const padX = 64, padY = 54;
+    const sx = (x) => padX + ((x - x0) / (x1 - x0)) * (W - 2 * padX);
+    const sy = (y) => H - padY - ((y - y0) / (y1 - y0)) * (H - 2 * padY);
+    placed = tastings.map((t, i) => ({ t, x: sx(raw[i][0]), y: sy(raw[i][1]) }));
+    const kids = [];
+    // paper: a faint dot grid and two washes, earthy on the left and bright on the right
+    kids.push(S("defs", {},
+      S("pattern", { id: "grid", width: 24, height: 24, patternUnits: "userSpaceOnUse" }, S("circle", { cx: 12, cy: 12, r: 0.9, fill: "#e3d8c7" })),
+      S("radialGradient", { id: "warm" }, S("stop", { offset: 0, "stop-color": "#b07a45", "stop-opacity": 0.13 }), S("stop", { offset: 1, "stop-color": "#b07a45", "stop-opacity": 0 })),
+      S("radialGradient", { id: "bright" }, S("stop", { offset: 0, "stop-color": "#c4677b", "stop-opacity": 0.12 }), S("stop", { offset: 1, "stop-color": "#c4677b", "stop-opacity": 0 })),
+      S("radialGradient", { id: "green" }, S("stop", { offset: 0, "stop-color": "#7f9e5f", "stop-opacity": 0.12 }), S("stop", { offset: 1, "stop-color": "#7f9e5f", "stop-opacity": 0 }))));
+    kids.push(S("rect", { width: W, height: H, fill: "url(#grid)" }));
+    kids.push(S("ellipse", { cx: W * 0.2, cy: H * 0.55, rx: W * 0.32, ry: H * 0.42, fill: "url(#warm)" }));
+    kids.push(S("ellipse", { cx: W * 0.78, cy: H * 0.62, rx: W * 0.34, ry: H * 0.4, fill: "url(#bright)" }));
+    kids.push(S("ellipse", { cx: W * 0.6, cy: H * 0.22, rx: W * 0.3, ry: H * 0.26, fill: "url(#green)" }));
+    if (sky) {
+      const cy = sy(0);
+      // pen axes, a little uneven, with arrowheads
+      kids.push(S("path", { class: "axis", d: `M24 ${cy + 1} C ${W * 0.3} ${cy - 1.5}, ${W * 0.6} ${cy + 2}, ${W - 24} ${cy}` }));
+      const [left, right] = sky.labels[0];
+      kids.push(S("text", { class: "axl", x: 18, y: H - 16 }, `← ${left}`));
+      kids.push(S("text", { class: "axl", x: W - 18, y: H - 16, "text-anchor": "end" }, `${right} →`));
+    }
+    // names: the cited, the fresh and the hovered first, then the best-rated, never overlapping
+    const boxes = placed.map((p) => { const r = 4 + p.t.rating * 1.5 + 2; return { x: p.x - r, y: p.y - r, w: 2 * r, h: 2 * r, id: p.t.id }; });
+    const free = (b, id) => boxes.every((o) => o.id === id || b.x > o.x + o.w || b.x + b.w < o.x || b.y > o.y + o.h || b.y + b.h < o.y);
+    const asking = lit.recalled.size > 0;
+    const weight = (p) => (p.t.id === lit.focus ? 8 : 0) + (p.t.id === lit.fresh ? 4 : 0) + (lit.cited.has(p.t.id) ? 2 : 0);
+    const order = [...placed].sort((a, b) => weight(b) - weight(a) || b.t.rating - a.t.rating);
+    const labelled = new Map();
+    measure.font = "500 13.5px Fraunces, Georgia, serif";
+    for (const p of order) {
+      const special = weight(p) > 0;
+      if (!special && (asking || p.t.rating < 5)) continue;
+      const name = p.t.id === lit.fresh ? `${p.t.name}, tonight` : p.t.name;
+      const r = 4 + p.t.rating * 1.5, w = measure.measureText(name).width + 4;
+      const right = { x: p.x + r + 8, y: p.y - 10, w, h: 19 }, left = { x: p.x - r - 8 - w, y: p.y - 10, w, h: 19 };
+      const fits = (b) => b.x > 6 && b.x + b.w < W - 6;
+      const box = [right, left].find((b) => fits(b) && free(b, p.t.id)) || (weight(p) >= 8 ? (fits(right) ? right : left) : null);
+      if (!box) continue;
+      boxes.push({ ...box, id: null });
+      const flip = box === left;
+      labelled.set(p.t.id, { name, dx: box.x - p.x + (flip ? w - 2 : 0), anchor: flip ? "end" : "start" });
+    }
+    window.__stars = {};
+    for (const p of placed) {
+      const t = p.t, r = 4 + t.rating * 1.5, n = lit.cited.get(t.id);
+      const g = S("g", {
+        class: ["dot", lit.recalled.has(t.id) ? "recalled" : "", n ? "cited" : "", t.id === lit.fresh ? "fresh" : "", t.id === lit.focus ? "hover" : ""].join(" "),
+        transform: `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`, "data-id": t.id, "data-name": t.name, style: `--k:${KCOL[t.kind]}`,
+      });
+      g.append(S("circle", { r: r + 9, fill: "transparent" }));  // an easier target for the pointer
+      if (t.id === lit.fresh && !asking) g.append(S("circle", { class: "pulse", r: r + 3 }));
+      if (t.id === lit.fresh && !t.in_memory) g.append(S("circle", { class: "pending", r: r + 6 }));
+      g.append(S("circle", { class: "body", r, fill: KCOL[t.kind], "fill-opacity": 0.35 + t.rating * 0.13, stroke: KCOL[t.kind], "stroke-width": 1.2 }));
+      if (n || t.id === lit.focus) { g.append(S("circle", { class: "ring" + (n && !drawn.has(t.id) ? " draw" : ""), r: r + 6 })); if (n) drawn.add(t.id); }
+      if (n) g.append(S("g", { class: "badge", transform: `translate(${(r + 5) * 0.72} ${-(r + 5) * 0.72})` }, S("circle", { r: 9 }), S("text", {}, n)));
+      const lab = labelled.get(t.id);
+      if (lab) g.append(S("text", { class: "lbl", x: lab.dx, y: 4.5, "text-anchor": lab.anchor }, lab.name));
+      kids.push(g);
+      window.__stars[t.id] = { name: t.name, x: p.x, y: p.y };
+    }
+    // the cited stars above the others
+    kids.sort((a, b) => (a.classList?.contains("cited") ? 1 : 0) - (b.classList?.contains("cited") ? 1 : 0));
+    svg.replaceChildren(...kids);
+    if (!tastings.length) svg.append(S("text", { class: "axl", x: W / 2, y: H / 2, "text-anchor": "middle" }, "No tastings yet. Add one, or run 09-taste-journal/seed.py"));
+  }
+
+  // hovering a star shows its page of the journal
+  function showTip(id) {
+    const tip = $("#tip"), p = placed.find((q) => q.t.id === id);
+    if (!p) { tip.hidden = true; return; }
+    const t = p.t;
+    tip.replaceChildren(
+      el("div", { class: "tn" }, t.name),
+      el("div", { class: "tm" }, el("span", { style: `color:${KCOL[t.kind]}` }, GLYPH[t.kind](15)), `${when(t)}${t.origin ? " · " + t.origin : ""}`),
+      el("div", { class: "tm" }, dots(t.rating, t.kind), WORD[t.rating]),
+      el("div", { class: "tt" }, t.notes));
+    tip.hidden = false;
+    const W = $("#mapwrap").clientWidth, H = $("#mapwrap").clientHeight;
+    tip.style.left = `${Math.max(8, Math.min(p.x + 22, W - 270))}px`;
+    tip.style.top = `${p.y > H - 190 ? Math.max(8, p.y - tip.offsetHeight - 16) : p.y + 18}px`;
+  }
+  function focus(id, fromJournal = false) {
+    if (lit.focus === id) return;
+    lit.focus = id;
+    drawMap(); renderJournal();
+    document.querySelectorAll("[data-cite]").forEach((n) => n.classList.toggle("hot", n.dataset.cite === id));
+    if (id) showTip(id); else $("#tip").hidden = true;
+  }
+  $("#map").addEventListener("mouseover", (e) => { const g = e.target.closest(".dot"); if (g) focus(g.dataset.id); });
+  $("#map").addEventListener("mouseleave", () => focus(null));
+  $("#map").addEventListener("mouseout", (e) => { if (!e.relatedTarget || !e.relatedTarget.closest?.(".dot")) focus(null); });
+
+  // ---- data -------------------------------------------------------------------------------------
+  async function load() {
+    try {
+      const data = await api("/api/tastings");
+      DIMS = data.dims; tastings = data.tastings; today = data.today;
+      const first = tastings[0];
+      $("#count").textContent = tastings.length ? `${tastings.length} tastings since ${MONTH[+first.date.slice(5, 7) - 1]}` : "";
+      $("#since").textContent = tastings.length ? `since ${day(first.date)}` : "";
+      $("#colophon").replaceChildren(el("span", { title: data.directory }, "Sam’s palate memory is kept by Membase, on this computer."),
+        data.error ? el("div", { class: "err" }, data.error) : "");
+      const kinds = KINDS.map((k) => [k, tastings.filter((t) => t.kind === k).length]);
+      $("#legend").replaceChildren(...kinds.map(([k, n]) => el("span", { style: `--k:${KCOL[k]}` }, GLYPH[k](15), `${n} ${k === "coffee" ? "coffees" : k === "tea" ? "teas" : "wines"}`)));
+      if (!lit.recalled.size) $("#mapfoot").replaceChildren(el("span", {}, "Tastings that taste alike sit together; the bigger the dot, the more you liked it."));
+      renderJournal(); drawMap();
+      clearTimeout(poll);
+      if (data.pending) poll = setTimeout(load, 900);
+    } catch (e) {
+      $("#colophon").replaceChildren(el("div", { class: "err" }, e.message || String(e)));
+    }
+  }
+
+  // ---- a new entry --------------------------------------------------------------------------------
+  // the entry's label, drawn as you type: a wine label, a coffee-bag sticker, a tea tin
+  function fit(text, font, size, max) {
+    measure.font = `${font.replace("{}", size)}`;
+    const w = measure.measureText(text).width;
+    return w > max ? Math.max(14, Math.floor(size * max / w)) : size;
+  }
+  function drawLabel() {
+    const name = $("#name").value.trim(), origin = $("#origin").value.trim();
+    const parts = origin.split(",").map((x) => x.trim()).filter(Boolean);
+    const top = parts.length > 1 ? parts.at(-1) : "", rest = parts.length > 1 ? parts.slice(0, -1).join(", ") : parts[0] || "";
+    const shown = name || "Your label";
+    const faint = name ? 1 : 0.35;
+    let svg;
+    if (kind === "wine") {
+      const size = fit(shown, "italic 500 {}px Fraunces", 31, 280);
+      svg = S("svg", { width: 300, height: 124, viewBox: "0 0 300 124" },
+        S("rect", { width: 300, height: 124, rx: 2, fill: "#fffaf0" }),
+        S("rect", { x: 7, y: 7, width: 286, height: 110, fill: "none", stroke: "#8e2a3d", "stroke-width": 1 }),
+        S("rect", { x: 10.5, y: 10.5, width: 279, height: 103, fill: "none", stroke: "#8e2a3d", "stroke-width": 0.5 }),
+        S("text", { x: 150, y: 31, "text-anchor": "middle", fill: "#8e2a3d", "font-family": "Jost", "font-size": 9.5, "letter-spacing": 2.6 }, (top || "vintage").toUpperCase()),
+        S("text", { x: 150, y: 68, "text-anchor": "middle", fill: "#2b2321", "fill-opacity": faint, "font-family": "Fraunces", "font-style": "italic", "font-weight": 500, "font-size": size }, shown),
+        S("path", { d: "M104 84h36M160 84h36", stroke: "#8e2a3d", "stroke-width": 0.8 }),
+        S("path", { d: "M150 79.5l4.5 4.5-4.5 4.5-4.5-4.5z", fill: "#8e2a3d" }),
+        S("text", { x: 150, y: 104, "text-anchor": "middle", fill: "#67594f", "font-family": "Fraunces", "font-style": "italic", "font-size": 12.5 }, rest));
+    } else if (kind === "coffee") {
+      const size = fit(shown.toUpperCase(), "600 {}px Jost", 21, 196);
+      svg = S("svg", { width: 330, height: 124, viewBox: "0 0 330 124" },
+        S("rect", { width: 330, height: 124, rx: 3, fill: "#d8bd94" }),
+        S("path", { d: "M0 16h330M0 108h330", stroke: "#c3a57a", "stroke-width": 1, "stroke-dasharray": "2 4" }),
+        S("rect", { x: 96, y: 18, width: 220, height: 88, rx: 44, fill: "#fbf6ec" }),
+        // a coffee branch: two cherries and leaves
+        S("g", { fill: "none", stroke: "#6c4424", "stroke-width": 1.3, "stroke-linecap": "round" },
+          S("path", { d: "M18 98C34 76 50 56 74 34" }),
+          S("path", { d: "M38 72c-10-2-16-9-16-17 9 1 15 7 16 17zM56 52c2-10 9-16 18-16-1 9-8 15-18 16z", fill: "#7b8f57", stroke: "#56683c" })),
+        S("circle", { cx: 54, cy: 76, r: 7, fill: "#a6372c" }), S("circle", { cx: 64, cy: 66, r: 6, fill: "#bf4a35" }),
+        S("text", { x: 206, y: 61, "text-anchor": "middle", fill: "#3a2416", "fill-opacity": faint, "font-family": "Jost", "font-weight": 600, "font-size": size, "letter-spacing": 1.5 }, shown.toUpperCase()),
+        S("text", { x: 206, y: 82, "text-anchor": "middle", fill: "#7a5a3c", "font-family": "Fraunces", "font-style": "italic", "font-size": 12.5 }, origin || "single origin"));
+    } else {
+      const size = fit(shown, "500 {}px Fraunces", 25, 190);
+      svg = S("svg", { width: 300, height: 124, viewBox: "0 0 300 124" },
+        S("rect", { width: 300, height: 124, rx: 6, fill: "#4e6a45" }),
+        S("rect", { x: 5, y: 5, width: 290, height: 114, rx: 4, fill: "none", stroke: "#c9b98f", "stroke-width": 0.8 }),
+        S("ellipse", { cx: 150, cy: 62, rx: 112, ry: 44, fill: "#f4ecd8" }),
+        S("g", { fill: "#8fae73" },
+          S("path", { d: "M22 40c14-6 26-2 30 10-14 5-26 1-30-10zM24 84c12 8 24 8 30-3-12-8-24-8-30 3zM278 40c-14-6-26-2-30 10 14 5 26 1 30-10zM276 84c-12 8-24 8-30-3 12-8 24-8 30 3z" })),
+        S("text", { x: 150, y: 62, "text-anchor": "middle", fill: "#2f3d2a", "fill-opacity": faint, "font-family": "Fraunces", "font-weight": 500, "font-size": size }, shown),
+        S("text", { x: 150, y: 82, "text-anchor": "middle", fill: "#5f6f52", "font-family": "Fraunces", "font-style": "italic", "font-size": 12 }, origin));
+    }
+    $("#label").replaceChildren(svg);
+  }
+  $("#name").addEventListener("input", drawLabel);
+  $("#origin").addEventListener("input", drawLabel);
+
+  function drawKinds() {
+    $("#kinds").replaceChildren(...KINDS.map((k) => el("button", { type: "button", "data-kind": k, class: k === kind ? "on" : "", style: kvars(k),
+      onclick: () => { kind = k; drawKinds(); drawRating(); drawLabel(); } }, GLYPH[k](19), k[0].toUpperCase() + k.slice(1))));
+  }
+  function drawRating() {
+    $("#stars").replaceChildren(...[1, 2, 3, 4, 5].map((n) => el("button", { type: "button", "data-n": n, title: WORD[n], style: kvars(kind),
+      class: n <= rating ? "f" : "", onclick: () => { rating = n; drawRating(); } })));
+    $("#word").textContent = rating ? WORD[rating] : "How was it?";
+  }
+  drawKinds(); drawRating();
+
+  function mode(which) {
+    const asking = which === "ask";
+    $("#log").hidden = asking; $("#askpane").hidden = !asking;
+    $("#sidetitle").textContent = asking ? "Your sommelier" : "Tonight’s tasting";
+    $("#sidesub").textContent = asking ? "Answers from your own journal" : "A new page in your journal";
+    $("#medal").replaceChildren(asking
+      ? icon('<path d="M6 8.5h12a6 6 0 0 1-12 0z"/><path d="M12 14.5V19M8.5 20h7"/><path d="M18 9.5c1.6 0 2.5-.8 2.5-2"/><circle cx="12" cy="4.5" r="1.3"/>', 20, 20)
+      : icon('<path d="M5 3.5h11.5a2 2 0 0 1 2 2V20.5H7a2 2 0 0 1-2-2z"/><path d="M5 18.5a2 2 0 0 1 2-2h11.5"/><path d="M9 8h6M9 11h4"/>', 20, 20));
+    $("#switch").textContent = asking ? "New tasting" : "Ask the sommelier";
+    $("#switch").onclick = () => mode(asking ? "log" : "ask");
+  }
+  mode("log");
+
+  $("#log").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!rating) { $("#logmsg").replaceChildren(el("div", { class: "err" }, "How was it? Tap the dots to rate it.")); return; }
+    const button = $("#save");
+    button.disabled = true; button.textContent = "Placing it on your map…";
+    $("#logmsg").replaceChildren();
+    try {
+      const out = await api("/api/tastings", { kind, name: $("#name").value, origin: $("#origin").value, notes: $("#notes").value, rating, date: $("#date").value });
+      lit.fresh = out.tasting.id;
+      lit.recalled = new Set(); lit.cited = new Map(); lit.focus = null;
+      $("#name").value = ""; $("#origin").value = ""; $("#notes").value = ""; rating = 0; drawRating(); drawLabel();
+      $("#answer").hidden = true;
+      mode("ask");
+      await load();
+    } catch (err) {
+      $("#logmsg").replaceChildren(el("div", { class: "err" }, err.message || String(err)));
+    } finally {
+      button.disabled = false; button.textContent = "Add to journal";
+    }
+  });
+
+  // ---- the sommelier's note: [n] becomes a numbered journal entry, lit on the map and in the journal
+  let hits = [];
+  const GLASS = () => icon('<path d="M7.5 3h9l-.5 6.2a4 4 0 0 1-8 0z"/><path d="M12 13.2V19M8.5 20.5h7"/>', 18, 18);
+  function number(n) {
+    // the note's own numbering: tastings in the order the note first cites them
+    const h = hits.find((x) => x.n === n);
+    if (!h || !h.tasting || !byId(h.tasting)) return null;
+    if (!lit.cited.has(h.tasting)) lit.cited.set(h.tasting, lit.cited.size + 1);
+    return { id: h.tasting, k: lit.cited.get(h.tasting) };
+  }
+  function cites(target, text) {
+    const re = /((?:\s*\[\d+\])+)/g;
+    let last = 0, m;
+    while ((m = re.exec(text))) {
+      // the word before the numbers, the numbers and the stop after them never break apart
+      const before = text.slice(last, m.index), cut = before.search(/\S+\s*$/);
+      target.append(cut > 0 ? before.slice(0, cut) : cut < 0 ? before : "");
+      const group = el("span", { class: "nw" }, cut >= 0 ? before.slice(cut).trimEnd() : "");
+      const seen = new Set();
+      for (const n of m[0].match(/\d+/g)) {
+        const c = number(+n);
+        if (!c || seen.has(c.id)) continue;
+        seen.add(c.id);
+        group.append(el("sup", { class: "c", "data-cite": c.id, onmouseenter: () => focus(c.id), onmouseleave: () => focus(null) }, c.k));
+      }
+      last = m.index + m[0].length;
+      const stop = text.slice(last).match(/^[.,;:!?)]+/);
+      if (stop) { group.append(stop[0]); last += stop[0].length; }
+      target.append(group);
+    }
+    target.append(text.slice(last).replace(/\[\d*$/, ""));
+  }
+  function renderNote(box, text, kind) {
+    lit.cited = new Map();
+    const body = el("div", { class: kind === "palate" ? "prose" : "picks", id: "picks" });
+    if (kind === "palate") cites(body, text.trim());
+    else for (const line of text.split("\n").map((l) => l.trim()).filter(Boolean)) {
+      const m = line.match(/^\*\*(.+?)\*\*\s*[—–:-]*\s*(.*)$/);
+      const pick = el("div", { class: "pick" });
+      if (m) { pick.append(el("div", { class: "pn" }, m[1])); const w = el("div", { class: "pw" }); cites(w, m[2]); pick.append(w); }
+      else { const w = el("div", { class: "pw" }); cites(w, line.replace(/\*\*/g, "")); pick.append(w); }
+      body.append(pick);
+    }
+    box.replaceChildren(body);
+  }
+  function renderFrom() {
+    const rows = [...lit.cited.entries()].sort((a, b) => a[1] - b[1]).map(([id, k]) => {
+      const t = byId(id), h = hits.find((x) => x.tasting === id);
+      return el("div", { class: "cref", "data-cite": id, style: kvars(t.kind), title: h ? `As remembered: ${h.content}` : "",
+        onmouseenter: () => focus(id), onmouseleave: () => focus(null) },
+        el("span", { class: "num" }, k),
+        el("span", { class: "cn" }, t.name, el("small", {}, when(t))),
+        dots(t.rating, t.kind),
+        el("span", { class: "cs" }, t.notes));
+    });
+    return rows.length ? el("div", { class: "from", id: "cited" }, el("h3", {}, "From your journal"), ...rows) : null;
+  }
+
+  async function ask(kindOfAsk) {
+    const q = $("#hint").value.trim();
+    if (kindOfAsk === "next" && !q) { $("#hint").focus(); return; }
+    const button = kindOfAsk === "palate" ? $("#palate") : $("#ask");
+    button.disabled = true;
+    lit.recalled = new Set(); lit.cited = new Map(); lit.focus = null;
+    hits = []; drawn.clear();
+    const box = $("#answer");
+    const by = el("div", { class: "by", id: "by" }, el("span", { class: "swirl" }, GLASS(), "Leafing through your journal…"));
+    const body = el("div", { id: "notebody" });
+    box.replaceChildren(el("p", { class: "for", id: "for" }, kindOfAsk === "palate" ? "Your palate" : q[0].toUpperCase() + q.slice(1)), by, body);
+    box.hidden = false;
+    window.__answer = null;
+    renderJournal(); drawMap();
+    let text = "";
+    try {
+      await stream("/api/ask", { kind: kindOfAsk, hint: kindOfAsk === "next" ? q : "" }, (ev) => {
+        if (ev.type === "waiting") by.replaceChildren(el("span", { class: "swirl" }, GLASS(), "Finishing tonight’s page first…"));
+        else if (ev.type === "memories") {
+          hits = ev.hits;
+          lit.recalled = new Set(hits.map((h) => h.tasting).filter(Boolean));
+          const n = lit.recalled.size;
+          by.replaceChildren(el("span", { class: "swirl" }, GLASS(), `Turned to ${n} of your ${tastings.length} entries…`));
+          $("#mapfoot").replaceChildren(el("span", { id: "turned" }, el("b", {}, `${n} entries`), " the sommelier turned to stay in colour."));
+          renderJournal(); drawMap();
+        } else if (ev.type === "delta") {
+          text += ev.text;
+          renderNote(body, text, kindOfAsk);
+        } else if (ev.type === "done") {
+          renderNote(body, text, kindOfAsk);
+          const from = renderFrom();
+          if (from) body.append(from);
+          by.textContent = `From ${lit.recalled.size} of your ${tastings.length} entries`;
+          const cited = [...lit.cited.keys()];
+          $("#mapfoot").replaceChildren(el("span", { id: "turned" }, el("b", {}, `${cited.length} cited`), ` · ${lit.recalled.size} turned to · ${tastings.length} in the journal`));
+          renderJournal(); drawMap();
+          window.__answer = { text, cited: cited.map((id) => { const t = byId(id); return { id, n: lit.cited.get(id), name: t.name, rating: t.rating, date: t.date, today: t.date === today }; }), recalled: [...lit.recalled] };
+        }
+      });
+    } catch (e) {
+      body.replaceChildren(el("div", { class: "err" }, e.message || String(e)));
+    } finally {
+      button.disabled = false;
+    }
+  }
+  $("#askform").addEventListener("submit", (e) => { e.preventDefault(); ask("next"); });
+  $("#palate").addEventListener("click", () => ask("palate"));
+
+  await document.fonts.ready.catch(() => {});
+  drawLabel();
+  load();
+  window.addEventListener("resize", drawMap);
+</script>
+</body>
+</html>

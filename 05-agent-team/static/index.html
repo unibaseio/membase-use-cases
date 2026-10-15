@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISSUE-212 · Free plan goes over its rate limit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  /* An issue tracker: the team's sidebar, the issue with its activity timeline, and on the
+     right what the team shares: pinned notes (the Team memory in Membase), checks, and each
+     member's key. Each agent is a member; what it does lands on the timeline. */
+  :root {
+    --bg: #ffffff; --side: #f6f6f4; --canvas: #fbfbfa; --line: #e7e6e2; --line-2: #efeeea;
+    --ink: #1c1d1f; --ink-2: #4b4d52; --ink-3: #85878d; --ink-4: #b2b3b7;
+    --red: #cf3a32; --red-bg: #fdf0ef; --red-line: #f1c4c0;
+    --green: #1a7f45; --green-bg: #edf7f0; --green-line: #bfe2cb;
+    --amber: #b5650b; --amber-bg: #fdf5e8;
+    --pin: #b5650b; --note: #fffaf0; --note-line: #f0dfbd;
+    --investigator: #0f766e; --fixer: #c2410c; --reviewer: #2f6f3e; --auditor: #4b5563;
+    --ui: Inter, "Helvetica Neue", Arial, sans-serif; --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font: 14px/1.5 var(--ui); color: var(--ink); background: var(--bg); -webkit-font-smoothing: antialiased;
+    display: grid; grid-template-columns: 232px 1fr; overflow: hidden; font-feature-settings: "cv11", "ss01"; }
+  button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; }
+  svg { display: block; flex: none; }
+  code, .mono { font-family: var(--mono); font-size: 12.5px; }
+
+  /* ---- the team's sidebar ---------------------------------------------------------------- */
+  .side { background: var(--side); border-right: 1px solid var(--line); padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; min-height: 0; }
+  .ws { display: flex; align-items: center; gap: 9px; padding: 4px 8px 14px; font-weight: 600; font-size: 14px; }
+  .ws .logo { width: 24px; height: 24px; border-radius: 6px; background: #1c1d1f; color: #fff; display: grid; place-items: center; }
+  .nav { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; color: var(--ink-2); font-size: 13.5px; }
+  .nav.on { background: #e9e8e4; color: var(--ink); font-weight: 500; }
+  .nav .ct { margin-left: auto; font-size: 12px; color: var(--ink-3); }
+  .side h4 { margin: 18px 8px 6px; font-size: 12px; font-weight: 500; color: var(--ink-3); }
+  .member { display: flex; align-items: center; gap: 9px; padding: 5px 8px; border-radius: 6px; font-size: 13.5px; color: var(--ink-2); }
+  .member.active { background: #fff; box-shadow: 0 0 0 1px var(--line); color: var(--ink); }
+  .member .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin-left: auto; visibility: hidden; }
+  .member.active .dot { visibility: visible; animation: blink 1.2s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity: .3; } }
+  .side .foot { margin-top: auto; padding: 0 8px; font-size: 11.5px; color: var(--ink-3); line-height: 1.45; }
+
+  /* avatars: one drawn mark per agent */
+  .av { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; flex: none; }
+  .av.Investigator { background: var(--investigator); } .av.Fixer { background: var(--fixer); }
+  .av.Reviewer { background: var(--reviewer); } .av.Auditor { background: var(--auditor); }
+  .av.support { background: #d9d8d3; color: #5c5e63; }
+  .av.membase { background: #fff; color: var(--pin); box-shadow: 0 0 0 1px var(--note-line); }
+
+  /* ---- the issue --------------------------------------------------------------------------- */
+  .main { display: grid; grid-template-columns: 1fr 384px; min-height: 0; }
+  .issue { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
+  .crumbs { height: 46px; display: flex; align-items: center; gap: 8px; padding: 0 28px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--ink-3); flex: none; }
+  .crumbs b { color: var(--ink); font-weight: 500; }
+  .crumbs .sp { flex: 1; }
+  .btn { height: 30px; padding: 0 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 500; }
+  .btn.primary { background: var(--ink); color: #fff; }
+  .btn.primary:hover { background: #000; }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .scroller { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
+  .issue-body { max-width: 760px; margin: 0 auto; padding: 26px 32px 160px; }
+  .id-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink-3); }
+  .status { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border-radius: 12px; font-size: 12.5px; font-weight: 500; background: #f1f0ec; color: var(--ink-2); }
+  .status i { width: 10px; height: 10px; border-radius: 50%; border: 1.6px solid currentColor; }
+  .status.progress { background: var(--amber-bg); color: var(--amber); }
+  .status.progress i { background: conic-gradient(currentColor 0 50%, transparent 50%); }
+  .status.review { background: #eaf2fb; color: #2463a8; }
+  .status.review i { background: conic-gradient(currentColor 0 75%, transparent 75%); }
+  .status.done { background: var(--green-bg); color: var(--green); }
+  .status.done i { background: currentColor; }
+  h1 { font-size: 24px; line-height: 1.25; font-weight: 600; letter-spacing: -.012em; margin: 10px 0 12px; }
+  .desc { color: var(--ink-2); font-size: 14.5px; line-height: 1.6; }
+  .desc p { margin: 0 0 8px; }
+  .props { display: flex; gap: 18px; margin: 14px 0 0; padding-bottom: 20px; border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--ink-3); }
+  .props span { display: inline-flex; align-items: center; gap: 6px; }
+  .props .lbl { background: #fbeaea; color: #a33a32; padding: 1px 8px; border-radius: 10px; font-weight: 500; }
+
+  /* the activity timeline */
+  .activity-h { display: flex; align-items: center; justify-content: space-between; margin: 22px 0 8px; font-size: 13.5px; font-weight: 600; }
+  .tl { position: relative; }
+  .tl::before { content: ""; position: absolute; left: 10.5px; top: 6px; bottom: 6px; width: 1px; background: var(--line); }
+  .ev { position: relative; display: grid; grid-template-columns: 22px 1fr; gap: 12px; align-items: start; padding: 7px 0; font-size: 13.5px; color: var(--ink-2); }
+  .ev .ic { width: 22px; height: 22px; border-radius: 50%; background: var(--bg); display: grid; place-items: center; color: var(--ink-3); box-shadow: 0 0 0 4px var(--bg); }
+  .ev > div { padding-top: 1px; }
+  .ev b { color: var(--ink); font-weight: 600; }
+  .ev .when { color: var(--ink-4); margin-left: 6px; font-size: 12.5px; }
+  .ev .files code { background: #f3f2ee; padding: 1px 5px; border-radius: 4px; font-size: 12px; color: var(--ink-2); }
+  .chip { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px; border-radius: 5px; font-size: 11.5px; font-weight: 500; vertical-align: 1px; border: 1px solid var(--line); color: var(--ink-2); background: #fff; }
+  .chip.ro { color: var(--red); border-color: var(--red-line); background: var(--red-bg); }
+  .chip .k { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+
+  /* a comment from a member */
+  .comment { position: relative; margin: 8px 0 8px 34px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+  .comment > .av { position: absolute; left: -34px; top: 9px; }
+  .comment .ch { display: flex; align-items: center; gap: 8px; padding: 9px 14px; font-size: 13px; color: var(--ink-3); border-bottom: 1px solid var(--line-2); }
+  .comment .ch b { color: var(--ink); font-weight: 600; }
+  .comment .cb { padding: 11px 14px 12px; font-size: 14px; color: var(--ink); line-height: 1.55; }
+  .comment .cb p { margin: 0; }
+  .comment.say { border: 0; background: none; margin-top: 4px; }
+  .comment.say .cb { padding: 2px 0 4px; }
+  .comment.say .cb b { font-weight: 600; margin-right: 6px; }
+  .comment.say > .av { top: 2px; }
+
+  /* a pinned note: what went into the Team memory */
+  .note { background: var(--note); border: 1px solid var(--note-line); border-radius: 8px; padding: 10px 12px 11px; font-size: 13.5px; line-height: 1.55; color: #3b3326; }
+  .note .nh { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--pin); margin-bottom: 4px; }
+  .note .nh .st { margin-left: auto; font-weight: 500; color: var(--ink-3); }
+  .note .nh .st.learned { color: var(--green); }
+  /* recalled: quoting a teammate's note */
+  .quote { border-left: 3px solid var(--note-line); padding: 2px 0 2px 12px; margin: 8px 0 0; color: #4a4232; font-size: 13.5px; }
+  .quote + .quote { margin-top: 6px; }
+  .quote.cause { border-left-color: var(--pin); color: #2e2717; }
+  .from { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-3); }
+  .from .av { width: 18px; height: 18px; }
+  .from b { color: var(--ink-2); font-weight: 600; }
+
+  /* a diff, the way a code host shows a suggested change */
+  .diff { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; font: 12.5px/1.65 var(--mono); }
+  .diff .fh { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: #f7f7f5; border-bottom: 1px solid var(--line); font-family: var(--ui); font-size: 12.5px; color: var(--ink-2); }
+  .diff .fh .n { margin-left: auto; color: var(--ink-3); font-family: var(--mono); font-size: 11.5px; }
+  .diff .fh .n .a { color: var(--green); } .diff .fh .n .d { color: var(--red); }
+  .diff .ln { display: grid; grid-template-columns: 38px 38px 1fr; white-space: pre; }
+  .diff .ln span:nth-child(-n+2) { color: var(--ink-4); text-align: right; padding-right: 8px; }
+  .diff .ln.add { background: #e9f6ee; } .diff .ln.add span:nth-child(-n+2) { background: #d7efdf; color: #4f8a64; }
+  .diff .ln.del { background: #fcecea; } .diff .ln.del span:nth-child(-n+2) { background: #f8dad6; color: #a8564f; }
+  .diff .ln.hunk { background: #f1f5fb; color: #5b6b85; } .diff .ln.hunk span:nth-child(-n+2) { background: #e6edf7; }
+
+  /* a check run */
+  .check { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; background: #fff; font-size: 13px; }
+  .check .mark { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; color: #fff; }
+  .check.fail .mark { background: var(--red); } .check.pass .mark { background: var(--green); }
+  .check .nm { font-weight: 600; color: var(--ink); } .check .sm { color: var(--ink-3); margin-left: auto; font-family: var(--mono); font-size: 12px; }
+  .check.fail .sm { color: var(--red); } .check.pass .sm { color: var(--green); }
+  .ev .check { margin-top: 6px; max-width: 420px; }
+
+  /* a review */
+  .review { margin: 8px 0 8px 34px; position: relative; border: 1px solid var(--green-line); border-radius: 10px; background: #fff; }
+  .review > .av { position: absolute; left: -34px; top: 9px; }
+  .review .rh { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--green-bg); color: var(--green); font-weight: 600; font-size: 13.5px; border-radius: 10px 10px 0 0; }
+  .review .rb { padding: 11px 14px 12px; font-size: 14px; line-height: 1.55; }
+  .review.no { border-color: var(--red-line); } .review.no .rh { background: var(--red-bg); color: var(--red); }
+
+  /* the platform refusing a write */
+  .refused { margin: 8px 0 8px 34px; position: relative; border: 1px solid var(--red-line); background: var(--red-bg); border-radius: 10px; padding: 11px 14px 12px; }
+  .refused > .ic { position: absolute; left: -34px; top: 10px; width: 22px; height: 22px; border-radius: 50%; background: var(--red); color: #fff; display: grid; place-items: center; box-shadow: 0 0 0 4px var(--bg); }
+  .refused .rh { display: flex; align-items: center; gap: 8px; color: var(--red); font-weight: 600; font-size: 14px; }
+  .refused .rh .code { margin-left: auto; font-family: var(--mono); font-size: 12px; font-weight: 500; background: #fff; border: 1px solid var(--red-line); border-radius: 5px; padding: 1px 7px; }
+  .refused p { margin: 6px 0 0; font-size: 13.5px; color: #7a2b25; }
+  .refused pre { margin: 8px 0 0; font: 12px/1.55 var(--mono); color: #7a2b25; background: #fff; border: 1px solid var(--red-line); border-radius: 6px; padding: 8px 10px; white-space: pre-wrap; }
+
+  .spin { width: 12px; height: 12px; border-radius: 50%; border: 1.6px solid var(--line); border-top-color: var(--pin); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .err { margin: 8px 0; padding: 9px 12px; border-radius: 8px; background: var(--red-bg); color: var(--red); font-size: 13px; }
+  .start-cta { margin: 10px 0 0 34px; font-size: 13px; color: var(--ink-3); max-width: 520px; }
+
+  /* ---- what the team shares --------------------------------------------------------------- */
+  .rail { min-height: 0; overflow-y: auto; background: var(--canvas); }
+  .rail section { padding: 16px 20px; border-bottom: 1px solid var(--line); }
+  .rail h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 13px; font-weight: 600; }
+  .rail h3 .sub { margin-left: auto; font-weight: 400; color: var(--ink-3); font-size: 12px; }
+  .pinned { display: grid; gap: 8px; }
+  .pinned .empty { font-size: 13px; color: var(--ink-3); line-height: 1.5; padding: 14px 12px; border: 1px dashed var(--line); border-radius: 8px; text-align: center; }
+  .pin { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; display: grid; gap: 5px; transition: box-shadow .4s, border-color .4s; }
+  .pin .ph { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; }
+  .pin .ph .av { width: 18px; height: 18px; }
+  .pin .tx { font-size: 12.5px; color: var(--ink-2); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .pin .meta { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-3); }
+  .pin .meta .st { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; }
+  .pin .meta .st.learned { color: var(--green); }
+  .pin .meta .st.learning { color: var(--amber); }
+  .pin.hot { border-color: var(--pin); box-shadow: 0 0 0 3px rgba(181, 101, 11, .14); }
+  .pin .by { margin-left: auto; font-size: 11.5px; color: var(--pin); font-weight: 500; }
+  .older { font-size: 12px; color: var(--ink-3); }
+  .keys { display: grid; gap: 2px; }
+  .keyrow { display: grid; grid-template-columns: 22px 1fr auto; gap: 9px; align-items: center; padding: 6px 0; font-size: 13px; }
+  .keyrow .k { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+  .keyrow .lvl { font-size: 11.5px; font-weight: 500; color: var(--ink-2); border: 1px solid var(--line); border-radius: 5px; padding: 0 6px; background: #fff; }
+  .keyrow .lvl.ro { color: var(--red); border-color: var(--red-line); background: var(--red-bg); }
+  .rail .fine { font-size: 11.5px; color: var(--ink-3); margin: 8px 0 0; line-height: 1.45; }
+</style>
+</head>
+<body>
+<aside class="side">
+  <div class="ws"><span class="logo"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 11.5V8M6.3 11.5V4.5M9.7 11.5V6.5M13 11.5V9"/></svg></span>Ratelimit</div>
+  <div class="nav"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2.5 9.5l1.6-5.6A1 1 0 0 1 5 3.2h6a1 1 0 0 1 1 .7l1.6 5.6V12a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1z"/><path d="M2.5 9.5h3.2l.8 1.5h3l.8-1.5h3.2"/></svg>Inbox</div>
+  <div class="nav on"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="1.6" fill="currentColor"/></svg>Issues<span class="ct">1</span></div>
+  <div class="nav"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="4" cy="3.5" r="1.5"/><circle cx="4" cy="12.5" r="1.5"/><circle cx="12" cy="12.5" r="1.5"/><path d="M4 5v6M12 11V6.5a2 2 0 0 0-2-2H7.5M9 3l-1.5 1.5L9 6"/></svg>Changes</div>
+  <div class="nav"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M9.6 2.2l4.2 4.2-2 .6-2.4 2.4.2 2.8-1 1-3-3-3.4 3.4M5.6 7.2l-1-1 1-1 2.8.2L10.8 3z"/></svg>Team notes<span class="ct" id="notecount"></span></div>
+  <h4>Members</h4>
+  <div id="members"></div>
+  <p class="foot">Four agents, one per role. Each calls the team’s memory with its own key.</p>
+</aside>
+
+<div class="main">
+  <main class="issue">
+    <div class="crumbs">Platform <span>›</span> <b>ISSUE-212</b><span class="sp"></span>
+      <button class="btn primary" id="run" type="button">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="5.5" r="2.5"/><path d="M1.8 13.5c.5-2.4 2.2-3.8 4.2-3.8s3.7 1.4 4.2 3.8M11 4.5h4M13 2.5v4"/></svg>
+        <span id="runlabel">Assign to the agent team</span></button>
+    </div>
+    <div class="scroller" id="scroller">
+      <div class="issue-body">
+        <div class="id-row"><span class="mono">ISSUE-212</span><span class="status" id="status"><i></i><span>Open</span></span></div>
+        <h1>Free plan goes over its rate limit</h1>
+        <div class="desc">
+          <p>The free plan allows 5 requests a second. Right after a deploy the limit holds. After the API has been up a few minutes, a client in a tight loop gets far more through, and the longer the uptime, the worse it gets.</p>
+          <p>Repro: start the API, wait two minutes, send 50 requests. Expected about 5 allowed. Actual: all 50.</p>
+        </div>
+        <div class="props">
+          <span><span class="av support" style="width:18px;height:18px"><svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="5" r="3"/><path d="M2 15c.6-3.4 3-5 6-5s5.4 1.6 6 5z"/></svg></span>Support</span>
+          <span><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>Oct 10</span>
+          <span class="lbl">Bug</span>
+          <span><code>ratelimit/bucket.py</code></span>
+        </div>
+
+        <div class="activity-h">Activity<span class="mono" style="color:var(--ink-4);font-weight:400" id="runid"></span></div>
+        <div class="tl" id="tl">
+          <div class="ev"><span class="ic"><span class="av support"><svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="5" r="3"/><path d="M2 15c.6-3.4 3-5 6-5s5.4 1.6 6 5z"/></svg></span></span>
+            <div><b>Support</b> opened this issue<span class="when">Oct 10</span></div></div>
+          <div class="start-cta" id="cta">Assign it to the agent team: the Investigator finds the cause, the Fixer patches it, the Reviewer checks it, and the Auditor files the record.</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="rail" id="rail">
+    <section id="notes">
+      <h3><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#b5650b" stroke-width="1.5" stroke-linejoin="round"><path d="M9.6 2.2l4.2 4.2-2 .6-2.4 2.4.2 2.8-1 1-3-3-3.4 3.4M5.6 7.2l-1-1 1-1 2.8.2L10.8 3z"/></svg>Team notes<span class="sub">kept in Membase</span></h3>
+      <div class="pinned" id="feed"><div class="empty">Loading…</div></div>
+    </section>
+    <section>
+      <h3><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M5.5 8.2l1.7 1.7 3.4-3.6"/></svg>Checks</h3>
+      <div class="check fail" id="tests"><span class="mark"><svg width="10" height="10" viewBox="0 0 12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l6 6M9 3l-6 6"/></svg></span><span class="nm">unittest</span><span class="sm">2 failing on main</span></div>
+    </section>
+    <section>
+      <h3><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="5.5" cy="10.5" r="3"/><path d="M7.6 8.4L14 2M11.5 4.5l2 2M10 6l1.5 1.5"/></svg>Membase keys</h3>
+      <div class="keys" id="keys"></div>
+      <p class="fine">Membase checks the key on every call. The Auditor’s can read the notes, not add to them.</p>
+    </section>
+  </aside>
+</div>
+
+<script type="module">
+  import { $, el, api, stream } from "/kit/kit.js";
+
+  const SVG = (markup, w = 14, h = 14, vb = "0 0 16 16", sw = 1.6) => {
+    const t = document.createElement("template");
+    t.innerHTML = `<svg width="${w}" height="${h}" viewBox="${vb}" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${markup}</svg>`;
+    return t.content.firstChild;
+  };
+  // each agent's mark, drawn for this team
+  const MARK = {
+    Investigator: '<circle cx="7" cy="7" r="3.6"/><path d="M9.7 9.7L13 13"/>',
+    Fixer: '<path d="M10.5 2.5a3 3 0 0 0-3.2 4.1L2.8 11.1a1.3 1.3 0 0 0 1.9 1.9l4.5-4.5a3 3 0 0 0 4.1-3.2l-1.9 1.9-1.6-.4-.4-1.6z"/>',
+    Reviewer: '<path d="M1.8 8s2.3-4.2 6.2-4.2S14.2 8 14.2 8 11.9 12.2 8 12.2 1.8 8 1.8 8z"/><circle cx="8" cy="8" r="1.8"/>',
+    Auditor: '<rect x="3.5" y="2.8" width="9" height="11" rx="1.2"/><path d="M6 2.8V2h4v.8M5.8 7h4.4M5.8 9.6h3"/>',
+  };
+  const ROLES = ["Investigator", "Fixer", "Reviewer", "Auditor"];
+  const avatar = (role) => el("span", { class: `av ${role}`, title: role }, SVG(MARK[role], 12, 12));
+  const PIN = () => SVG('<path d="M9.6 2.2l4.2 4.2-2 .6-2.4 2.4.2 2.8-1 1-3-3-3.4 3.4M5.6 7.2l-1-1 1-1 2.8.2L10.8 3z"/>', 13, 13, "0 0 16 16", 1.5);
+  const FILE = () => SVG('<path d="M4 1.8h5l3 3v9.4H4z"/><path d="M9 1.8v3h3"/>', 13, 13, "0 0 16 16", 1.4);
+  const PLAY = () => SVG('<path d="M5 3.5v9l7-4.5z"/>', 12, 12, "0 0 16 16", 1.4);
+  const CHECK = () => SVG('<path d="M3 6.3l2 2 4-4.3"/>', 10, 10, "0 0 12 12", 2);
+  const CROSS = () => SVG('<path d="M3 3l6 6M9 3l-6 6"/>', 10, 10, "0 0 12 12", 2);
+  const LOCK = () => SVG('<rect x="3.5" y="7" width="9" height="6.5" rx="1.2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>', 12, 12);
+  const LEARN = () => SVG('<path d="M3 4.5c1.6-.8 3.3-.8 5 .3 1.7-1.1 3.4-1.1 5-.3v8c-1.6-.8-3.3-.8-5 .3-1.7-1.1-3.4-1.1-5-.3z"/><path d="M8 4.8v8"/>', 12, 12, "0 0 16 16", 1.4);
+  const INFO = () => SVG('<circle cx="8" cy="8" r="5.5"/><path d="M8 5v3.5M8 10.8v.2"/>', 13, 13, "0 0 16 16", 1.4);
+  const NOTE_TITLE = { Investigator: "Finding", Fixer: "Fix decision" };
+  const clip = (t, n) => (t.length > n ? t.slice(0, n).trimEnd() + "…" : t);
+  const strip = (t) => t.replace(/^(Investigator|Fixer|Reviewer|Auditor):\s*/, "");
+
+  let keys = {}, reading = null, hot = null, docs = [];
+  const thisRun = {};      // role -> {content, doc, learned} for the notes pinned in this run
+  const tl = $("#tl");
+
+  function post(node) {
+    tl.append(node);
+    // the newest activity comes into view, the way a live timeline follows along
+    requestAnimationFrame(() => node.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+    return node;
+  }
+  const event = (icon, ...body) => post(el("div", { class: "ev" }, el("span", { class: "ic" }, icon), el("div", {}, ...body)));
+  function setStatus(cls, text) { const s = $("#status"); s.className = "status " + cls; s.querySelector("span").textContent = text; }
+  function active(role) { document.querySelectorAll(".member").forEach((m) => m.classList.toggle("active", m.dataset.role === role)); }
+  const keyChip = (role) => {
+    const k = keys[role] || {};
+    return el("span", { class: "chip" + (k.level === "read only" ? " ro" : "") }, k.level === "read only" ? LOCK() : null, el("span", { class: "k" }, k.hint || ""), k.level || "");
+  };
+
+  function renderMembers() {
+    $("#members").replaceChildren(...ROLES.map((r) => el("div", { class: "member", "data-role": r }, avatar(r), r, el("span", { class: "dot" }))));
+  }
+  function renderKeys() {
+    $("#keys").replaceChildren(...ROLES.map((r) => {
+      const k = keys[r];
+      return el("div", { class: "keyrow" }, avatar(r), el("span", {}, r, " ", el("span", { class: "k" }, k ? k.hint : "")),
+        el("span", { class: "lvl" + (r === "Auditor" ? " ro" : "") }, k ? k.level : r === "Auditor" ? "read only" : "read & write"));
+    }));
+  }
+
+  // ---- the run, as a timeline -------------------------------------------------------------
+  function agentStart(ev) {
+    reading = null;
+    active(ev.role);
+    if (ev.role === "Investigator") setStatus("progress", "In progress");
+    event(avatar(ev.role), el("b", {}, ev.role), " picked this up ", keyChip(ev.role));
+  }
+
+  function diffView(text, path) {
+    const rows = [];
+    let a = 0, b = 0, adds = 0, dels = 0;
+    for (const line of text.split("\n")) {
+      if (line.startsWith("---") || line.startsWith("+++") || !line) continue;
+      const m = line.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)/);
+      if (m) { a = +m[1]; b = +m[2]; rows.push(el("div", { class: "ln hunk" }, el("span", {}, ""), el("span", {}, ""), line)); continue; }
+      if (line[0] === "+") { adds++; rows.push(el("div", { class: "ln add" }, el("span", {}, ""), el("span", {}, String(b++)), line)); }
+      else if (line[0] === "-") { dels++; rows.push(el("div", { class: "ln del" }, el("span", {}, String(a++)), el("span", {}, ""), line)); }
+      else rows.push(el("div", { class: "ln" }, el("span", {}, String(a++)), el("span", {}, String(b++)), line));
+    }
+    return el("div", { class: "diff", id: "patch" },
+      el("div", { class: "fh" }, FILE(), path, el("span", { class: "n" }, el("span", { class: "a" }, `+${adds}`), " ", el("span", { class: "d" }, `−${dels}`))), ...rows);
+  }
+
+  function checkRow(r, id) {
+    const failing = (r.summary.match(/failures=(\d+)/) || [])[1];
+    return el("div", { class: "check " + (r.passed ? "pass" : "fail"), id },
+      el("span", { class: "mark" }, r.passed ? CHECK() : CROSS()), el("span", { class: "nm" }, "unittest"),
+      el("span", { class: "sm" }, r.passed ? "all passing" : `${failing || "some"} failing`));
+  }
+
+  function tool(ev) {
+    const role = ev.role;
+    if (ev.name === "list_files") return;
+    if (ev.name === "read_file" && ev.ok) {
+      // consecutive reads gather on one line, as a timeline groups them
+      if (!reading) reading = event(FILE(), el("b", {}, role), " read ", el("span", { class: "files" }));
+      const files = reading.querySelector(".files");
+      if (files.childNodes.length) files.append(" ");
+      files.append(el("code", {}, ev.args.path));
+      return;
+    }
+    reading = null;
+    if (!ev.ok && ev.refused) {
+      const err = (ev.body && ev.body.error) || ev.body || {};
+      post(el("div", { class: "refused", id: "refused" }, el("span", { class: "ic" }, LOCK()),
+        el("div", { class: "rh" }, `Membase refused the ${role}’s note`, el("span", { class: "code" }, `HTTP ${ev.status}`)),
+        el("p", {}, "Its key ", el("code", {}, (keys[role] || {}).hint || ""), " can read Team notes, not add to them."),
+        el("pre", {}, JSON.stringify({ code: err.code, message: err.message, details: err.details }))));
+      return;
+    }
+    if (!ev.ok) { post(el("div", { class: "err" }, `${role} · ${ev.name}: ${ev.error}`)); return; }
+    if (ev.name === "run_tests") {
+      const r = ev.result;
+      event(PLAY(), el("b", {}, role), " ran the tests", checkRow(r, `check-${role}`));
+      $("#tests").replaceWith(checkRow(r, "tests"));
+      if (role === "Fixer" && r.passed) setStatus("review", "In review");
+      return;
+    }
+    if (ev.name === "search_memories") {
+      const hits = ev.result.hits || [];
+      // the notes this run pinned that Membase has learned: what this search can come back with
+      const learned = Object.entries(thisRun).filter(([, n]) => n.learned);
+      const author = learned.length === 1 && !docs.some((d) => !Object.values(thisRun).some((n) => n.doc === d.id)) ? learned[0][0] : null;
+      const cause = (t) => /created_at|since (the bucket was )?creat|uptime/i.test(t);
+      const box = el("div", { class: "comment", id: `recall-${role}` }, avatar(role),
+        el("div", { class: "ch" }, el("b", {}, role), " looked in Team notes first", el("span", { class: "mono", style: "margin-left:auto" }, `“${clip(ev.args.query || "", 40)}”`)),
+        el("div", { class: "cb" },
+          author ? el("div", { class: "from" }, avatar(author), el("span", {}, el("b", {}, author), "’s note, as Membase learned it")) : null,
+          ...(hits.length ? hits.slice(0, 3).map((h) => el("div", { class: "quote" + (cause(h.content) ? " cause" : "") }, clip(h.content, 260)))
+            : [el("p", { style: "color:var(--ink-3)" }, "Nothing in the notes matched.")]),
+          ev.result.unheard && ev.result.unheard.length ? el("div", { class: "err" }, "Membase did not answer: " + ev.result.unheard.join("; ")) : null));
+      post(box);
+      if (author) { hot = [author, `recalled by the ${role}`]; renderFeed(); }
+      return;
+    }
+    if (ev.name === "add_memory") {
+      thisRun[role] = { content: strip(ev.args.content || ""), doc: ev.result.document_id, learned: false };
+      post(el("div", { class: "comment", id: `wrote-${role}` }, avatar(role),
+        el("div", { class: "ch" }, el("b", {}, role), " pinned a note to Team notes"),
+        el("div", { class: "cb" }, el("div", { class: "note" },
+          el("div", { class: "nh" }, PIN(), NOTE_TITLE[role] || "Note", el("span", { class: "st", id: `st-${role}` }, "saved to Membase")),
+          clip(thisRun[role].content, 520)))));
+      renderFeed();
+      return;
+    }
+    if (ev.name === "propose_patch") {
+      post(el("div", { class: "comment" }, avatar(role), el("div", { class: "ch" }, el("b", {}, role), " changed one line"),
+        el("div", { class: "cb" }, diffView(ev.result.diff || "", ev.args.path))));
+      return;
+    }
+    if (ev.name === "show_diff") { event(FILE(), el("b", {}, role), " read the diff"); return; }
+    if (ev.name === "submit_verdict") {
+      const v = ev.result;
+      post(el("div", { class: "review" + (v.approve ? "" : " no"), id: "verdict" }, avatar(role),
+        el("div", { class: "rh" }, v.approve ? CHECK() : CROSS(), `${role} ${v.approve ? "approved the fix" : "requested changes"}`),
+        el("div", { class: "rb" }, v.reasons)));
+    }
+  }
+
+  function say(ev) {
+    if (!ev.text) return;
+    post(el("div", { class: "comment say" }, avatar(ev.role), el("div", { class: "cb" }, el("p", {}, el("b", {}, ev.role), clip(ev.text, 300)))));
+  }
+
+  function wait(ev) {
+    let line = $("#learn-" + ev.role);
+    if (!line) {
+      event(el("span", { class: "av membase" }, LEARN()), el("span", { id: "learn-" + ev.role }));
+      line = $("#learn-" + ev.role);
+    }
+    const st = $("#st-" + ev.role);
+    if (ev.learned) {
+      if (thisRun[ev.role]) thisRun[ev.role].learned = true;
+      line.replaceChildren(el("b", {}, "Membase"), ` learned the ${ev.role}’s note in ${ev.seconds}s. The team can recall it now.`);
+      if (st) { st.textContent = "learned"; st.className = "st learned"; }
+      loadFeed();
+    } else {
+      line.replaceChildren(el("span", { style: "display:inline-flex;gap:8px;align-items:center" }, el("span", { class: "spin" }),
+        el("span", {}, el("b", {}, "Membase"), ` is learning the ${ev.role}’s note · ${ev.seconds}s`)));
+      if (st) st.textContent = `Membase is learning it · ${ev.seconds}s`;
+    }
+  }
+
+  function note(ev) {
+    const line = $("#learn-" + ev.role);
+    if (ev.warn && line) {
+      // the learning run ended without learning the note: say so where the wait was shown
+      line.className = "warn";
+      line.replaceChildren(el("b", {}, "Membase"), el("span", { style: "color:var(--amber)" }, ` could not learn the ${ev.role}’s note. `), ev.text);
+      if (thisRun[ev.role]) thisRun[ev.role].failed = true;
+      const st = $("#st-" + ev.role); if (st) { st.textContent = "not learned"; st.style.color = "var(--amber)"; }
+      renderFeed();
+      return;
+    }
+    event(INFO(), el("span", { class: ev.warn ? "warn" : "", style: ev.warn ? "color:var(--amber)" : "" }, ev.text));
+  }
+
+  // ---- pinned notes (the Team memory) -----------------------------------------------------
+  function renderFeed() {
+    const mine = ROLES.filter((r) => thisRun[r]).map((r) => {
+      const n = thisRun[r];
+      return el("div", { class: "pin" + (hot && hot[0] === r ? " hot" : ""), id: `pin-${r}` },
+        el("div", { class: "ph" }, avatar(r), NOTE_TITLE[r] || "Note", hot && hot[0] === r ? el("span", { class: "by" }, hot[1]) : null),
+        el("div", { class: "tx" }, n.content),
+        el("div", { class: "meta" }, r, el("span", { class: "st " + (n.learned ? "learned" : "learning") }, n.learned ? "learned" : n.failed ? "not learned" : "Membase is learning…")));
+    });
+    const ours = new Set(Object.values(thisRun).map((n) => n.doc));
+    const older = docs.filter((d) => !ours.has(d.id));
+    const parts = [...mine];
+    if (older.length) parts.push(el("div", { class: "older" }, `${older.length} earlier note${older.length === 1 ? "" : "s"} from past runs`));
+    if (!parts.length) parts.push(el("div", { class: "empty" }, "Nothing pinned yet. What one member learns lands here, and the next one recalls it."));
+    $("#feed").replaceChildren(...parts);
+    $("#notecount").textContent = String(older.length + mine.length || "");
+  }
+  async function loadFeed() {
+    try { docs = (await api("/api/feed")).documents; renderFeed(); }
+    catch (e) { $("#feed").replaceChildren(el("div", { class: "err" }, e.message || String(e))); }
+  }
+
+  // ---- start ------------------------------------------------------------------------------
+  $("#run").onclick = async () => {
+    const button = $("#run");
+    button.disabled = true;
+    $("#runlabel").textContent = "The team is on it";
+    $("#cta")?.remove();
+    try {
+      await stream("/api/run", {}, (ev) => {
+        if (ev.type === "run") { keys = ev.agents; renderKeys(); $("#runid").textContent = `run ${ev.run}`; }
+        else if (ev.type === "agent" && ev.status === "start") agentStart(ev);
+        else if (ev.type === "agent" && ev.status === "end") { reading = null; active(null); }
+        else if (ev.type === "tool") tool(ev);
+        else if (ev.type === "say") say(ev);
+        else if (ev.type === "note") note(ev);
+        else if (ev.type === "wait") wait(ev);
+        else if (ev.type === "done") {
+          active(null);
+          const v = ev.verdict || {};
+          if (v.approve) setStatus("done", "Done");
+          const pinned = (ev.writes || []).filter((w) => w.document_id).length;
+          event(SVG('<circle cx="8" cy="8" r="5.5"/><path d="M5.6 8.2l1.6 1.6 3.2-3.4"/>', 13, 13, "0 0 16 16", 1.4),
+            el("span", { id: "closed" }, v.approve ? "Closed as fixed. " : "Left open. ", `${pinned} note${pinned === 1 ? "" : "s"} pinned in this run.`));
+          loadFeed();
+        }
+      });
+    } catch (e) { post(el("div", { class: "err" }, e.message || String(e))); }
+    finally { button.disabled = false; $("#runlabel").textContent = "Run the team again"; }
+  };
+
+  renderMembers();
+  renderKeys();
+  await document.fonts.ready.catch(() => {});
+  loadFeed();
+</script>
+</body>
+</html>

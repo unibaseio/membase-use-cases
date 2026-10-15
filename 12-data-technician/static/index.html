@@ -1,0 +1,735 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Benchlog · Probe TP-7 QC</title>
+<link rel="stylesheet" href="/static/fonts/fonts.css">
+<style>
+  /* Benchlog: an electronic lab notebook at a sensor lab. The queue of windows on the left, the
+     notebook page in the middle (the plot, the run log, the sign-off), the SOP binder on the
+     right. Memory shows the way a lab keeps it: SOP cards learned from a scientist's correction. */
+  :root {
+    --bench: #e8ebe6; --bench-2: #dde1db; --paper: #fcfcf9; --paper-2: #f4f5f0;
+    --ink: #1c2420; --ink-2: #4f5a54; --ink-3: #85908a; --rule: #d6dbd4; --grid: #edf0ea; --grid-2: #e0e5de;
+    --trace: #1b5a80; --green: #276b45; --green-bg: #e5f0e7; --red: #b8372b; --pen: #c0392b;
+    --manila: #f5ebcb; --manila-2: #e7d7a6; --manila-ink: #5a4a22; --run: #213f33;
+    --ui: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+    --mono: "IBM Plex Mono", Menlo, monospace;
+    --hand: "Kalam", "Segoe Print", cursive;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bench); color: var(--ink); font: 14px/1.45 var(--ui); -webkit-font-smoothing: antialiased; overflow: hidden; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  button:disabled { cursor: progress; }
+  [hidden] { display: none !important; }
+  svg { display: block; }
+
+  /* ---- the app bar ------------------------------------------------------------------------ */
+  .bar { height: 50px; background: var(--run); color: #e7eee9; display: flex; align-items: center; gap: 22px; padding: 0 20px; }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 16px; letter-spacing: .01em; }
+  .brand svg { color: #9fd0b2; }
+  .crumbs { display: flex; align-items: center; gap: 8px; color: #a9bbb1; font-size: 13.5px; }
+  .crumbs b { color: #fff; font-weight: 500; }
+  .crumbs i { font-style: normal; opacity: .5; }
+  .bar .right { margin-left: auto; display: flex; align-items: center; gap: 14px; font-size: 13px; color: #a9bbb1; }
+  .bar .labid { font-family: var(--mono); font-size: 12px; }
+  .bar .ghost { border: 1px solid rgba(231, 238, 233, .25); border-radius: 5px; padding: 4px 10px; color: #dce6e0; }
+  .bar .ghost:hover { border-color: rgba(231, 238, 233, .6); }
+  .who { display: flex; align-items: center; gap: 8px; color: #e7eee9; }
+  .who i { width: 28px; height: 28px; border-radius: 50%; background: #c9a35b; color: #2a2112; font: 600 12px/28px var(--ui); text-align: center; font-style: normal; }
+
+  /* ---- the bench: queue | notebook page | SOP binder -------------------------------------- */
+  .benchtop { height: calc(100% - 50px); display: grid; grid-template-columns: 236px minmax(0, 1fr) 338px; gap: 16px; padding: 16px; }
+
+  /* queue */
+  .queue { display: flex; flex-direction: column; min-height: 0; }
+  .colh { font-weight: 600; font-size: 14.5px; padding: 2px 4px 2px; }
+  .colh small { display: block; font-weight: 400; color: var(--ink-3); font-size: 12.5px; }
+  .tiles { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 2px; }
+  .tile { width: 100%; display: grid; grid-template-columns: 34px 1fr 20px; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; text-align: left; }
+  .tile:hover { background: rgba(255, 255, 255, .5); }
+  .tile.on { background: var(--paper); box-shadow: 0 0 0 1px var(--rule), 0 1px 2px rgba(0, 0, 0, .05); }
+  .tile b { font: 500 13px var(--mono); }
+  .tile svg.spark { width: 100%; height: 22px; }
+  .tile .st { width: 18px; height: 18px; }
+  .plate-link { margin-top: auto; display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: center; text-align: left; padding: 10px; border-radius: 8px; background: var(--paper); box-shadow: 0 0 0 1px var(--rule); }
+  .plate-link:hover, .plate-link.on { box-shadow: 0 0 0 1.5px var(--trace); }
+  .plate-link b { display: block; font-weight: 600; font-size: 14px; }
+  .plate-link span { color: var(--ink-2); font-size: 12.5px; }
+
+  /* the notebook page */
+  .sheet { background: var(--paper); border-radius: 4px; box-shadow: 0 0 0 1px var(--rule), 0 10px 26px -18px rgba(30, 50, 40, .4); padding: 20px 24px; min-height: 0; overflow: hidden; position: relative; }
+  .sheet::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: repeating-linear-gradient(var(--rule) 0 6px, transparent 6px 14px); opacity: .7; }
+  #window-view { display: grid; grid-template-rows: auto auto 250px minmax(0, 1fr); gap: 12px; height: 100%; }
+  .entry-h { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; }
+  .entry-h h1 { margin: 0; font-size: 23px; font-weight: 600; letter-spacing: -.005em; }
+  .entry-h h1 span { font-family: var(--mono); font-weight: 500; }
+  .entry-h .meta { color: var(--ink-2); font-size: 13px; margin-top: 2px; }
+  .run { white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; background: var(--run); color: #f1f6f2; border-radius: 6px; padding: 9px 16px 9px 13px; font-weight: 500; }
+  .run:hover:not(:disabled) { background: #2b5243; }
+  .run:disabled { opacity: .8; }
+  .run svg { width: 16px; height: 16px; }
+
+  /* what the binder gave this run */
+  .notes { min-height: 24px; }
+  .notes .none { color: var(--ink-3); font-size: 13px; display: flex; align-items: center; gap: 7px; }
+  .cite { display: grid; grid-template-columns: 26px 1fr; gap: 4px 10px; align-items: start; background: var(--manila); border: 1px solid var(--manila-2); border-radius: 5px; padding: 8px 12px; color: var(--manila-ink); }
+  .cite svg { width: 22px; height: 22px; margin-top: 1px; }
+  .cite b { font-weight: 600; color: #3f3417; }
+  .cite .case { grid-column: 2; font-size: 13px; font-style: italic; }
+  .cite .from { font-family: var(--hand); color: var(--pen); font-size: 15px; white-space: nowrap; }
+
+  /* the plot */
+  .plotbox { position: relative; border: 1px solid var(--rule); border-radius: 3px; background: #fff; }
+  #plot { width: 100%; height: 100%; }
+  #plot text { font: 11px var(--mono); fill: var(--ink-3); }
+  #plot .ann text { font: 500 11.5px var(--mono); paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
+  #plot .ann { opacity: 0; animation: ink .5s ease forwards; }
+  @keyframes ink { to { opacity: 1; } }
+
+  /* run log and sign-off */
+  .lower { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; min-height: 0; }
+  .log { min-height: 0; overflow-y: auto; scroll-behavior: smooth; padding-right: 4px; }
+  .log .h, .signoff .h { font-weight: 600; font-size: 13.5px; color: var(--ink-2); padding-bottom: 6px; border-bottom: 1px solid var(--rule); margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .log .h small, .signoff .h small { font-weight: 400; color: var(--ink-3); }
+  .line { display: grid; grid-template-columns: 62px 1fr; gap: 8px; padding: 5px 0; border-bottom: 1px dashed var(--grid-2); font-size: 13px; }
+  .line time { font: 11.5px/20px var(--mono); color: var(--ink-3); }
+  .line code { font: 500 12.5px var(--mono); color: var(--trace); }
+  .line .res { font: 12px var(--mono); color: var(--ink-2); }
+  .line .thought { color: var(--ink-2); font-style: italic; }
+  .line.answer .say { font-weight: 500; }
+  .line.answer .lab { font: 600 11px var(--mono); text-transform: uppercase; letter-spacing: .05em; border: 1.3px solid currentColor; border-radius: 3px; padding: 0 5px; margin-left: 6px; color: var(--ink-2); }
+  .line.user .note { font-family: var(--hand); color: var(--pen); font-size: 15.5px; line-height: 1.3; }
+  .log .empty { color: var(--ink-3); font-size: 13px; padding: 10px 0; }
+  .working { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 13px; padding: 6px 0; }
+  .working i { width: 7px; height: 7px; border-radius: 50%; background: var(--trace); animation: blink 1s ease-in-out infinite; }
+  .working i:nth-child(2) { animation-delay: .15s; } .working i:nth-child(3) { animation-delay: .3s; }
+  @keyframes blink { 50% { opacity: .2; } }
+
+  .signoff { min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
+  .signoff .empty { color: var(--ink-3); font-size: 13px; padding: 10px 0; }
+  .verdict { padding-top: 8px; display: flex; flex-direction: column; gap: 10px; }
+  .stamprow { display: flex; align-items: center; gap: 14px; min-height: 66px; }
+  .stamp { position: relative; display: inline-block; font: 600 22px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; padding: 9px 14px 8px; border: 3px solid currentColor; border-radius: 6px; transform: rotate(-4deg); color: #3b4843; opacity: .9; }
+  .stamp.ok { color: var(--green); }
+  .stamp.struck::after { content: ""; position: absolute; left: -10px; right: -10px; top: 50%; height: 3px; background: var(--pen); border-radius: 2px; transform: rotate(-9deg); animation: strike .45s ease-out .5s both; transform-origin: left; }
+  @keyframes strike { from { transform: rotate(-9deg) scaleX(0); } }
+  .fixed { font-family: var(--hand); color: var(--pen); font-size: 30px; line-height: 1; transform: rotate(-3deg); animation: ink .5s ease .9s both; opacity: 0; }
+  .vline { font-size: 13.5px; color: var(--ink-2); }
+  .vline b { color: var(--ink); font-weight: 600; }
+  .vline.ok b { color: var(--green); }
+  .vline.bad b { color: var(--red); }
+  .review { background: #fffdf4; border: 1px solid #eadfc0; border-radius: 4px; padding: 8px 10px 10px; position: relative;
+    background-image: repeating-linear-gradient(transparent 0 25px, rgba(192, 57, 43, .11) 25px 26px); background-position: 0 6px; }
+  .review .who2 { font-size: 12.5px; color: var(--ink-3); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .review select { font: 600 15px var(--hand); color: var(--pen); background: transparent; border: 0; border-bottom: 1.5px solid rgba(192, 57, 43, .45); padding: 0 2px; }
+  .review textarea { width: 100%; border: 0; background: transparent; resize: none; height: 80px; font: 17px/26px var(--hand); color: var(--pen); padding: 0; margin-top: 4px; outline: none; }
+  .review .signed { font: 17px/26px var(--hand); color: var(--pen); margin-top: 4px; }
+  .review .sig { font: 700 17px var(--hand); color: var(--pen); text-align: right; margin-top: 2px; }
+  .act { align-self: flex-start; white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; border-radius: 6px; padding: 8px 14px; font-weight: 500; background: var(--run); color: #f1f6f2; }
+  .act.pen { background: var(--pen); color: #fff; }
+  .act.quiet { background: none; color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--rule); }
+  .act:disabled { opacity: .7; }
+  .filed { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; background: var(--manila); border: 1px solid var(--manila-2); border-radius: 5px; padding: 10px 12px; color: var(--manila-ink); font-size: 13.5px; }
+  .filed svg { width: 26px; height: 26px; }
+  .filed b { color: #3f3417; }
+  .filed .nextw { color: var(--trace); font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+  .filed.none { background: #fbeceb; border-color: #efc9c4; color: var(--red); }
+  .err { color: var(--red); background: #fbeceb; border-radius: 5px; padding: 8px 10px; font-size: 13px; }
+
+  /* ---- the validation plate ---------------------------------------------------------------- */
+  #heldout-view { height: 100%; display: flex; flex-direction: column; gap: 12px; }
+  .plate-h { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; }
+  .plate-h h1 { margin: 0; font-size: 23px; font-weight: 600; }
+  .plate-h .meta { color: var(--ink-2); font-size: 13px; margin-top: 2px; }
+  .score { display: flex; align-items: baseline; gap: 16px; padding: 10px 14px; background: var(--paper-2); border: 1px solid var(--rule); border-radius: 4px; min-height: 58px; align-items: center; }
+  .score .big { font: 600 30px/1 var(--mono); letter-spacing: -.02em; }
+  .score .big .arrow { color: var(--ink-3); font-weight: 400; margin: 0 6px; }
+  .score .big .up { color: var(--green); }
+  .score .what { color: var(--ink-2); font-size: 13.5px; }
+  table.plate { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .plate th { text-align: left; font-weight: 500; color: var(--ink-3); font-size: 12.5px; padding: 0 10px 6px; border-bottom: 1.5px solid var(--ink-2); }
+  .plate td { padding: 4px 10px; border-bottom: 1px solid var(--grid-2); height: 37px; }
+  .plate td.id { font: 500 13px var(--mono); width: 54px; }
+  .plate td.tr { width: 190px; } .plate td.tr svg { width: 170px; height: 24px; }
+  .plate td.truth { color: var(--ink-2); }
+  .plate .res { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 13px; }
+  .plate .res.ok { color: var(--green); }
+  .plate .res.no { color: var(--red); }
+  .plate .res.no s { text-decoration-thickness: 1.5px; }
+  .plate .res svg { width: 15px; height: 15px; }
+  .plate .res.wait { color: var(--ink-3); }
+  .plate tr.gain td { background: var(--green-bg); }
+  .plate .sopd { font-size: 11.5px; color: var(--manila-ink); background: var(--manila); border-radius: 3px; padding: 0 5px; margin-left: 2px; font-family: var(--ui); }
+  .plate tfoot td { border-bottom: 0; font: 600 13.5px var(--mono); padding-top: 8px; }
+
+  /* ---- the SOP binder ---------------------------------------------------------------------- */
+  .binder { display: flex; flex-direction: column; min-height: 0; }
+  .sops { margin-top: 10px; display: grid; gap: 12px; align-content: start; overflow-y: auto; min-height: 0; padding: 2px 2px 8px; }
+  .sop { position: relative; background: var(--manila); border: 1px solid var(--manila-2); border-radius: 4px; padding: 12px 14px 12px 24px; color: var(--manila-ink); box-shadow: 0 6px 14px -12px rgba(80, 60, 10, .6); }
+  .sop::before { content: ""; position: absolute; left: 7px; top: 14px; bottom: 14px; width: 7px;
+    background: radial-gradient(circle at 3.5px 3.5px, var(--bench) 3px, transparent 3.5px) 0 0 / 7px 28px repeat-y; }
+  .sop.fresh { animation: file .8s cubic-bezier(.2, .8, .2, 1); box-shadow: 0 0 0 2px #d9b75a, 0 10px 20px -12px rgba(80, 60, 10, .7); }
+  @keyframes file { from { transform: translateX(30px) rotate(2deg); opacity: 0; } }
+  .sop .no { font: 500 11.5px var(--mono); color: #8c7a45; display: flex; justify-content: space-between; }
+  .sop .no .used { color: var(--green); background: #e6efd8; border-radius: 3px; padding: 0 6px; font-family: var(--ui); font-weight: 600; }
+  .sop h3 { margin: 3px 0 4px; font-size: 16px; font-weight: 600; color: #3f3417; line-height: 1.25; }
+  .sop p { margin: 0; font-size: 13px; line-height: 1.4; }
+  .sop .from { margin-top: 9px; font-size: 12.5px; }
+  .sop blockquote { margin: 3px 0 0; font: 16px/1.3 var(--hand); color: var(--pen); }
+  .sop blockquote .sig { white-space: nowrap; font-weight: 700; }
+  .sop details { margin-top: 8px; font-size: 12.5px; }
+  .sop summary { cursor: pointer; color: #8c7a45; }
+  .sop pre { white-space: pre-wrap; font: 11.5px/1.45 var(--mono); max-height: 220px; overflow: auto; margin: 6px 0 0; }
+  .binder .emptyb { margin-top: 16px; text-align: center; color: var(--ink-3); font-size: 13px; padding: 26px 18px; border: 1.5px dashed var(--rule); border-radius: 6px; }
+  .binder .emptyb svg { margin: 0 auto 12px; color: #a9b2ac; }
+  .binder .emptyb b { display: block; color: var(--ink-2); font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .binder .foot { margin-top: auto; font-size: 11.5px; color: var(--ink-3); padding: 8px 2px 0; line-height: 1.45; overflow-wrap: anywhere; }
+
+  @media (max-width: 1300px) {
+    body { overflow: auto; }
+    .benchtop { grid-template-columns: 1fr; height: auto; }
+    .sheet { height: 860px; }
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M9 3h6M10 3v6.2L4.8 18.4A1.8 1.8 0 0 0 6.4 21h11.2a1.8 1.8 0 0 0 1.6-2.6L14 9.2V3"/><path d="M7.3 15h9.4" opacity=".7"/>
+    </svg>
+    Benchlog
+  </div>
+  <nav class="crumbs"><span>Thermal lab</span><i>/</i><span>Probe TP-7 QC</span><i>/</i><b id="crumb">Run sheet</b></nav>
+  <div class="right">
+    <span class="labid" id="labid"></span>
+    <button class="ghost" id="newlab" type="button">New lab</button>
+    <span class="who"><i>HI</i>Dr. Hana Ito</span>
+  </div>
+</header>
+
+<main class="benchtop">
+  <aside class="queue">
+    <div class="colh">Windows to label<small>Probe TP-7 · 120 s at 1 Hz each</small></div>
+    <ol class="tiles" id="queue"></ol>
+    <button class="plate-link" id="plate-link" type="button">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true" style="color:var(--trace)">
+        <rect x="2" y="5" width="26" height="20" rx="3"/>
+        <g fill="currentColor" stroke="none" opacity=".75"><circle cx="8" cy="11" r="1.8"/><circle cx="13" cy="11" r="1.8"/><circle cx="18" cy="11" r="1.8"/><circle cx="23" cy="11" r="1.8"/><circle cx="8" cy="15.5" r="1.8"/><circle cx="13" cy="15.5" r="1.8"/><circle cx="18" cy="15.5" r="1.8"/><circle cx="23" cy="15.5" r="1.8"/><circle cx="8" cy="20" r="1.8"/><circle cx="13" cy="20" r="1.8"/><circle cx="18" cy="20" r="1.8"/><circle cx="23" cy="20" r="1.8"/></g>
+      </svg>
+      <div><b>Validation plate</b><span id="plate-score">H01–H12 · not run yet</span></div>
+    </button>
+  </aside>
+
+  <section class="sheet" id="stage">
+    <div id="window-view">
+      <div class="entry-h">
+        <div>
+          <h1 id="wid">Window</h1>
+          <div class="meta" id="wmeta">Probe TP-7 · 120 readings at 1 Hz</div>
+        </div>
+        <button class="run" id="classify" type="button">
+          <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4.5 2.8v10.4L13 8z"/></svg>
+          <span>Run QC agent</span>
+        </button>
+      </div>
+      <div class="notes" id="notes"></div>
+      <div class="plotbox"><svg id="plot" aria-label="Readings"></svg></div>
+      <div class="lower">
+        <div class="log" id="log"><div class="h">Run log <small id="logmeta"></small></div><div id="trace"></div></div>
+        <div class="signoff"><div class="h">Sign-off <small id="truthmeta"></small></div><div id="verdict"></div></div>
+      </div>
+    </div>
+
+    <div id="heldout-view" hidden>
+      <div class="plate-h">
+        <div>
+          <h1>Validation plate</h1>
+          <div class="meta">Twelve windows the agent is never corrected on, labelled with whatever the binder holds.</div>
+        </div>
+        <div style="display:flex; gap:8px">
+          <button class="act quiet" id="back" type="button">Back to the queue</button>
+          <button class="run" id="evaluate" type="button">
+            <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4.5 2.8v10.4L13 8z"/></svg>
+            <span>Run the plate</span>
+          </button>
+        </div>
+      </div>
+      <div class="score" id="score"></div>
+      <table class="plate" id="plate"></table>
+    </div>
+  </section>
+
+  <aside class="binder">
+    <div class="colh">SOP binder<small id="memsum">What the agent has learned in this lab</small></div>
+    <div class="sops" id="skills"></div>
+    <div class="foot" id="dir"></div>
+  </aside>
+</main>
+
+<script type="module">
+  import { $, el, api, stream } from "/kit/kit.js";
+
+  const KEY = "data-technician-lab";
+  const SCIENTIST = { name: "Dr. Hana Ito", short: "H. Ito" };
+  let lab = null, state = null, data = null, current = null, runId = null, fresh = new Set(), cited = new Set();
+  const store = {
+    get() { try { return localStorage.getItem(KEY); } catch { return null; } },
+    set(v) { try { localStorage.setItem(KEY, v); } catch { /* fine for this session */ } },
+  };
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const nice = (name) => { const s = name.replaceAll("_", " ").toLowerCase(); return s.charAt(0).toUpperCase() + s.slice(1); };
+  const day = (t) => new Date(t * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const clock = () => new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const NS = "http://www.w3.org/2000/svg";
+  const S = (tag, attrs = {}, ...kids) => {
+    const n = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) if (v !== undefined && v !== null) n.setAttribute(k, v);
+    for (const k of kids.flat()) if (k != null) n.append(k instanceof Node ? k : document.createTextNode(String(k)));
+    return n;
+  };
+  const icon = (markup, size = 18, vb = "0 0 24 24") => {
+    const t = document.createElement("template");
+    t.innerHTML = `<svg width="${size}" height="${size}" viewBox="${vb}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${markup}</svg>`;
+    return t.content.firstChild;
+  };
+  const TICK = () => icon('<path d="M4 12.5l5 5L20 6.5"/>', 15);
+  const CROSS = () => icon('<path d="M6 6l12 12M18 6L6 18"/>', 15);
+  const CLIP = () => icon('<path d="M8 7V5.5a4 4 0 0 1 8 0V17a6 6 0 0 1-12 0V8"/><path d="M12 8v8.5" />', 22);
+  const PEN = () => icon('<path d="M4 20l1.2-4.4L16.4 4.4a2 2 0 0 1 2.9 0l.3.3a2 2 0 0 1 0 2.9L8.4 18.8z"/><path d="M14.5 6.3l3.2 3.2"/>', 15);
+  const BINDER = (size = 26) => icon('<rect x="5" y="3.5" width="14" height="17" rx="1.5"/><path d="M5 7.5H3.5M5 12H3.5M5 16.5H3.5"/><path d="M9 8h6M9 11h6M9 14h4"/>', size);
+
+  boot().catch((e) => $("#trace").replaceChildren(el("div", { class: "err" }, e.message || String(e))));
+
+  // ---- boot and lab -----------------------------------------------------------------------
+  async function boot() {
+    data = await api("/api/windows");
+    lab = new URLSearchParams(location.search).get("lab") || store.get();
+    if (!lab) await newLab(); else store.set(lab);
+    await document.fonts.ready.catch(() => {});
+    await refresh();
+    select(data.train.find((w) => !state.taught[w.id]) || data.train[0]);
+  }
+  async function newLab() { lab = (await api("/api/labs/new", {})).lab; store.set(lab); }
+  async function refresh() {
+    state = await api(`/api/lab?lab=${encodeURIComponent(lab)}`);
+    $("#labid").textContent = lab;
+    $("#dir").textContent = `The binder is this lab's agent memory, kept by Membase on the local engine: one directory per lab (…/${state.directory.split("/").slice(-2).join("/")}).`;
+    $("#dir").title = state.directory;
+    renderQueue(); renderSkills(); renderPlateLink();
+  }
+
+  // ---- where an SOP came from: the corrected run that added or updated it ------------------
+  const provenance = (skillId) => state.ingested.find((x) => (x.skill_ids || []).includes(skillId)) || null;
+  const sopNo = (skill) => {
+    const i = (state.skills || []).findIndex((s) => s.id === skill.id);
+    return `SOP-${String((i < 0 ? 0 : i) + 1).padStart(2, "0")}`;
+  };
+  const brief = (d) => (d || "").split(/\s*Keywords:/)[0].trim();
+
+  // ---- drawing ----------------------------------------------------------------------------
+  function sparkline(values, w = 150, h = 22, color = "var(--trace)") {
+    const ok = values.filter((v) => v !== null);
+    let lo = Math.min(...ok), hi = Math.max(...ok);
+    if (hi - lo < 1) { const m = (hi + lo) / 2; lo = m - .5; hi = m + .5; }
+    const X = (i) => 1 + (i / (values.length - 1)) * (w - 2), Y = (v) => 2 + (1 - (v - lo) / (hi - lo)) * (h - 4);
+    let d = "", pen = false;
+    values.forEach((v, i) => { if (v === null) { pen = false; return; } d += `${pen ? "L" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`; pen = true; });
+    return S("svg", { class: "spark", viewBox: `0 0 ${w} ${h}`, preserveAspectRatio: "none" },
+      S("path", { d, fill: "none", stroke: color, "stroke-width": 1.1, "vector-effect": "non-scaling-stroke", "stroke-linejoin": "round" }));
+  }
+  const niceStep = (span) => [0.2, 0.5, 1, 2, 5, 10].find((s) => span / s <= 6) || 10;
+
+  // The plot of the open window, with what the agent's tools found inked on it.
+  let marks = [];
+  function drawPlot() {
+    const svg = $("#plot"), values = current.values;
+    const W = svg.clientWidth, H = svg.clientHeight;
+    if (!W || !H) return;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    const P = { l: 52, r: 16, t: 26, b: 34 };
+    const ok = values.filter((v) => v !== null);
+    let lo = Math.min(...ok), hi = Math.max(...ok);
+    const span = Math.max(hi - lo, 1.5), step = niceStep(span);
+    lo = Math.floor((lo - span * .08) / step) * step; hi = Math.ceil((hi + span * .12) / step) * step;
+    const X = (i) => P.l + (i / (values.length - 1)) * (W - P.l - P.r);
+    const Y = (v) => P.t + (1 - (v - lo) / (hi - lo)) * (H - P.t - P.b);
+    const g = [];
+    // graph paper: minor every 5 s, major every 20 s
+    for (let s = 0; s <= 120; s += 5) g.push(S("line", { x1: X(Math.min(s, 119)), x2: X(Math.min(s, 119)), y1: P.t, y2: H - P.b, stroke: s % 20 ? "var(--grid)" : "var(--grid-2)" }));
+    for (let v = lo; v <= hi + 1e-9; v += step / 2) {
+      const major = Math.abs(v / step - Math.round(v / step)) < 1e-6;
+      g.push(S("line", { x1: P.l, x2: W - P.r, y1: Y(v), y2: Y(v), stroke: major ? "var(--grid-2)" : "var(--grid)" }));
+      if (major) g.push(S("text", { x: P.l - 8, y: Y(v) + 4, "text-anchor": "end" }, v.toFixed(step < 1 ? 1 : 0)));
+    }
+    for (let s = 0; s <= 120; s += 20) g.push(S("text", { x: X(Math.min(s, 119)), y: H - P.b + 16, "text-anchor": "middle" }, String(s)));
+    g.push(S("text", { x: P.l - 8, y: 13, "text-anchor": "end" }, "°C"));
+    g.push(S("text", { x: W - P.r, y: H - 4, "text-anchor": "end" }, "time (s)"));
+    g.push(S("line", { x1: P.l, x2: P.l, y1: P.t, y2: H - P.b, stroke: "var(--ink-3)" }));
+    g.push(S("line", { x1: P.l, x2: W - P.r, y1: H - P.b, y2: H - P.b, stroke: "var(--ink-3)" }));
+    // missing readings: hatched
+    values.forEach((v, i) => { if (v === null) g.push(S("rect", { x: X(i) - 2.5, y: P.t, width: 5, height: H - P.t - P.b, fill: "url(#hatch)" })); });
+    let d = "", pen = false;
+    values.forEach((v, i) => { if (v === null) { pen = false; return; } d += `${pen ? "L" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`; pen = true; });
+    const trace = S("path", { d, fill: "none", stroke: "var(--trace)", "stroke-width": 1.6, "stroke-linejoin": "round" });
+    const ann = marks.map((m) => annotation(m, { X, Y, P, W, H, values })).filter(Boolean);
+    svg.replaceChildren(
+      S("defs", {}, S("pattern", { id: "hatch", width: 4, height: 4, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, S("line", { x1: 0, y1: 0, x2: 0, y2: 4, stroke: "#c98f86", "stroke-width": 1.4 }))),
+      ...g, ...ann.filter((a) => a.under), trace, ...ann.filter((a) => !a.under));
+  }
+
+  // What one tool result looks like on the plot.
+  function annotation(m, { X, Y, P, W, H, values }) {
+    const r = m.result;
+    if (!r || r.error) return null;
+    const label = (x, y, text, color, anchor = "start") => S("text", { x, y, fill: color, "text-anchor": anchor }, text);
+    if (m.name === "find_spikes") {
+      if (!r.spikes.length) return null;
+      return S("g", { class: "ann" }, ...r.spikes.slice(0, 6).map((s) => S("g", {},
+        S("circle", { cx: X(s.index), cy: Y(s.value), r: 8, fill: "none", stroke: "var(--red)", "stroke-width": 1.6 }),
+        label(X(s.index) + 12, Math.max(P.t + 10, Y(s.value) + (s.robust_z > 0 ? 4 : 4)), `z ${s.robust_z}`, "var(--red)"))));
+    }
+    if (m.name === "compute_stats" && r.median != null && (!r.range || (r.range[0] === 0 && r.range[1] === values.length))) {
+      return S("g", { class: "ann" }, S("line", { x1: P.l, x2: W - P.r, y1: Y(r.median), y2: Y(r.median), stroke: "#6f7c75", "stroke-dasharray": "2 4", "stroke-width": 1.2 }),
+        label(P.l + 6, Y(r.median) - 7, `median ${r.median.toFixed(2)}`, "#56625c"));
+    }
+    if (m.name === "slope" && r.slope_per_100 != null) {
+      const [s, e] = r.range;
+      let n = 0, sx = 0, sy = 0, sxx = 0, sxy = 0;
+      for (let i = s; i < e; i++) { const v = values[i]; if (v === null) continue; n++; sx += i; sy += v; sxx += i * i; sxy += i * v; }
+      const k = (n * sxy - sx * sy) / (n * sxx - sx * sx), b = (sy - k * sx) / n;
+      const sign = r.slope_per_100 > 0 ? "+" : "";
+      return S("g", { class: "ann" }, S("line", { x1: X(s), x2: X(e - 1), y1: Y(k * s + b), y2: Y(k * (e - 1) + b), stroke: "#a3622a", "stroke-width": 1.6, "stroke-dasharray": "7 4" }),
+        label(X(e - 1) - 4, Y(k * (e - 1) + b) + (k > 0 ? 18 : -10), `slope ${sign}${r.slope_per_100} °C/100 s`, "#a3622a", "end"));
+    }
+    if (m.name === "longest_run" && r.length >= 3) {
+      const g = S("g", { class: "ann" }, S("rect", { x: X(r.start), y: P.t, width: Math.max(2, X(r.start + r.length - 1) - X(r.start)), height: H - P.t - P.b, fill: "rgba(27, 90, 128, .09)" }),
+        label(X(r.start) + 4, P.t + 13, `${r.length} identical`, "var(--trace)"));
+      g.under = true;
+      return g;
+    }
+    if (m.name === "view_segment" && r.range) {
+      const [s, e] = r.range;
+      return S("g", { class: "ann" }, S("path", { d: `M${X(s)},${H - P.b - 6}v6H${X(e - 1)}v-6`, fill: "none", stroke: "#56625c", "stroke-width": 1.4 }),
+        label((X(s) + X(e - 1)) / 2, H - P.b - 10, "read", "#56625c", "middle"));
+    }
+    return null;
+  }
+
+  // ---- the queue --------------------------------------------------------------------------
+  function renderQueue() {
+    $("#queue").replaceChildren(...data.train.map((w) => {
+      const t = state.taught[w.id];
+      const st = !t ? null : t.result === "right"
+        ? el("span", { class: "st", title: "labelled right", style: "color:var(--green)" }, TICK())
+        : el("span", { class: "st", title: `corrected to ${t.label}`, style: "color:var(--pen)" }, PEN());
+      return el("li", {}, el("button", { class: "tile" + (current && current.id === w.id ? " on" : ""), id: `tile-${w.id}`, type: "button", onclick: () => select(w) },
+        el("b", {}, w.id), sparkline(w.values), st));
+    }));
+  }
+
+  function select(w) {
+    current = w; runId = null; marks = [];
+    showView("window");
+    $("#crumb").textContent = `Window ${w.id}`;
+    $("#wid").replaceChildren("Window ", el("span", {}, w.id));
+    const t = state.taught[w.id];
+    $("#wmeta").textContent = `Probe TP-7 · 120 readings at 1 Hz${t ? ` · lab label: ${w.truth}` : ""}`;
+    $("#truthmeta").textContent = "";
+    $("#logmeta").textContent = "";
+    $("#notes").replaceChildren();
+    $("#trace").replaceChildren(el("div", { class: "empty" }, "Not run yet. The QC agent inspects the readings with its tools, then labels the window."));
+    $("#verdict").replaceChildren(el("div", { class: "empty" }, "The agent's label goes here, for Dr. Ito to check against the lab label."));
+    $("#classify").hidden = false; $("#classify").disabled = false;
+    cited = new Set(); renderSkills();
+    renderQueue();
+    requestAnimationFrame(drawPlot);
+  }
+
+  function showView(v) {
+    $("#window-view").hidden = v !== "window";
+    $("#heldout-view").hidden = v !== "heldout";
+    $("#plate-link").classList.toggle("on", v === "heldout");
+    if (v === "heldout") $("#crumb").textContent = "Validation plate";
+  }
+
+  // ---- the run log ------------------------------------------------------------------------
+  const fmt = (v) => typeof v === "number" ? String(+v.toFixed(2)) : v;
+  function summary(name, r) {
+    if (r.error) return `error: ${r.error}`;
+    if (name === "compute_stats") return r.median == null ? `${r.nan} of ${r.n} readings missing` :
+      `median ${fmt(r.median)} °C, MAD ${fmt(r.mad)}, ${r.nan} missing`;
+    if (name === "find_spikes") return r.count ? `${plural(r.count, "reading", "readings")} at |z| ≥ ${r.threshold_z}: ` +
+      r.spikes.slice(0, 2).map((s) => `${s.index} s (z ${s.robust_z})`).join(", ") + (r.count > 2 ? "; …" : "") : `none at |z| ≥ ${r.threshold_z}`;
+    if (name === "slope") return r.slope_per_100 == null ? (r.error || "too few readings") : `${r.slope_per_100 > 0 ? "+" : ""}${r.slope_per_100} °C per 100 s, r² ${r.r2}`;
+    if (name === "longest_run") return `${r.length} identical from ${r.start} s`;
+    if (name === "view_segment") return `${r.range[0]}–${r.range[1]} s: ${r.values.slice(0, 8).map((v) => v === null ? "—" : v).join(", ")}${r.values.length > 8 ? ", …" : ""}`;
+    return JSON.stringify(r).slice(0, 160);
+  }
+  const args = (a) => {
+    const k = Object.keys(a || {});
+    if (!k.length) return "()";
+    if ("start" in a || "end" in a) return `(${a.start ?? 0}–${a.end ?? 120} s)`;
+    return `(${k.map((x) => `${x} ${a[x]}`).join(", ")})`;
+  };
+  let lastCall = null, working = null;
+  function logLine(cls, ...kids) {
+    const t = $("#trace");
+    t.querySelector(".empty")?.remove();
+    const line = el("div", { class: `line ${cls}` }, el("time", {}, clock()), el("div", {}, ...kids));
+    if (working && working.parentNode === t) t.insertBefore(line, working); else t.append(line);
+    $("#log").scrollTop = $("#log").scrollHeight;
+    return line;
+  }
+  function setWorking(text) {
+    working?.remove(); working = null;
+    if (!text) return;
+    working = el("div", { class: "working" }, el("i"), el("i"), el("i"), text);
+    $("#trace").append(working);
+    $("#log").scrollTop = $("#log").scrollHeight;
+  }
+  const said = (text) => text.replace(/\n?\s*\**label:\s*\**\s*\w+\**\.?\s*$/i, "").trim();
+  function step(ev) {
+    if (ev.type === "tool_call") {
+      lastCall = logLine("call", el("code", {}, ev.name + args(ev.args)), el("div", { class: "res" }, "…"));
+    } else if (ev.type === "tool_result") {
+      if (lastCall) lastCall.querySelector(".res").textContent = "→ " + summary(ev.name, ev.result);
+      marks.push({ name: ev.name, result: ev.result });
+      drawPlot();
+    } else if (ev.type === "thought") logLine("thought", el("div", { class: "thought" }, ev.text));
+    else if (ev.type === "answer") {
+      const label = (ev.label || "").toLowerCase();
+      logLine("answer", el("span", { class: "say" }, said(ev.text)), label ? el("span", { class: "lab" }, label) : null);
+    }
+  }
+
+  // ---- what the binder gave this run ------------------------------------------------------
+  function renderNotes(n) {
+    const box = $("#notes");
+    if (!n.skills.length && !n.cases.length) {
+      box.replaceChildren(el("div", { class: "none", id: "notes-none" }, BINDER(16),
+        state.ingested.length ? "Nothing in the binder fits this window." : "The binder is empty: the agent goes by its own habits."));
+      return;
+    }
+    cited = new Set(n.skills.map((s) => s.id));
+    renderSkills();
+    const s = n.skills[0];
+    const r = s ? provenance(s.id) : null;
+    const c = n.cases.find((x) => x.key_insight) || n.cases[0];
+    box.replaceChildren(el("div", { class: "cite", id: s ? "notes-skill" : "notes-case" }, CLIP(),
+      el("div", {}, s ? ["Following ", el("b", {}, `${sopNo(s)} · ${nice(s.name)}`), " "] : ["Following a past case "],
+        r ? el("span", { class: "from" }, `learned from Dr. Ito, ${day(r.at)}`) : null),
+      c ? el("div", { class: "case" }, `${c.window ? `Case ${c.window}: ` : "Case: "}${c.key_insight || c.task_intent}`) : null));
+  }
+
+  // ---- the SOP binder ---------------------------------------------------------------------
+  function renderSkills() {
+    const s = state.skills || [];
+    const runs = state.ingested.length;
+    $("#memsum").textContent = runs ? `${plural(s.length, "SOP", "SOPs")} from ${plural(runs, "corrected run", "corrected runs")}` : "What the agent has learned in this lab";
+    if (!s.length) {
+      $("#skills").replaceChildren(el("div", { class: "emptyb" },
+        icon('<path d="M7 3h11a1.5 1.5 0 0 1 1.5 1.5v15A1.5 1.5 0 0 1 18 21H7z"/><path d="M7 3v18M4 7h5M4 12h5M4 17h5"/>', 44),
+        el("b", {}, "No SOPs yet"),
+        "When Dr. Ito corrects a label and says why, the agent files what it learned here, and reads it before the next window."));
+      return;
+    }
+    $("#skills").replaceChildren(...s.map((k, i) => {
+      const rs = state.ingested.filter((x) => (x.skill_ids || []).includes(k.id));
+      const steps = (k.content.match(/^\d+\./gm) || []).length;
+      const isFresh = fresh.has(k.id);
+      fresh.delete(k.id);  // the filing animation plays once
+      return el("article", { class: "sop" + (isFresh ? " fresh" : ""), id: `sop-${i + 1}` },
+        el("div", { class: "no" }, el("span", {}, `SOP-${String(i + 1).padStart(2, "0")}`), cited.has(k.id) ? el("span", { class: "used" }, `read for ${current ? current.id : "this run"}`) : null),
+        el("h3", {}, nice(k.name)),
+        el("p", {}, brief(k.description)),
+        rs.length ? el("div", { class: "from" }, `From Dr. Ito's ${rs.length === 1 ? "correction" : "corrections"} on ${rs.map((x) => x.window).join(" and ")}:`) : null,
+        ...rs.slice(-2).reverse().filter((x) => x.reason).map((x) => el("blockquote", {}, `“${x.reason}” `, el("span", { class: "sig" }, `— ${SCIENTIST.short}, ${day(x.at)}`))),
+        el("details", {}, el("summary", {}, `The procedure${steps ? `, ${plural(steps, "step", "steps")}` : ""} · from ${plural(k.source_case_ids.length, "case", "cases")}`), el("pre", {}, k.content)));
+    }));
+  }
+
+  // ---- run, correct, file -----------------------------------------------------------------
+  function runBusy(b, on, text) {
+    b.disabled = on;
+    b.querySelector("span").textContent = on ? text : "Run QC agent";
+  }
+
+  $("#classify").addEventListener("click", async () => {
+    if (!current) return;
+    const b = $("#classify");
+    runBusy(b, true, "Running…");
+    marks = []; drawPlot();
+    $("#trace").replaceChildren();
+    $("#verdict").replaceChildren(el("div", { class: "empty" }, "Waiting for the agent's label…"));
+    $("#notes").replaceChildren();
+    setWorking(state.ingested.length ? "Reading the SOP binder…" : "The agent starts on the readings…");
+    try {
+      await stream("/api/classify", { lab, window: current.id }, (ev) => {
+        if (ev.type === "notes") { renderNotes(ev); setWorking("The agent inspects the readings…"); }
+        else if (ev.type === "verdict") {
+          setWorking(null);
+          runId = ev.run_id;
+          $("#logmeta").textContent = plural(ev.rounds, "tool call", "tool calls");
+          b.hidden = true;
+          verdictBox(ev);
+        } else step(ev);
+      });
+    } catch (e) { setWorking(null); $("#verdict").replaceChildren(el("div", { class: "err" }, e.message || String(e))); }
+    finally { runBusy(b, false); }
+  });
+
+  function verdictBox(v) {
+    const box = $("#verdict");
+    $("#truthmeta").textContent = `lab label: ${v.truth}`;
+    if (v.correct) {
+      box.replaceChildren(el("div", { class: "verdict", id: "verdict-ok" },
+        el("div", { class: "stamprow" }, el("span", { class: "stamp ok" }, v.label)),
+        el("div", { class: "vline ok" }, el("b", {}, "Matches the lab label."), " Nothing to correct, so nothing is filed."),
+        el("button", { class: "act quiet", type: "button", onclick: accept }, "Accept, next window")));
+      return;
+    }
+    const fixed = el("span", { class: "fixed", id: "fixed" }, v.truth);
+    const pick = el("select", { id: "fix-label", onchange: () => { fixed.textContent = pick.value; } },
+      ...data.labels.map((l) => el("option", { value: l, selected: l === v.truth }, l)));
+    const reason = el("textarea", { id: "fix-reason", spellcheck: "false", placeholder: "Why? One sentence: the lab's rule for this kind of window." }, v.rule || "");
+    box.replaceChildren(el("div", { class: "verdict", id: "verdict-bad" },
+      el("div", { class: "stamprow" }, el("span", { class: "stamp struck" }, v.label || "?"), fixed),
+      el("div", { class: "vline bad" }, el("b", {}, `The lab label is ${v.truth}.`)),
+      el("div", { class: "review", id: "review" },
+        el("div", { class: "who2" }, el("span", {}, `${SCIENTIST.name} corrects it to`), pick),
+        reason),
+      el("button", { class: "act pen", id: "teach", type: "button", onclick: teach }, PEN(), "Sign and file")));
+  }
+
+  async function accept() {
+    try { await api("/api/accept", { lab, run_id: runId }); await refresh(); next(); }
+    catch (e) { $("#verdict").append(el("div", { class: "err" }, e.message || String(e))); }
+  }
+  function next() {
+    const i = data.train.findIndex((w) => w.id === current.id);
+    const after = [...data.train.slice(i + 1), ...data.train.slice(0, i + 1)];
+    select(after.find((w) => !state.taught[w.id]) || data.train[(i + 1) % data.train.length]);
+  }
+
+  async function teach() {
+    const b = $("#teach");
+    const label = $("#fix-label").value, reason = $("#fix-reason").value.trim();
+    b.disabled = true;
+    // the note is signed: it becomes ink on the page
+    const today = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    $("#review").replaceChildren(
+      el("div", { class: "who2" }, el("span", {}, `${SCIENTIST.name} corrected it to`), el("b", { style: "font:600 16px var(--hand); color:var(--pen)" }, label)),
+      el("div", { class: "signed", id: "signed" }, reason),
+      el("div", { class: "sig" }, `— ${SCIENTIST.short}, ${today}`));
+    b.replaceWith(el("div", { class: "working", id: "teach-status" }, el("i"), el("i"), el("i"), el("span", {}, "The agent re-checks…")));
+    logLine("user", el("div", { class: "note" }, `${SCIENTIST.short}: it's ${label}. ${reason}`));
+    setWorking("The agent re-checks against Dr. Ito's note…");
+    try {
+      await stream("/api/correct", { lab, run_id: runId, label, reason }, (ev) => {
+        if (ev.type === "ingesting") {
+          setWorking(null);
+          $("#teach-status span").textContent = "Filing the run to the SOP binder…";
+        } else if (ev.type === "ingested") learned(ev);
+        else step(ev);
+      });
+    } catch (e) { setWorking(null); $("#verdict").append(el("div", { class: "err" }, e.message || String(e))); }
+  }
+
+  async function learned(ev) {
+    const before = new Set((state.skills || []).map((s) => s.id));
+    fresh = new Set((ev.skills || []).filter((s) => !before.has(s.id) || (ev.skill_ids || []).includes(s.id)).map((s) => s.id));
+    const touched = (ev.skills || []).filter((s) => fresh.has(s.id));
+    const why = (ev.skipped || []).map((s) => s.reason).filter(Boolean).join(", ");
+    let box;
+    if (ev.cases) {
+      const names = touched.map((s) => `“${nice(s.name)}”`);
+      box = el("div", { class: "filed learned", id: "learned" }, BINDER(), el("div", {},
+        el("b", {}, ev.skills_added ? "Filed as a new SOP" : "Filed: an SOP was updated"),
+        names.length ? `: ${names.join(", ")}.` : "."));
+    } else {
+      box = el("div", { class: "filed none", id: "learned" }, BINDER(), el("div", {},
+        el("b", {}, "Nothing was filed."), ` ${why || "The engine kept no case from this run."}`));
+    }
+    box.lastChild.append(" ", el("button", { class: "nextw", type: "button", onclick: next }, "Next window →"));
+    $("#teach-status").replaceWith(box);
+    await refresh();
+  }
+
+  // ---- the validation plate ---------------------------------------------------------------
+  $("#plate-link").addEventListener("click", () => { cited = new Set(); renderSkills(); showView("heldout"); renderPlate(); });
+  $("#back").addEventListener("click", () => select(current || data.train[0]));
+
+  function renderPlateLink() {
+    const pts = state.curve || [];
+    const a = pts[0], b = pts[pts.length - 1];
+    $("#plate-score").textContent = !pts.length ? "H01–H12 · not run yet"
+      : pts.length === 1 ? `${a.correct}/${a.total} right before teaching` : `${a.correct}/${a.total} → ${b.correct}/${b.total} right`;
+  }
+
+  const resultCell = (r, live) => {
+    if (!r) return el("span", { class: "res wait" }, live ? "…" : "—");
+    const sop = r.skills_used && r.skills_used.length ? el("span", { class: "sopd", title: "read the SOP binder" }, "SOP") : null;
+    return r.ok ? el("span", { class: "res ok" }, TICK(), r.label, sop)
+      : el("span", { class: "res no" }, CROSS(), el("s", {}, r.label || "no label"), sop);
+  };
+
+  // first column: the plate before teaching; second: the latest run (or the one running now)
+  function renderPlate(live = null) {
+    const pts = state.curve || [];
+    const first = pts[0] || null;
+    const last = live ? null : pts.length > 1 ? pts[pts.length - 1] : null;
+    const by = (p) => Object.fromEntries(((p && p.results) || []).map((r) => [r.id, r]));
+    const A = by(first), B = live ? Object.fromEntries(live.results.map((r) => [r.id, r])) : by(last);
+    const n = live ? live.corrections : last ? last.corrections : state.ingested.length;
+    const secondHead = `After ${plural(n, "correction", "corrections")}`;
+    const rows = data.held_out.map((w) => {
+      const a = A[w.id], b = B[w.id];
+      return el("tr", { class: a && b && !a.ok && b.ok ? "gain" : "", id: `cell-${w.id}` },
+        el("td", { class: "id" }, w.id), el("td", { class: "tr" }, sparkline(w.values, 170, 24)),
+        el("td", { class: "truth" }, w.truth), el("td", {}, resultCell(a, false)), el("td", {}, resultCell(b, !!live)));
+    });
+    const count = (m) => Object.values(m).filter((r) => r.ok).length;
+    $("#plate").replaceChildren(
+      el("thead", {}, el("tr", {}, el("th", {}, "Window"), el("th", {}, "Readings"), el("th", {}, "Lab label"), el("th", {}, "Before teaching"), el("th", {}, secondHead))),
+      el("tbody", {}, ...rows),
+      el("tfoot", {}, el("tr", {}, el("td", { colspan: 3 }, ""), el("td", {}, first ? `${first.correct}/${first.total}` : ""),
+        el("td", {}, live ? `${count(B)} right so far` : last ? `${last.correct}/${last.total}` : ""))));
+    const sc = $("#score");
+    if (live) sc.replaceChildren(el("div", { class: "working" }, el("i"), el("i"), el("i"), `The agent labels the plate, reading the binder before each window: ${live.results.length} of ${live.total} done`));
+    else if (first && last) sc.replaceChildren(el("div", { class: "big", id: "score-head" }, el("span", {}, `${first.correct}/${first.total}`), el("span", { class: "arrow" }, "→"), el("span", { class: last.correct > first.correct ? "up" : "", id: "heldnum" }, `${last.correct}/${last.total}`)),
+      el("div", { class: "what" }, `right before teaching, and after ${plural(last.corrections, "correction", "corrections")} from Dr. Ito`));
+    else if (first) sc.replaceChildren(el("div", { class: "big", id: "score-base" }, `${first.correct}/${first.total}`), el("div", { class: "what" }, "right before teaching. Correct a window or two, then run the plate again."));
+    else sc.replaceChildren(el("div", { class: "what" }, "Not run yet. Run it once before teaching, for a baseline."));
+  }
+
+  $("#evaluate").addEventListener("click", async () => {
+    const b = $("#evaluate");
+    b.disabled = true; b.querySelector("span").textContent = "Running…";
+    const live = { total: data.held_out.length, corrections: state.ingested.length, results: [] };
+    renderPlate(live);
+    try {
+      await stream("/api/evaluate", { lab }, (ev) => {
+        if (ev.type === "start") live.corrections = ev.corrections;
+        else if (ev.type === "item") { live.results.push(ev); renderPlate(live); }
+      });
+      await refresh();
+      renderPlate();
+    } catch (e) { $("#score").replaceChildren(el("div", { class: "err" }, e.message || String(e))); }
+    finally { b.disabled = false; b.querySelector("span").textContent = "Run the plate"; }
+  });
+
+  $("#newlab").addEventListener("click", async () => {
+    if (!confirm("Start a new lab? The agent starts with an empty SOP binder.")) return;
+    history.replaceState(null, "", location.pathname);
+    fresh = new Set(); cited = new Set();
+    await newLab(); await refresh(); select(data.train[0]);
+  });
+
+  window.addEventListener("resize", () => { if (current && !$("#window-view").hidden) drawPlot(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Terminal replay</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Instrument+Sans:wght@500;600&display=swap">
+<style>
+  /* A terminal that replays captured Claude Code sessions; a demo's video.py drives it (scripts/video/claude_replay.py). */
+  :root {
+    --bg: #0d111c; --bar: #151a28; --fg: #e3e8f2; --dim: #8390a8; --prompt: #7ee0b5;
+    --claude: #e8a87c; --blue: #7d94ff; --blue-bg: rgba(62, 97, 255, .12); --code: #1a2032; --hl: #ffd479;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); }
+  body { font: 20px/1.55 "JetBrains Mono", ui-monospace, monospace; display: flex; flex-direction: column; }
+  .bar { display: flex; align-items: center; gap: 14px; padding: 14px 28px; background: var(--bar);
+    font: 600 17px "Instrument Sans", system-ui, sans-serif; color: var(--dim); border-bottom: 1px solid #222a3d; }
+  .bar .s { color: var(--fg); padding: 4px 12px; border-radius: 8px; background: #222a3d; }
+  .bar .note { margin-left: auto; font-weight: 500; }
+  .screen { flex: 1; padding: 26px 34px; overflow: hidden; display: flex; flex-direction: column; gap: 14px; justify-content: flex-start; }
+  .cmd { white-space: pre-wrap; word-break: break-word; }
+  .cmd .p { color: var(--prompt); }
+  .cmd .caret { display: inline-block; width: 11px; height: 22px; background: var(--fg); vertical-align: -3px; margin-left: 2px; }
+  .tool { color: var(--dim); }
+  .tool b { color: var(--fg); font-weight: 600; }
+  .answer { border-left: 3px solid var(--claude); padding: 4px 0 4px 18px; white-space: pre-wrap; }
+  .answer .who { color: var(--claude); font-weight: 600; display: block; margin-bottom: 4px; font-size: 16px; }
+  .answer code { background: var(--code); padding: 1px 6px; border-radius: 5px; color: #b9c7ff; }
+  .answer mark { background: rgba(255, 212, 121, .2); color: var(--hl); padding: 0 3px; border-radius: 4px; }
+  .mb { border: 1.5px solid var(--blue); background: var(--blue-bg); border-radius: 12px; padding: 12px 18px; white-space: pre-wrap; }
+  .mb .h { color: var(--blue); font-weight: 600; font-size: 17px; display: block; margin-bottom: 4px; font-family: "Instrument Sans", system-ui, sans-serif; }
+  .code { background: var(--code); border-radius: 10px; padding: 12px 18px; white-space: pre; color: #c9d2e3; font-size: 18px; }
+  .code .k { color: #c792ea; } .code .c { color: #6b7894; } .code .s { color: #c3e88d; }
+  .rule { border-top: 1px dashed #2c3550; margin: 6px 0; }
+  .spin { color: var(--dim); }
+</style>
+</head>
+<body>
+<div class="bar"><span id="cwd">~</span><span class="s" id="session">claude</span><span class="note" id="note"></span></div>
+<div class="screen" id="screen"></div>
+<script>
+const screen = document.getElementById("screen");
+const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+// the answer's light markdown: **bold**, `code`, and the decision's own words marked
+function md(s, marks) {
+  let h = esc(s).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*([^*\s][^*]*)\*/g, "<i>$1</i>");
+  for (const m of marks || []) h = h.split(esc(m)).join(`<mark>${esc(m)}</mark>`);
+  return h;
+}
+function add(html, cls, id) {
+  const d = document.createElement("div");
+  d.className = cls; if (id) d.id = id; d.innerHTML = html;
+  screen.append(d);
+  return d;
+}
+window.term = {
+  cwd(path) { document.getElementById("cwd").textContent = path; document.querySelectorAll(".cmd .p").forEach((p) => (p.textContent = `${path.split("/").pop() || "~"} $ `)); window.__prompt = `${path.split("/").pop() || "~"} $ `; },
+  result(text, id) { add(`<span class="h">◂ ${esc(text)}</span>`, "tool", id); },
+  session(name, note) { document.getElementById("session").textContent = name; document.getElementById("note").textContent = note || ""; },
+  clear() { screen.replaceChildren(); },
+  async cmd(text, id, cps = 55) {
+    const d = add(`<span class="p">${esc(window.__prompt || "~ $ ")}</span><span class="t"></span><span class="caret"></span>`, "cmd", id);
+    const t = d.querySelector(".t");
+    for (let i = 0; i < text.length; i++) { t.textContent += text[i]; await new Promise((r) => setTimeout(r, 1000 / cps)); }
+    d.querySelector(".caret").remove();
+  },
+  tool(name, arg) { add(`▸ <b>${esc(name)}</b>(${esc(arg)})`, "tool"); },
+  spin(text, id) { return add(esc(text), "spin", id); },
+  unspin(id) { document.getElementById(id)?.remove(); },
+  answer(id) { add('<span class="who">Claude</span><span class="body"></span>', "answer", id); },
+  text(id, full, marks) { document.querySelector(`#${id} .body`).innerHTML = md(full, marks); },
+  membase(title, body, id) { add(`<span class="h">◆ Membase · ${esc(title)}</span>${esc(body)}`, "mb", id); },
+  code(lines, id) {
+    const hl = (l) => esc(l).replace(/(#.*)$/, '<span class="c">$1</span>').replace(/\b(def|return|or)\b/g, '<span class="k">$1</span>');
+    add(lines.map(hl).join("\n"), "code", id);
+  },
+  rule() { add("", "rule"); },
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quire · Saltmarrow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400;1,7..72,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Quire: a novelist's writing app. The binder of canon on the left, the manuscript page in the
+     middle, comments in the page's margin. Canon lives in a Membase memory: a continuity note
+     quotes the canon it comes from, a fix is accepted like a suggestion, and a finished scene is
+     filed into the binder, which is a write to that memory. */
+  :root {
+    --binder: #1f2a2c; --binder-2: #2a3739; --binder-ink: #d8d2c3; --binder-dim: #8c9690; --gilt: #c9a35b;
+    --desk: #e8e5de; --desk-2: #dcd8cf; --paper: #fffefa;
+    --ink: #22201c; --ink-2: #5d5850; --ink-3: #928b80; --rule: #e3ded3;
+    --cm: rgba(250, 205, 70, .42); --cm-on: rgba(247, 190, 40, .62); --cm-edge: #d7a22a;
+    --ins: rgba(70, 150, 110, .16); --green: #2c7353; --red: #b2432f;
+    --prose: "Literata", Georgia, serif;
+    --ui: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--desk); color: var(--ink); font-family: var(--ui); font-size: 14px; -webkit-font-smoothing: antialiased; overflow: hidden; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  svg { display: block; flex: none; }
+  .app { height: 100%; display: grid; grid-template-columns: 268px minmax(0, 1fr); }
+  .busy { display: inline-block; width: 13px; height: 13px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .8s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .err { color: var(--red); background: rgba(178, 67, 47, .08); border-radius: 6px; padding: 8px 10px; font-size: 13px; margin-top: 8px; }
+
+  /* ---- the binder ---- */
+  .binder { background: var(--binder); color: var(--binder-ink); display: flex; flex-direction: column; min-height: 0; }
+  .brand { height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 20px; font-family: var(--prose); font-size: 20px; font-weight: 500; letter-spacing: .01em; }
+  .brand svg { color: var(--gilt); }
+  .project { padding: 2px 20px 12px; border-bottom: 1px solid var(--binder-2); }
+  .project .n { font-family: var(--prose); font-size: 22px; font-weight: 500; }
+  .project .s { color: var(--binder-dim); font-size: 12.5px; margin-top: 3px; display: flex; gap: 6px; align-items: center; }
+  .project .s svg { color: var(--gilt); }
+  .tree { flex: 1; min-height: 0; overflow: auto; padding: 4px 10px 10px; }
+  .grp { font-size: 11.5px; font-weight: 600; color: var(--binder-dim); padding: 9px 10px 3px; display: flex; align-items: center; gap: 6px; }
+  .grp svg { color: var(--binder-dim); }
+  .item { display: flex; align-items: center; gap: 8px; padding: 3px 10px 3px 24px; border-radius: 5px; font-size: 13.5px; line-height: 1.32; color: var(--binder-ink); position: relative; }
+  .item svg { color: var(--binder-dim); }
+  .item.cur { background: var(--binder-2); color: #fff; }
+  .item.cur svg { color: var(--gilt); }
+  .item .chip { margin-left: auto; font-size: 11px; color: var(--binder-dim); white-space: nowrap; display: flex; gap: 5px; align-items: center; }
+  .item .chip.ok { color: #9cc9a8; } .item .chip.bad { color: #e49a87; }
+  .item.consult::after { content: ""; position: absolute; left: 11px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--gilt); box-shadow: 0 0 0 3px rgba(201, 163, 91, .22); }
+  .item.new { animation: filed 1.2s ease; }
+  @keyframes filed { 0% { background: rgba(201, 163, 91, .5); transform: translateX(-10px); opacity: 0; } 40% { opacity: 1; transform: none; } 100% { background: transparent; } }
+  .share { border-top: 1px solid var(--binder-2); padding: 12px 20px 16px; font-size: 12.5px; color: var(--binder-dim); }
+  .share summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 7px; color: var(--binder-ink); }
+  .share summary::-webkit-details-marker { display: none; }
+  .share code { display: block; margin: 8px 0 4px; padding: 6px 8px; border-radius: 5px; background: var(--binder-2); color: var(--binder-ink); font-size: 11.5px; word-break: break-all; }
+
+  /* ---- the desk: toolbar, page and margin, status bar ---- */
+  .desk { display: grid; grid-template-rows: 56px minmax(0, 1fr) 30px; min-height: 0; }
+  .toolbar { display: flex; align-items: center; gap: 10px; padding: 0 22px 0 26px; border-bottom: 1px solid var(--desk-2); background: #efece6; }
+  .crumbs { display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 13.5px; }
+  .crumbs b { color: var(--ink); font-weight: 500; }
+  .toolbar .sp { flex: 1; }
+  .tb { height: 34px; padding: 0 13px; border-radius: 7px; display: inline-flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 500; color: var(--ink-2); }
+  .tb:hover:not(:disabled) { background: var(--desk-2); color: var(--ink); }
+  .tb.main { background: var(--binder); color: #f1ece0; }
+  .tb.main:hover:not(:disabled) { background: #2d3b3e; color: #fff; }
+  .tb:disabled { opacity: .55; cursor: default; }
+  .tb svg { opacity: .9; }
+  .samples { position: relative; }
+  .samples summary { list-style: none; cursor: pointer; } .samples summary::-webkit-details-marker { display: none; }
+  .samples .pop { position: absolute; right: 0; top: 40px; width: 230px; background: var(--paper); border-radius: 8px; padding: 6px; z-index: 5; box-shadow: 0 0 0 1px var(--desk-2), 0 14px 30px -14px rgba(30, 25, 15, .4); }
+  .samples .pop button { display: block; width: 100%; text-align: left; padding: 8px 10px; border-radius: 5px; font-size: 13.5px; }
+  .samples .pop button:hover { background: var(--desk); }
+
+  .scroll { overflow: auto; min-height: 0; }
+  .row { position: relative; display: grid; grid-template-columns: 700px 330px; gap: 26px; justify-content: center; padding: 28px 24px 60px; }
+  .sheet { background: var(--paper); border-radius: 2px; min-height: 760px; padding: 58px 74px 64px;
+    box-shadow: 0 0 0 1px rgba(60, 50, 30, .07), 0 1px 2px rgba(60, 50, 30, .06), 0 20px 40px -26px rgba(50, 40, 20, .4); }
+  .chap { font-family: var(--prose); font-size: 13px; letter-spacing: .22em; color: var(--ink-3); text-align: center; text-transform: uppercase; }
+  .title { font-family: var(--prose); font-weight: 400; font-style: italic; font-size: 32px; text-align: center; margin: 8px 0 6px; letter-spacing: -.005em; }
+  .orn { display: flex; justify-content: center; color: var(--ink-3); margin-bottom: 30px; }
+  #text { font-family: var(--prose); font-size: 19px; line-height: 1.78; color: var(--ink); outline: none; caret-color: var(--green); }
+  #text p, .cont p { margin: 0; text-indent: 1.6em; }
+  #text p:first-child { text-indent: 0; }
+  #text mark.cm { background: var(--cm); color: inherit; border-bottom: 2px solid var(--cm-edge); padding: 1px 0; border-radius: 1px; transition: background .3s; }
+  #text mark.cm.on { background: var(--cm-on); }
+  #text ins { text-decoration: none; background: var(--ins); border-bottom: 2px solid rgba(44, 115, 83, .45); animation: settle 6s ease forwards; }
+  @keyframes settle { 0%, 60% { background: var(--ins); } 100% { background: transparent; border-bottom-color: transparent; } }
+  .cont { font-family: var(--prose); font-size: 19px; line-height: 1.78; color: var(--green); position: relative; margin-top: 0; }
+  .cont p { text-indent: 1.6em; }
+  .cont::before { content: ""; position: absolute; left: -26px; top: 6px; bottom: 6px; border-left: 3px solid rgba(44, 115, 83, .5); border-radius: 2px; }
+  .cont .caret { display: inline-block; width: 2px; height: 1.1em; background: var(--green); vertical-align: -3px; animation: blink 1s steps(2) infinite; margin-left: 1px; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .cont.kept { color: var(--ink); } .cont.kept::before { display: none; }
+
+  /* ---- comments in the margin ---- */
+  .margin { position: relative; }
+  .mhead { display: flex; align-items: center; gap: 10px; height: 34px; font-size: 13px; color: var(--ink-2); font-weight: 500; }
+  .mhead .sp { flex: 1; }
+  .mbtn { height: 30px; padding: 0 12px; border-radius: 15px; font-size: 12.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+  .mbtn.ok { background: var(--green); color: #fff; }
+  .mbtn.ok:hover { background: #24654a; }
+  .mbtn.plain { color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--desk-2); background: var(--paper); }
+  .comment { position: absolute; left: 0; right: 0; background: var(--paper); border-radius: 8px; padding: 12px 14px 12px; font-size: 13.5px; line-height: 1.45;
+    box-shadow: 0 0 0 1px rgba(60, 50, 30, .08), 0 8px 20px -12px rgba(40, 30, 10, .35); transition: top .35s ease, opacity .3s; border-left: 3px solid var(--cm-edge); }
+  .comment.flow { position: relative; margin-bottom: 10px; }
+  .comment.cont-note { border-left-color: var(--green); }
+  .comment.filed { border-left-color: var(--gilt); }
+  .comment .who { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .comment .av { width: 24px; height: 24px; border-radius: 50%; background: var(--binder); color: var(--gilt); display: grid; place-items: center; }
+  .comment .who b { font-weight: 600; font-size: 13px; }
+  .comment .who span { color: var(--ink-3); font-size: 12.5px; }
+  .comment .say { color: var(--ink); }
+  .comment blockquote { margin: 8px 0 0; padding: 2px 0 2px 10px; border-left: 2px solid var(--gilt); font-family: var(--prose); font-style: italic; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+  .comment .sug { margin-top: 9px; font-family: var(--prose); font-size: 14.5px; line-height: 1.5; }
+  .comment .sug del { color: var(--red); text-decoration-thickness: 1.5px; }
+  .comment .sug span { color: var(--green); }
+  .comment .acts { display: flex; gap: 8px; margin-top: 10px; }
+  .comment.done { padding: 7px 12px; border-left-color: var(--green); box-shadow: 0 0 0 1px rgba(60, 50, 30, .06); color: var(--ink-3); font-size: 12.5px; display: flex; align-items: center; gap: 7px; }
+  .comment.done svg { color: var(--green); }
+  .comment ul { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+  .comment li { font-family: var(--prose); font-style: italic; font-size: 13.5px; line-height: 1.45; color: var(--ink-2); padding-left: 10px; border-left: 2px solid var(--gilt); }
+  .comment .state { margin-top: 8px; display: flex; align-items: center; gap: 7px; color: var(--ink-2); }
+  .comment .state.ok { color: var(--green); font-weight: 500; }
+  .comment .t { font-family: var(--prose); font-size: 16px; margin-top: 2px; }
+
+  .status { display: flex; align-items: center; gap: 18px; padding: 0 26px; border-top: 1px solid var(--desk-2); background: #efece6; font-size: 12px; color: var(--ink-3); }
+  .status .sp { flex: 1; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="binder" id="binder">
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <!-- a quill nib -->
+        <path d="M20 3C12 4 6.5 9.5 5 18l-1 3"/><path d="M20 3c-.5 6-4 10.5-11 12.5"/><path d="M9 15.5L5 18"/><path d="M13 9.5l-2.5 2.5"/>
+      </svg>
+      Quire
+    </div>
+    <div class="project">
+      <div class="n">Saltmarrow</div>
+      <div class="s" id="fBible"><span class="busy"></span> Opening canon…</div>
+    </div>
+    <nav class="tree" id="tree"></nav>
+    <details class="share" id="share">
+      <summary><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.3 10.8l7.4-3.6M8.3 13.2l7.4 3.6"/></svg>Canon in other AIs</summary>
+      Claude, ChatGPT or Cursor can read this canon over MCP, with a key that only reads:
+      <code id="mcp">…/mcp-http</code>
+    </details>
+  </aside>
+
+  <section class="desk">
+    <header class="toolbar">
+      <div class="crumbs"><span>Manuscript</span><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3.5 1.5L7 5l-3.5 3.5"/></svg><b>Chapter Three: The Key</b></div>
+      <div class="sp"></div>
+      <details class="samples" id="samples">
+        <summary class="tb" title="Drafts">Drafts
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.5 3.5L5 7l3.5-3.5"/></svg></summary>
+        <div class="pop">
+          <button type="button" id="sample-bad">The Key (draft 1)</button>
+          <button type="button" id="sample-ok">The Lantern Stair (opening)</button>
+        </div>
+      </details>
+      <button class="tb" id="check" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h11M4 10h8M4 15h6"/><path d="M13 16.5l2.5 2.5L21 13"/></svg>
+        Check continuity</button>
+      <button class="tb" id="continue" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-1L19 8l-3-3L5 16z"/><path d="M14 7l3 3"/></svg>
+        Continue</button>
+      <button class="tb main" id="accept" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5V19a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1h-7L10 5.5H5a1 1 0 0 0-1 1z"/><path d="M12 11v6M9 14l3 3 3-3"/></svg>
+        Add to canon</button>
+    </header>
+
+    <div class="scroll" id="scroll">
+      <div class="row" id="row">
+        <article class="sheet" id="sheet">
+          <div class="chap">Chapter Three</div>
+          <h1 class="title">The Key</h1>
+          <div class="orn"><svg width="54" height="12" viewBox="0 0 54 12" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"><path d="M2 6h17M35 6h17"/><path d="M27 1.5c-2.6 2.6-2.6 6.4 0 9 2.6-2.6 2.6-6.4 0-9z" fill="currentColor" stroke="none"/><circle cx="22.5" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="31.5" cy="6" r="1" fill="currentColor" stroke="none"/></svg></div>
+          <div id="text" contenteditable="true" spellcheck="false"></div>
+          <div id="contbox"></div>
+        </article>
+        <aside class="margin" id="margin"></aside>
+      </div>
+    </div>
+
+    <footer class="status"><span id="words"></span><span id="canonline"></span><span class="sp"></span><span id="base"></span></footer>
+  </section>
+</div>
+
+<script type="module">
+  import { $, el, api, stream } from "/kit/kit.js";
+
+  const CLEAN = "The second tide-bell rings while Ilse is still on the Lantern Stair.\n\nPell is ten steps ahead of her, then eleven. \"The Abbess says now,\" Pell says. \"Now means now.\"\n\nIlse stops at the landing and puts her left hand on her coat pocket.";
+  const MISTAKES = "Ilse pours herself a glass of red wine and waits by the harbor office window. Suddenly the needle of Corin's compass swings round and settles on north.\n\nTobiah comes in without whistling. He sets a small iron key on the table. It is stamped 41.\n\n\"Corin's locker,\" he says. \"On the third Rib Bridge. I kept it eleven years, Cartographer.\"\n\nOutside, the sea is flat as tin.";
+
+  const SVG = (markup, w = 14, h = 14, vb = "0 0 24 24") => { const t = document.createElement("template");
+    t.innerHTML = `<svg width="${w}" height="${h}" viewBox="${vb}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${markup}</svg>`; return t.content.firstChild; };
+  const PAGE = () => SVG('<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>');
+  const CARD = () => SVG('<rect x="4" y="5" width="16" height="14" rx="1.5"/><path d="M8 10h8M8 14h5"/>');
+  const FOLDER = () => SVG('<path d="M3.5 7V18a1 1 0 0 0 1 1h15a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1h-7.5L10 5.5H4.5a1 1 0 0 0-1 1z"/>', 13, 13);
+  const BINDER = () => SVG('<path d="M6 4h11a1 1 0 0 1 1 1v15H7a1 1 0 0 1-1-1z"/><path d="M6 17h12M9 8h6"/>', 13, 13);
+  const CHECK = () => SVG('<path d="M5 12.5l4.5 4.5L19 7.5"/>', 14, 14);
+  const ICONS = { Characters: CARD, Places: CARD, "World rules": CARD, "Style guide": PAGE, Scenes: PAGE };
+  // which binder entry a recalled canon note is about
+  const KEYS = { "Ilse Varrow": ["ilse"], "Tobiah Fenn": ["tobiah"], "Pell": ["pell"], "Mother Odile": ["odile", "abbess"],
+    "The Gullet": ["gullet"], "Gullet Harbor": ["harbor"], "The Rib Bridges": ["rib bridge"], "The Lantern Stair": ["lantern stair"],
+    "The Spine Chapel": ["spine chapel"], "Ilse's room": ["chandlery", "hammock", "map table"], "The tide-bells": ["tide-bell", "tide bell"],
+    "The Glass Edict": ["glass edict", "no glass"], "Salt-script": ["salt-script"], "No horses": ["horse"], "Money": ["copper", "vertebra"],
+    "The sea, never named": ["the sea", "the grey"], "Voice and banned words": ["style", "never use", "suddenly", "tense"],
+    "The compass": ["compass"], "The Low Hour": ["low hour"] };
+  const keysOf = (name) => KEYS[name] || [name.toLowerCase().replace(/^the /, "")];
+  const about = (text) => {  // the binder entries a canon note names, most specific first
+    const t = text.toLowerCase();
+    return Object.keys(KEYS).filter((k) => keysOf(k).some((w) => t.includes(w)));
+  };
+  const clean = (t) => String(t || "").replace(/\s*\[\[[^\]]+\]\]/g, "").replace(/^#+\s*/gm, "").replace(/^\s*[-*]\s+/gm, "").replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+  const clip = (t, n) => (t.length > n ? t.slice(0, n - 1).replace(/\s+\S*$/, "") + "…" : t);
+  const failed = (where, e) => where.append(el("div", { class: "err" }, e.message || String(e)));
+
+  let draft = MISTAKES, issues = [], hits = [], fresh = [], groups = [], canonDocs = [], newScene = null;
+  const textEl = $("#text"), margin = $("#margin");
+
+  // ---- the binder -----------------------------------------------------------------------------
+  function renderBinder(consulted = new Set()) {
+    const tree = [el("div", { class: "grp" }, FOLDER(), "Manuscript"),
+      el("div", { class: "item cur" }, PAGE(), "Chapter Three: The Key")];
+    for (const g of groups) {
+      tree.push(el("div", { class: "grp" }, FOLDER(), g.group));
+      const Icon = ICONS[g.group] || CARD;
+      for (const name of g.items) tree.push(el("div", { class: "item" + (consulted.has(name) ? " consult" : ""), "data-name": name }, Icon(), name));
+      if (g.group === "Scenes") {
+        for (const d of canonDocs.filter((x) => !isBible(x))) {
+          const mine = newScene && isScene(d, newScene);
+          const [cls, label] = sceneState(d);
+          tree.push(el("div", { class: "item" + (mine ? " new" : ""), id: mine ? "filed" : null }, PAGE(),
+            mine ? newScene.title.replace(/^Scene:\s*/, "") : d.title.replace(/^Scene:\s*/, ""),
+            el("span", { class: `chip ${cls}` }, cls ? null : el("span", { class: "busy", style: "width:9px;height:9px;border-width:1.5px" }), label)));
+        }
+      }
+    }
+    $("#tree").replaceChildren(...tree);
+  }
+  const isBible = (d) => d.custom_id === "bible:saltmarrow" || d.title === "Saltmarrow story bible";
+  // a filed scene, found by its custom_id, its title, or the file name a lost title leaves (scene-<hash>.md)
+  const isScene = (d, s) => d.custom_id === s.custom_id || d.title === s.title || d.title.includes(s.custom_id.replace(":", "-"));
+  const sceneState = (d) => d.learned ? ["ok", "in canon"]
+    : ["failed", "write failed"].includes(d.learning) ? ["bad", "not learned"]
+    : ["queued", "running", "waiting"].includes(d.learning) ? ["", "learning…"]
+    : ["bad", "not learned"];
+  function consult(found) {
+    const names = new Set(found.flatMap((h) => about(clean(h.content))));
+    renderBinder(names);
+  }
+
+  let poll;
+  async function loadCanon() {
+    clearTimeout(poll);
+    try {
+      const { documents, error } = await api("/api/canon");
+      if (error) throw new Error(error);
+      canonDocs = documents;
+      const bible = documents.filter(isBible);
+      const scenes = documents.length - bible.length;
+      $("#fBible").replaceChildren(BINDER(), !bible.length ? "No canon yet: run seed.py"
+        : bible.every((d) => d.learned) ? "Canon in memory" : "Canon still learning…");
+      $("#canonline").textContent = bible.length ? `Canon: the Saltmarrow bible${scenes ? ` + ${scenes} scene${scenes > 1 ? "s" : ""}` : ""}` : "";
+      renderBinder([...document.querySelectorAll(".item.consult")].reduce((s, n) => s.add(n.dataset.name), new Set()));
+      if (documents.some((d) => !d.learned && ["queued", "running", "waiting"].includes(d.learning))) poll = setTimeout(loadCanon, 15000);
+    } catch (e) { $("#fBible").replaceChildren(); failed($("#fBible"), e); }
+  }
+
+  // ---- the page -------------------------------------------------------------------------------
+  const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  function renderText() {
+    const paras = draft.split(/\n\s*\n/);
+    textEl.innerHTML = paras.map((p) => {
+      let html = esc(p);
+      issues.forEach((it, i) => {
+        if (it.status !== "open") return;
+        const q = esc(it.quote);
+        if (html.includes(q)) html = html.replace(q, `<mark class="cm" data-i="${i}">${q}</mark>`);
+      });
+      for (const f of fresh) { const q = esc(f); if (f && html.includes(q)) html = html.replace(q, `<ins>${q}</ins>`); }
+      return `<p>${html}</p>`;
+    }).join("");
+    words();
+    requestAnimationFrame(layout);
+  }
+  function readText() { draft = [...textEl.children].map((p) => p.innerText.trim()).filter(Boolean).join("\n\n"); words(); }
+  function words() {
+    const n = (draft + " " + ($("#continuation")?.textContent || "")).split(/\s+/).filter(Boolean).length;
+    $("#words").textContent = `${n} words`;
+  }
+  textEl.addEventListener("input", () => { readText(); layout(); });
+
+  // margin cards sit beside what they are about; they never overlap
+  function layout() {
+    const top0 = margin.getBoundingClientRect().top;
+    let floor = 0;
+    for (const c of margin.children) {
+      if (c.classList.contains("flow")) { floor = c.offsetTop + c.offsetHeight + 10; continue; }
+      const anchor = c.dataset.anchor && document.querySelector(c.dataset.anchor);
+      const want = anchor ? anchor.getBoundingClientRect().top - top0 - 12 : floor;
+      const top = Math.max(floor, want);
+      c.style.top = `${top}px`;
+      floor = top + c.offsetHeight + 10;
+    }
+    margin.style.minHeight = `${floor}px`;
+  }
+  window.addEventListener("resize", layout);
+
+  // ---- check continuity -------------------------------------------------------------------------
+  function busy(btn, label) {
+    const keep = [...btn.childNodes].map((n) => n.cloneNode(true));
+    btn.disabled = true;
+    btn.replaceChildren(el("span", { class: "busy" }), label);
+    return () => { btn.disabled = false; btn.replaceChildren(...keep); };
+  }
+  function working(text, cls = "") {
+    const line = el("span", {}, text);
+    margin.replaceChildren(el("div", { class: `comment flow ${cls}`, id: "working" },
+      el("div", { class: "who" }, el("span", { class: "av" }, BINDER()), el("b", {}, "Canon"), el("span", {}, "reading the binder")),
+      el("div", { class: "state" }, el("span", { class: "busy" }), line)));
+    return line;
+  }
+  $("#check").onclick = async () => {
+    readText();
+    const done = busy($("#check"), "Checking…");
+    issues = []; fresh = []; renderText();
+    const line = working("Looking up what this scene touches…");
+    try {
+      await stream("/api/check", { text: draft }, (ev) => {
+        if (ev.type === "memories") {
+          hits = ev.hits; consult(hits);
+          line.textContent = hits.length ? `Comparing the page with ${hits.length} canon notes…` : "Canon returned nothing for this page.";
+        } else if (ev.type === "issues") {
+          issues = ev.issues.map((i) => ({ ...i, status: "open" }));
+          renderComments();
+        }
+      });
+    } catch (e) { failed(margin, e); } finally { done(); }
+  };
+
+  // the line of a cited canon note that the comment is about: the sentence sharing the most
+  // words with the problem and the fix (a local hit is a whole section of the bible)
+  const wordsOf = (t) => new Set(t.toLowerCase().match(/[a-z][a-z'-]{3,}/g) || []);
+  function canonFor(issue) {
+    const cited = issue.passages.map((n) => hits[n - 1]).filter(Boolean);
+    const want = wordsOf(`${issue.problem} ${issue.fix || ""}`);
+    let best = "", score = -1;
+    for (const h of cited) {
+      for (const line of clean(h.content).split(/(?<=[.!?;])\s+|\s+-\s+/)) {
+        const sc = [...wordsOf(line)].filter((w) => want.has(w)).length;
+        if (sc > score && line.length > 12) { best = line; score = sc; }
+      }
+    }
+    return { quote: clip(best.replace(/^[-–\s]+/, ""), 150), about: (about(best)[0] || about(cited.map((h) => h.content).join(" "))[0] || "Canon") };
+  }
+  function renderComments() {
+    renderText();
+    const open = issues.filter((i) => i.status === "open").length;
+    const head = el("div", { class: "mhead flow", id: "mhead" },
+      issues.length ? `${issues.length} continuity note${issues.length > 1 ? "s" : ""}` : "",
+      el("span", { class: "sp" }),
+      open > 1 ? el("button", { class: "mbtn ok", id: "applyall", type: "button", onclick: acceptAll }, CHECK(), "Accept all") : null);
+    if (!issues.length) {
+      margin.replaceChildren(el("div", { class: "comment flow", id: "consistent" },
+        el("div", { class: "who" }, el("span", { class: "av" }, BINDER()), el("b", {}, "Canon")),
+        el("div", { class: "say" }, `Nothing here contradicts the ${hits.length} canon notes it touches.`)));
+      return;
+    }
+    margin.replaceChildren(head, ...issues.map((it, i) => {
+      if (it.status === "done") return el("div", { class: "comment done", "data-anchor": `ins[data-f="${i}"]` }, CHECK(), "Accepted: ", el("i", {}, clip(it.fix, 60)));
+      const c = canonFor(it);
+      return el("div", { class: "comment", "data-i": i, "data-anchor": `mark.cm[data-i="${i}"]`,
+          onmouseenter: () => document.querySelector(`mark.cm[data-i="${i}"]`)?.classList.add("on"),
+          onmouseleave: () => document.querySelector(`mark.cm[data-i="${i}"]`)?.classList.remove("on") },
+        el("div", { class: "who" }, el("span", { class: "av" }, BINDER()), el("b", {}, "Canon"), el("span", {}, c.about)),
+        el("div", { class: "say" }, it.problem),
+        c.quote ? el("blockquote", {}, `“${c.quote}”`) : null,
+        it.fix ? el("div", { class: "sug" }, el("span", {}, "→ ", it.fix)) : null,
+        it.fix ? el("div", { class: "acts" }, el("button", { class: "mbtn ok", type: "button", onclick: () => { accept(i); renderComments(); } }, CHECK(), "Accept")) : null);
+    }));
+    // accepted fixes get their own anchor
+    issues.forEach((it, i) => { if (it.status === "done") textEl.querySelectorAll("ins").forEach((n) => { if (n.textContent === fixText(it)) n.dataset.f = i; }); });
+    requestAnimationFrame(layout);
+  }
+  function fixText(issue) {
+    // keep the sentence's own ending: a fix often drops the quote's final full stop
+    const end = (issue.quote.match(/[.!?,;:"”]+$/) || [""])[0];
+    return end && !/[.!?,;:"”]$/.test(issue.fix.trim()) ? issue.fix.trim() + end : issue.fix;
+  }
+  function accept(i) {
+    const it = issues[i];
+    if (!it.fix || !draft.includes(it.quote)) return false;
+    draft = draft.replace(it.quote, fixText(it));
+    fresh.push(fixText(it));
+    it.status = "done";
+    return true;
+  }
+  function acceptAll() { issues.forEach((it, i) => it.status === "open" && accept(i)); renderComments(); }
+
+  // ---- continue -------------------------------------------------------------------------------
+  $("#continue").onclick = async () => {
+    readText();
+    const done = busy($("#continue"), "Writing…");
+    issues = []; fresh = []; renderText();
+    const box = el("div", { class: "cont", id: "continuation" });
+    const caret = el("span", { class: "caret" });
+    $("#contbox").replaceChildren(box);
+    box.append(el("p", {}, caret));
+    const line = working("Looking up canon and the style guide…", "cont-note");
+    let text = "";
+    try {
+      await stream("/api/continue", { text: draft }, (ev) => {
+        if (ev.type === "memories") {
+          hits = ev.hits; consult(hits);
+          line.textContent = `Writing on from ${hits.length} canon notes…`;
+        } else if (ev.type === "delta") {
+          text += ev.text;
+          const paras = text.trimStart().split(/\n\s*\n/);
+          box.replaceChildren(...paras.map((p, k) => el("p", {}, p, k === paras.length - 1 ? caret : null)));
+          words();
+        }
+      });
+      caret.remove();
+      const used = hits.slice(0, 3).map((h) => clip(clean(h.content), 110));
+      margin.replaceChildren(el("div", { class: "comment cont-note", id: "contnote", "data-anchor": "#continuation" },
+        el("div", { class: "who" }, el("span", { class: "av" }, BINDER()), el("b", {}, "Continued from canon"), el("span", {}, `${hits.length} notes`)),
+        el("ul", {}, ...used.map((u) => el("li", {}, u))),
+        el("div", { class: "acts" },
+          el("button", { class: "mbtn ok", id: "append", type: "button", onclick: () => keep(text) }, CHECK(), "Keep"),
+          el("button", { class: "mbtn plain", type: "button", onclick: () => { $("#contbox").replaceChildren(); margin.replaceChildren(); words(); } }, "Discard"))));
+      requestAnimationFrame(layout);
+    } catch (e) { failed(margin, e); } finally { done(); }
+  };
+  function keep(text) {
+    draft = draft.trimEnd() + "\n\n" + text.trim();
+    fresh = text.trim().split(/\n\s*\n/);
+    $("#contbox").replaceChildren();
+    margin.replaceChildren(el("div", { class: "comment done flow", id: "kept" }, CHECK(), "Kept in the chapter."));
+    renderText();
+  }
+
+  // ---- add to canon ------------------------------------------------------------------------------
+  $("#accept").onclick = async () => {
+    readText();
+    const done = busy($("#accept"), "Filing…");
+    const prevRun = canonDocs.find(isBible)?.run_id;  // the run before this write: not the scene's
+    const state = el("div", { class: "state", id: "acceptstate" }, el("span", { class: "busy" }), "Filing the scene in the binder…");
+    const title = el("div", { class: "t" }, "Chapter Three: The Key");
+    margin.replaceChildren(el("div", { class: "comment filed flow", id: "saved" },
+      el("div", { class: "who" }, el("span", { class: "av" }, BINDER()), el("b", {}, "Filed in canon"), el("span", {}, "Scenes")), title, state));
+    try {
+      const doc = await api("/api/accept", { text: draft });
+      title.textContent = doc.title.replace(/^Scene:\s*/, "");
+      newScene = { title: doc.title, custom_id: doc.custom_id, before: prevRun };
+      if (doc.already) { state.className = "state ok"; state.replaceChildren(CHECK(), "Already canon."); }
+      else watchLearned(newScene, state);
+      await loadCanon();
+      $("#filed")?.scrollIntoView({ block: "nearest" });
+    } catch (e) { failed(state, e); } finally { done(); }
+  };
+  async function watchLearned(scene, state) {
+    try {
+      const { documents } = await api("/api/canon");
+      const d = documents.find((x) => isScene(x, scene));
+      if (d && d.learned) {
+        state.className = "state ok";
+        state.replaceChildren(CHECK(), "In canon. Every AI connected to the Story Bible can read it now.");
+        return loadCanon();
+      }
+      if (d && (d.learning === "failed" || d.learning === "write failed")) { state.textContent = `The learning run (${d.run_id}) failed, so the scene is stored but not learned.`; return loadCanon(); }
+      if (d && d.learning === "succeeded" && d.run_id !== scene.before) { state.textContent = `Learning run ${d.run_id} ended, but Membase does not count the scene as learned.`; return loadCanon(); }
+      state.replaceChildren(el("span", { class: "busy" }), "Membase is learning the scene…");
+    } catch (e) { return failed(state, e); }
+    setTimeout(() => watchLearned(scene, state), 10000);
+  }
+
+  // ---- drafts ---------------------------------------------------------------------------------
+  const load = (t) => { draft = t; issues = []; fresh = []; $("#contbox").replaceChildren(); margin.replaceChildren(); renderText(); $("#samples").open = false; };
+  $("#sample-ok").onclick = () => load(CLEAN);
+  $("#sample-bad").onclick = () => load(MISTAKES);
+
+  api("/api/connect").then((i) => { $("#mcp").textContent = i.mcp_url; }).catch(() => {});
+  api("/api/info").then((i) => { $("#base").textContent = `Canon kept by Membase (${i.mode === "local" ? "local engine" : "hosted"})`; }).catch(() => {});
+  await document.fonts.ready.catch(() => {});
+  renderText();
+  groups = (await api("/api/binder").catch(() => ({ groups: [] }))).groups;
+  renderBinder();
+  loadCanon();
+</script>
+</body>
+</html>

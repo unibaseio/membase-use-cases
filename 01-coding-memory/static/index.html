@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Coding Memory</title>
+  <link rel="stylesheet" href="/kit/kit.css">
+  <style>
+    .rows { display: flex; flex-direction: column; gap: 4px; max-height: 420px; overflow-y: auto; }
+    .row { font-size: 12.5px; padding: 4px 8px; border-radius: 6px; display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 8px; }
+    .row .k { color: var(--muted); font-family: var(--mono); font-size: 11.5px; }
+    .row .t { white-space: pre-wrap; word-break: break-word; }
+    .row.kept { background: var(--accent-soft); }
+    .row.dropped .t { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 50%, transparent); }
+    pre.box { white-space: pre-wrap; word-break: break-word; background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-size: 12.5px; max-height: 300px; overflow: auto; margin: 0; }
+    .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+    .samples { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .samples button { font-size: 12.5px; padding: 4px 9px; }
+    .doc { display: flex; gap: 8px; align-items: baseline; font-size: 13px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+    .doc:last-child { border-bottom: 0; }
+    .dot.on { background: var(--good); }
+    .cmds code { display: block; background: var(--chip); padding: 6px 8px; border-radius: 6px; margin: 4px 0 10px; font-size: 12.5px; overflow-x: auto; white-space: nowrap; }
+    .cmds .w { font-weight: 600; font-size: 13.5px; }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="top">
+    <div>
+      <h1>Coding memory</h1>
+      <p class="sub">Claude Code, Codex and Gemini CLI remember across sessions on their own. This page
+        runs the same hook scripts on a sample session: end it, then start a new one and see what
+        memory adds to your prompt.</p>
+    </div>
+    <div id="badge"></div>
+  </div>
+
+  <div class="grid two">
+    <div class="panel">
+      <h2>1 · A session ends</h2>
+      <div class="legend"><span><span class="sw" style="background:var(--accent-soft)"></span>saved</span><span><span class="sw" style="background:var(--chip)"></span>left out: tool calls, tool output, thinking, commands</span></div>
+      <div id="rows" class="rows"></div>
+      <div class="row" style="margin-top:12px;display:flex;gap:10px;align-items:center;padding:0">
+        <button id="save" class="btn primary">End the session (SessionEnd hook)</button>
+        <span id="saveinfo" class="muted small"></span>
+      </div>
+      <details style="margin-top:10px"><summary class="muted small" style="cursor:pointer">What Membase receives</summary><pre id="saved" class="box" style="margin-top:8px"></pre></details>
+    </div>
+
+    <div class="panel">
+      <h2>2 · Next session, a new prompt</h2>
+      <form id="ask" class="composer" style="margin-top:0">
+        <input id="q" class="input" autocomplete="off" placeholder="A prompt, as you would type it in your coding CLI">
+        <button id="go" class="btn primary">Send (UserPromptSubmit hook)</button>
+      </form>
+      <div class="samples" id="samples"></div>
+      <div style="margin-top:12px">
+        <div class="muted small" id="ctxinfo">The context the hook adds to the prompt appears here.</div>
+        <pre id="ctx" class="box" style="margin-top:6px;display:none"></pre>
+      </div>
+      <h2 style="margin-top:18px">Saved sessions in “Coding”</h2>
+      <div id="docs"><div class="empty"><span class="spinner"></span> loading</div></div>
+    </div>
+  </div>
+
+  <div class="grid two" style="margin-top:16px">
+    <div class="panel">
+      <h2>Hook log</h2>
+      <pre id="log" class="box">(nothing yet)</pre>
+    </div>
+    <div class="panel cmds">
+      <h2>Install on your machine</h2>
+      <div class="w">Claude Code: hooks + MCP, automatic</div>
+      <code>python3 01-coding-memory/install.py claude --key mbk_…</code>
+      <div class="w">Codex CLI: hooks + MCP + AGENTS.md, automatic</div>
+      <code>python3 01-coding-memory/install.py codex --key mbk_…</code>
+      <div class="w">Gemini CLI: hooks + MCP + GEMINI.md (untested here)</div>
+      <code>python3 01-coding-memory/install.py gemini --key mbk_…</code>
+      <div class="muted small">The key comes from Connect › Developer keys. Details: 01-coding-memory/README.md.</div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { $, el, api, showError, busy, modeBadge } from "/kit/kit.js";
+
+  const SAMPLES = [
+    "I'm adding the invoice export endpoint. How should new invoice numbers be generated?",
+    "Can the export renumber old invoices so they are consecutive?",
+    "Write a migration that backfills invoice numbers",
+  ];
+  modeBadge($("#badge"));
+  for (const s of SAMPLES) $("#samples").append(el("button", { class: "btn", type: "button", onclick: () => { $("#q").value = s; ask(); } }, s));
+
+  const showLog = (lines) => { if (lines && lines.length) $("#log").textContent = lines.join("\n"); };
+
+  api("/api/session").then(({ rows, saved }) => {
+    for (const r of rows) $("#rows").append(el("div", { class: "row " + (r.kept ? "kept" : "dropped") }, el("span", { class: "k" }, r.kind), el("span", { class: "t" }, r.text)));
+    $("#saved").textContent = saved;
+  }).catch((e) => showError($("#rows"), e));
+
+  async function loadDocs() {
+    try {
+      const { documents, log } = await api("/api/sessions");
+      showLog(log);
+      $("#docs").replaceChildren();
+      if (!documents.length) return $("#docs").append(el("div", { class: "empty" }, "No sessions saved yet. End the sample session on the left."));
+      for (const d of documents) {
+        $("#docs").append(el("div", { class: "doc" },
+          el("span", { class: "dot" + (d.learned ? " on" : "") }),
+          el("span", {}, d.title),
+          el("span", { class: "muted small", style: "margin-left:auto;white-space:nowrap" }, d.learned ? "learned" : `learning (${d.run || "queued"})`)));
+      }
+      if (documents.some((d) => !d.learned && (d.run === "running" || d.run === "queued" || !d.run))) setTimeout(loadDocs, 8000);
+    } catch (e) { showError($("#docs"), e); }
+  }
+  loadDocs();
+
+  $("#save").addEventListener("click", async () => {
+    busy($("#save"), true, "Saving");
+    try {
+      const { seconds, log } = await api("/api/save", {});
+      $("#saveinfo").textContent = `The hook returned in ${seconds}s; a detached process saves the session.`;
+      showLog(log);
+      setTimeout(loadDocs, 2500);
+    } catch (e) { showError($("#saveinfo"), e); }
+    finally { busy($("#save"), false); }
+  });
+
+  $("#ask").addEventListener("submit", (e) => { e.preventDefault(); ask(); });
+  async function ask() {
+    const prompt = $("#q").value.trim();
+    if (!prompt) return;
+    busy($("#go"), true, "Searching memory");
+    try {
+      const { context, seconds, budget, log } = await api("/api/prompt", { prompt });
+      showLog(log);
+      $("#ctx").style.display = context ? "" : "none";
+      $("#ctx").textContent = context;
+      $("#ctxinfo").textContent = context
+        ? `Added to the prompt after ${seconds}s:`
+        : `Nothing added (${seconds}s). Memory answers within ${budget}s or its result goes with the next prompt; see the log.`;
+    } catch (e) { showError($("#ctxinfo"), e); }
+    finally { busy($("#go"), false); }
+  }
+</script>
+</body>
+</html>

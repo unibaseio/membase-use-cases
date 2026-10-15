@@ -1,0 +1,34 @@
+[project]
+name = "membase-use-cases"
+version = "0.1.0"
+description = "Membase use cases: runnable apps showing what long-term memory makes possible."
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "unibaseio-membase[local]>=0.3.2",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "httpx>=0.27",
+    "openai>=1.40",
+    "python-multipart>=0.0.9",
+    "eth-account>=0.13",
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+# Recording and composing the demo videos (scripts/video): uv sync --extra video
+video = ["playwright==1.60.0", "imageio-ffmpeg>=0.5"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["demokit"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+# Long lines left after `ruff format` are prose and prompts; B008 is FastAPI's File()/Form().
+ignore = ["E501", "B008"]

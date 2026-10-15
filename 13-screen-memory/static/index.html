@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lookback</title>
+<link rel="stylesheet" href="/static/fonts/fonts.css">
+<style>
+  /* Lookback: screenshot memory for the desktop. A library of the screenshots you took, in a
+     window on your desktop; a search panel that answers from them and opens the screenshot the
+     answer came from, with the place on it marked. */
+  :root {
+    --ink: #1d1d1f; --ink-2: #6e6e73; --ink-3: #9a9aa0; --sep: #dcdce1; --sep-2: #e9e9ed;
+    --win: #fbfbfc; --side: #eceef1; --hover: rgba(0, 0, 0, .045);
+    --blue: #2a6fdb; --blue-2: #e3ecfb; --mark: #ffd60a;
+    --ui: "Inter", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font: 13.5px/1.4 var(--ui); color: var(--ink); -webkit-font-smoothing: antialiased; overflow: hidden; letter-spacing: -.003em;
+    background: #b9c6d2; }
+  button, input, select { font: inherit; color: inherit; }
+  button { background: none; border: 0; padding: 0; cursor: pointer; }
+  [hidden] { display: none !important; }
+  svg { display: block; }
+
+  /* ---- the desktop ------------------------------------------------------------------------ */
+  .wallpaper { position: fixed; inset: 0; z-index: 0; }
+  .wallpaper svg { width: 100%; height: 100%; }
+  .menubar { position: fixed; left: 0; right: 0; top: 0; height: 28px; z-index: 5; display: flex; align-items: center; gap: 20px; padding: 0 16px;
+    background: rgba(236, 240, 244, .82); color: #111; font-size: 13px; box-shadow: 0 1px 0 rgba(0, 0, 0, .06); }
+  .menubar .app { font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .menubar .menus { display: flex; gap: 18px; }
+  .menubar .tray { margin-left: auto; display: flex; align-items: center; gap: 14px; font-variant-numeric: tabular-nums; }
+
+  /* ---- the Lookback window ----------------------------------------------------------------- */
+  .window { position: absolute; left: 56px; right: 56px; top: 46px; bottom: 26px; z-index: 1; background: var(--win); border-radius: 12px; overflow: hidden;
+    display: grid; grid-template-columns: 214px minmax(0, 1fr); grid-template-rows: 52px minmax(0, 1fr);
+    box-shadow: 0 0 0 .5px rgba(0, 0, 0, .25), 0 22px 60px -10px rgba(20, 30, 45, .45), 0 4px 14px rgba(20, 30, 45, .12); }
+  .titlebar { grid-column: 1 / -1; display: grid; grid-template-columns: 214px minmax(0, 1fr); border-bottom: 1px solid var(--sep); }
+  .titlebar .lights { background: var(--side); display: flex; align-items: center; gap: 8px; padding-left: 16px; border-right: 1px solid var(--sep); }
+  .lights i { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 .5px rgba(0, 0, 0, .18); }
+  .toolbar { display: flex; align-items: center; gap: 12px; padding: 0 16px 0 22px; }
+  .toolbar h1 { margin: 0; font-size: 15px; font-weight: 600; }
+  .toolbar .sub { color: var(--ink-2); font-size: 12.5px; margin-left: -4px; }
+  .toolbar .grow { flex: 1; }
+  .tbtn { height: 30px; display: inline-flex; align-items: center; gap: 7px; padding: 0 11px; border-radius: 7px; color: #3a3a3c; }
+  .tbtn:hover { background: var(--hover); }
+  .tbtn svg { width: 16px; height: 16px; }
+  .searchfield { width: 280px; height: 30px; display: flex; align-items: center; gap: 7px; padding: 0 10px; border-radius: 7px; background: rgba(0, 0, 0, .055); color: var(--ink-3); text-align: left; }
+  .searchfield svg { width: 15px; height: 15px; }
+  .searchfield kbd { margin-left: auto; font: 500 11px var(--ui); color: var(--ink-3); border: 1px solid #cfcfd4; border-radius: 4px; padding: 0 4px; }
+  .busy { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 12.5px; }
+  .ring { width: 15px; height: 15px; border-radius: 50%; border: 2px solid #c9d6ee; border-top-color: var(--blue); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .sidebar { background: var(--side); border-right: 1px solid var(--sep); padding: 12px 10px; overflow-y: auto; }
+  .sidebar h4 { margin: 14px 8px 4px; font-size: 11.5px; font-weight: 600; color: var(--ink-3); }
+  .sidebar h4:first-child { margin-top: 2px; }
+  .side-item { width: 100%; display: flex; align-items: center; gap: 9px; padding: 5px 8px; border-radius: 6px; text-align: left; font-size: 13px; }
+  .side-item:hover { background: var(--hover); }
+  .side-item.on { background: rgba(0, 0, 0, .085); }
+  .side-item .n { margin-left: auto; color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .side-item svg { width: 18px; height: 18px; flex: none; }
+  .side-item .ic { color: var(--blue); }
+
+  .content { min-height: 0; overflow-y: auto; padding: 18px 26px 26px; position: relative; }
+  .group h3 { margin: 4px 0 12px; font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+  .group h3 small { font-size: 13px; font-weight: 500; color: var(--ink-3); margin-left: 6px; }
+  .group + .group { margin-top: 22px; }
+  .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px 20px; }
+  .shot { text-align: left; display: block; position: relative; }
+  .shot .frame { position: relative; aspect-ratio: 16 / 10; border-radius: 6px; overflow: hidden; background: #e8e8ec;
+    box-shadow: 0 0 0 .5px rgba(0, 0, 0, .2), 0 6px 14px -8px rgba(0, 0, 0, .35); transition: box-shadow .3s; }
+  .shot img { width: 100%; height: 100%; object-fit: cover; object-position: top left; display: block; }
+  .shot .cap { display: flex; align-items: center; gap: 7px; margin-top: 8px; }
+  .shot .cap b { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .shot .cap time { margin-left: auto; color: var(--ink-2); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .shot .read { color: var(--ink-2); font-size: 12px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 17px; }
+  .shot.new { animation: arrive .55s cubic-bezier(.2, .8, .2, 1); }
+  @keyframes arrive { from { opacity: 0; transform: scale(.94); } }
+  .shot.cited .frame { box-shadow: 0 0 0 3px var(--blue), 0 6px 14px -8px rgba(0, 0, 0, .35); }
+  .shot .scan { position: absolute; inset: 0; background: rgba(255, 255, 255, .28); }
+  .shot .scan::after { content: ""; position: absolute; left: 0; right: 0; height: 34%; top: -34%;
+    background: linear-gradient(180deg, transparent, rgba(42, 111, 219, .28) 80%, rgba(42, 111, 219, .65)); animation: scan 1.3s ease-in-out infinite; }
+  @keyframes scan { to { top: 100%; } }
+  .shot .scan span { position: absolute; left: 8px; bottom: 8px; background: rgba(29, 29, 31, .78); color: #fff; font-size: 11.5px; font-weight: 500; border-radius: 5px; padding: 2px 7px; }
+
+  #library { min-height: 100%; display: grid; }
+  .empty { min-height: 100%; display: grid; place-content: center; justify-items: center; text-align: center; padding-bottom: 40px; }
+  .empty svg { margin-bottom: 18px; }
+  .empty h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
+  .empty p { margin: 8px 0 18px; color: var(--ink-2); font-size: 14px; max-width: 430px; line-height: 1.5; }
+  .pbtn { height: 32px; padding: 0 16px; border-radius: 8px; background: var(--blue); color: #fff; font-weight: 600; font-size: 13.5px; box-shadow: 0 1px 2px rgba(0, 0, 0, .15); }
+  .pbtn:disabled { opacity: .55; cursor: progress; }
+  .sbtn { height: 32px; padding: 0 14px; border-radius: 8px; background: #fff; font-weight: 500; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .2), 0 1px 2px rgba(0, 0, 0, .08); }
+  .err { color: #c0352b; background: #fdecea; border-radius: 6px; padding: 7px 10px; font-size: 12.5px; }
+
+  /* importing your own */
+  .importer { position: absolute; right: 16px; top: 46px; z-index: 4; width: 330px; background: #fff; border-radius: 10px; padding: 14px;
+    box-shadow: 0 0 0 .5px rgba(0, 0, 0, .2), 0 14px 34px -8px rgba(0, 0, 0, .3); font-size: 12.5px; }
+  .drop { border: 1.5px dashed #c7c7cc; border-radius: 8px; padding: 18px 12px; text-align: center; color: var(--ink-2); cursor: pointer; }
+  .drop.over { border-color: var(--blue); background: var(--blue-2); }
+  .drop b { color: var(--ink); }
+  .importer label { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: var(--ink-2); }
+  .importer input[type=datetime-local] { border: 1px solid #d1d1d6; border-radius: 6px; padding: 3px 6px; }
+  .importer .prog > div { margin-top: 6px; }
+
+  /* ---- the search panel -------------------------------------------------------------------- */
+  .scrim { position: fixed; inset: 0; z-index: 8; background: rgba(30, 38, 50, .16); }
+  .spot { position: fixed; z-index: 9; left: 50%; top: 92px; width: 1010px; margin-left: -505px; border-radius: 14px; overflow: hidden;
+    background: #f6f6f8; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .28), 0 30px 80px -12px rgba(15, 25, 40, .55); animation: pop .22s ease-out; }
+  @keyframes pop { from { opacity: 0; transform: translateY(-6px) scale(.985); } }
+  .spot form { height: 62px; display: flex; align-items: center; gap: 12px; padding: 0 18px; }
+  .spot form svg { width: 22px; height: 22px; color: #8e8e93; flex: none; }
+  .spot input { flex: 1; border: 0; background: none; outline: none; font-size: 24px; font-weight: 400; letter-spacing: -.012em; color: var(--ink); }
+  .spot input::placeholder { color: #a1a1a6; }
+  .spot .scope { display: flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 12.5px; }
+  .spot .body { display: grid; grid-template-columns: 372px minmax(0, 1fr); height: 520px; border-top: 1px solid var(--sep); }
+  .spot .list { border-right: 1px solid var(--sep); padding: 8px 8px; overflow-y: auto; }
+  .spot .list h5 { margin: 8px 10px 4px; font-size: 11.5px; font-weight: 600; color: var(--ink-3); }
+  .answer { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 8px; background: var(--blue); color: #fff; min-height: 62px; }
+  .answer .t { font-size: 16.5px; font-weight: 600; line-height: 1.32; letter-spacing: -.01em; }
+  .answer .s { font-size: 12px; opacity: .85; margin-top: 2px; }
+  .answer.thinking { background: #e7e7ec; color: var(--ink-2); }
+  .answer.thinking .t { font-weight: 500; font-size: 14px; }
+  .row { width: 100%; display: grid; grid-template-columns: 60px 1fr; gap: 10px; align-items: center; padding: 7px 10px; border-radius: 8px; text-align: left; }
+  .row:hover { background: var(--hover); }
+  .row.on { background: rgba(42, 111, 219, .12); }
+  .row .th { width: 60px; height: 37.5px; border-radius: 4px; overflow: hidden; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .2); }
+  .row .th img { width: 100%; height: 100%; object-fit: cover; object-position: top left; display: block; }
+  .row .nm { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; }
+  .row .nm svg { width: 16px; height: 16px; flex: none; }
+  .row .when { color: var(--ink-2); font-size: 12px; margin-top: 1px; }
+  .row .used { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--blue); }
+  .row.dim { opacity: .55; }
+  .spot .none { color: var(--ink-2); padding: 10px 12px; font-size: 13px; }
+
+  .preview { padding: 18px 22px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .preview .ph { display: flex; align-items: center; gap: 10px; }
+  .preview .ph svg { width: 30px; height: 30px; }
+  .preview .ph b { display: block; font-size: 15px; font-weight: 600; }
+  .preview .ph span { color: var(--ink-2); font-size: 12.5px; }
+  .shotview { position: relative; width: 100%; aspect-ratio: 16 / 10; border-radius: 6px; overflow: hidden; background: #ddd;
+    box-shadow: 0 0 0 .5px rgba(0, 0, 0, .25), 0 10px 24px -14px rgba(0, 0, 0, .5); }
+  .shotview .zoomer { position: absolute; inset: 0; transition: transform 1.1s cubic-bezier(.45, .05, .2, 1); }
+  .shotview img { width: 100%; height: 100%; display: block; }
+  .shotview .dim { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity .5s ease .2s; }
+  .shotview .hl { position: absolute; border-radius: 3px; box-shadow: 0 0 0 2px var(--mark), 0 0 0 5px rgba(255, 214, 10, .35); background: rgba(255, 214, 10, .14); opacity: 0; transition: opacity .4s ease .35s; }
+  .shotview.lit .dim, .shotview.lit .hl { opacity: 1; }
+  .preview .said { font-size: 12.5px; color: var(--ink-2); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .preview .said b { color: var(--ink); font-weight: 600; }
+  .preview .idle { margin: auto; text-align: center; color: var(--ink-3); font-size: 13px; max-width: 300px; }
+  .preview .idle svg { margin: 0 auto 12px; color: #c4c4c9; }
+  .suggest { padding: 4px 4px; }
+  .suggest button { display: flex; width: 100%; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 7px; text-align: left; font-size: 13.5px; }
+  .suggest button:hover { background: var(--hover); }
+  .suggest button svg { width: 15px; height: 15px; color: var(--ink-3); }
+
+  /* ---- Quick Look ------------------------------------------------------------------------- */
+  .ql { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; background: rgba(20, 24, 32, .4); }
+  .ql .box { width: 1180px; background: #fff; border-radius: 12px; overflow: hidden; display: grid; grid-template-columns: 820px 1fr; box-shadow: 0 30px 80px -10px rgba(0, 0, 0, .5); }
+  .ql img { width: 820px; display: block; }
+  .ql .info { padding: 16px; font-size: 12.5px; overflow-y: auto; max-height: 512px; }
+  .ql .info h3 { margin: 0 0 2px; font-size: 15px; }
+  .ql .kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 10px 0; }
+  .ql .kv dt { color: var(--ink-2); } .ql .kv dd { margin: 0; font-weight: 500; }
+  .ql pre { white-space: pre-wrap; font: 11.5px/1.45 ui-monospace, Menlo, monospace; background: #f4f4f6; border-radius: 6px; padding: 8px; }
+
+  /* ---- redo a task ------------------------------------------------------------------------- */
+  .howto { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 22px; }
+  .howto h3 { margin: 4px 0 4px; font-size: 18px; }
+  .howto p.lead { color: var(--ink-2); margin: 0 0 12px; }
+  .composer { display: flex; gap: 8px; margin-top: 10px; }
+  .composer input { flex: 1; border: 1px solid #d1d1d6; border-radius: 8px; padding: 7px 10px; outline: none; }
+  .composer input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-2); }
+  .tasks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tasks button { font-size: 12.5px; padding: 4px 10px; border-radius: 99px; background: #fff; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .2); }
+  .trace { margin-top: 12px; display: grid; gap: 6px; }
+  .step { font-size: 12.5px; border-radius: 8px; padding: 7px 10px; background: #f2f2f5; white-space: pre-wrap; }
+  .step code { font: 11.5px ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+  .step.call { background: none; border-left: 2px solid var(--blue); border-radius: 0; color: var(--ink-2); }
+  .step.answer { background: var(--blue-2); }
+  .step.user { background: #fff; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .2); }
+  .note { font-size: 12.5px; background: #fff; border-radius: 8px; padding: 8px 10px; box-shadow: 0 0 0 .5px rgba(0, 0, 0, .15); }
+  .note + .note { margin-top: 6px; }
+  .note pre { white-space: pre-wrap; font: 11px/1.45 ui-monospace, Menlo, monospace; max-height: 200px; overflow: auto; }
+  .howto h5 { margin: 0 0 6px; font-size: 12px; color: var(--ink-3); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wallpaper" aria-hidden="true">
+  <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a9bccd"/><stop offset=".55" stop-color="#d5d9dc"/><stop offset="1" stop-color="#e8dccb"/></linearGradient>
+    </defs>
+    <rect width="1440" height="900" fill="url(#sky)"/>
+    <circle cx="1090" cy="300" r="70" fill="#f3e6cf" opacity=".7"/>
+    <path d="M0 560 C 180 500 320 520 470 470 S 760 430 900 480 S 1200 420 1440 470 V900 H0z" fill="#9aabb9"/>
+    <path d="M0 640 C 220 590 380 630 560 590 S 880 560 1060 610 S 1300 580 1440 600 V900 H0z" fill="#7d91a3"/>
+    <path d="M0 740 C 260 690 420 730 640 700 S 1000 680 1180 720 S 1360 700 1440 710 V900 H0z" fill="#5f7488"/>
+    <path d="M0 830 C 300 800 520 820 760 800 S 1180 790 1440 805 V900 H0z" fill="#475b6e"/>
+  </svg>
+</div>
+
+<div class="menubar">
+  <span class="app"><span id="glyph-mini"></span>Lookback</span>
+  <span class="menus"><span>File</span><span>Edit</span><span>View</span><span>Window</span><span>Help</span></span>
+  <span class="tray">
+    <svg width="17" height="13" viewBox="0 0 17 13" fill="none" stroke="#111" stroke-width="1.5" stroke-linecap="round"><path d="M1.5 4.5a10 10 0 0 1 14 0M4 7.2a6.4 6.4 0 0 1 9 0M6.6 9.8a2.8 2.8 0 0 1 3.8 0"/></svg>
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".75" y=".75" width="20.5" height="10.5" rx="3" stroke="#111" stroke-width="1.2" opacity=".55"/><rect x="2.5" y="2.5" width="14" height="7" rx="1.6" fill="#111"/><path d="M23 4v4" stroke="#111" stroke-width="1.4" stroke-linecap="round" opacity=".55"/></svg>
+    <span id="clock"></span>
+  </span>
+</div>
+
+<div class="window" id="main">
+  <div class="titlebar">
+    <div class="lights"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+    <div class="toolbar">
+      <h1 id="viewtitle">All screenshots</h1><span class="sub" id="count"></span>
+      <span class="grow"></span>
+      <span class="busy" id="busy" hidden><span class="ring"></span><span id="busytext"></span></span>
+      <button class="tbtn" id="import-btn" type="button" title="Import screenshots">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4.8 7 8 10.2 11.2 7"/><path d="M2.5 10.5v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-2"/></svg>Import
+      </button>
+      <button class="searchfield" id="search" type="button">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4 14 14"/></svg>
+        Ask your screenshots<kbd>⌘ K</kbd>
+      </button>
+    </div>
+  </div>
+  <nav class="sidebar" id="sidebar"></nav>
+  <section class="content" id="content">
+    <div id="library"></div>
+    <div id="howto-view" hidden>
+      <div class="howto">
+        <div>
+          <h3>Redo a task</h3>
+          <p class="lead">An assistant searches your screenshots and opens the ones that matter, then walks you through it again.
+            Push back if it falls short. Save the run, and a later task like it starts from what was worked out.</p>
+          <form class="composer" id="howto" style="margin-top:0">
+            <input id="task" autocomplete="off" placeholder="My VPN won't connect again. Walk me through what I did last time to fix it.">
+            <button class="pbtn" id="run" type="submit">Start</button>
+          </form>
+          <div class="tasks" id="tasks"></div>
+          <div class="trace" id="trace"></div>
+          <form class="composer" id="reply" hidden>
+            <input id="replytext" autocomplete="off" placeholder="That did not work: …">
+            <button class="sbtn" id="send" type="submit">Reply</button>
+            <button class="pbtn" id="save" type="button">Save as procedure</button>
+          </form>
+          <div id="saved" style="margin-top:8px; font-size:12.5px"></div>
+        </div>
+        <div>
+          <h5>Used for this run</h5>
+          <div id="used"><div class="note" style="color:var(--ink-2)">Start a task to see what the assistant recalled from earlier runs.</div></div>
+          <h5 style="margin-top:16px">Procedures learned</h5>
+          <div id="skills"><div class="note" style="color:var(--ink-2)">None yet.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="importer" id="importer" hidden>
+    <div class="drop" id="drop"><b>Drop screenshots here</b>, paste one (⌘ V), or click to choose
+      <input type="file" id="file" accept="image/png,image/jpeg,image/webp" multiple hidden></div>
+    <label>Taken at <input type="datetime-local" id="when"> <span>(empty: now)</span></label>
+    <div class="prog" id="progress"></div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="spot" id="spot" hidden>
+  <form id="ask">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
+    <input id="q" autocomplete="off" spellcheck="false" placeholder="Ask your screenshots">
+    <span class="scope" id="scope"></span>
+    <button id="go" type="submit" hidden>Ask</button>
+  </form>
+  <div class="body">
+    <div class="list" id="list"></div>
+    <div class="preview" id="preview"></div>
+  </div>
+</div>
+
+<div class="ql" id="view" hidden><div class="box"><img id="view-img" alt=""><div class="info" id="view-side"></div></div></div>
+
+<script type="module">
+  import { $, el, api, stream } from "/kit/kit.js";
+
+  let screens = [], pending = [], cited = [], filter = null, view = "library";
+  const SUGGEST = ["What was my flight number?", "How did I fix the VPN error last time?", "What's the guest Wi-Fi password?"];
+  const img = (s) => `/api/screens/${s.id}/image`;
+  const D = (iso) => new Date(iso);
+  const time = (iso) => D(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const short = (iso) => D(iso).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const long = (iso) => `${D(iso).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}, ${time(iso)}`;
+  const NS = "http://www.w3.org/2000/svg";
+  let uid = 0;
+  const svg = (markup, vb = "0 0 32 32", cls = "") => {
+    // gradient ids made unique per drawing: a repeated id would point at the first copy
+    const n = ++uid;
+    markup = markup.replace(/id="([^"]+)"/g, `id="$1-${n}"`).replace(/url\(#([^)]+)\)/g, `url(#$1-${n})`);
+    const t = document.createElement("template");
+    t.innerHTML = `<svg viewBox="${vb}" class="${cls}" aria-hidden="true">${markup}</svg>`;
+    return t.content.firstChild;
+  };
+
+  // ---- app icons: drawn for the apps on Jordan's screen; anything else gets a monogram ------
+  const squircle = (a, b) => `<defs><linearGradient id="g${a.slice(1)}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs>
+    <rect x="1" y="1" width="30" height="30" rx="7.2" fill="url(#g${a.slice(1)})"/><rect x="1.25" y="1.25" width="29.5" height="29.5" rx="7" fill="none" stroke="rgba(0,0,0,.14)" stroke-width=".5"/>`;
+  const ICONS = [
+    [/skylark|air\b|flight/i, squircle("#3b8df0", "#1b5fc6") + `<path d="M7 18.5l7.2-1.6 4.5-7.4 2.3.5-2.2 6.4 5.4-1.2c1.2-.3 2 .9.9 1.6l-12.3 4.3c-1.2.4-2.4-.1-3.1-1.1z" fill="#fff"/><path d="M8.5 24h15" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".7"/>`],
+    [/nimbus|vpn/i, squircle("#2b4a66", "#132a3f") + `<path d="M10.5 20.5a4 4 0 0 1-.3-8 6 6 0 0 1 11.4 1.4 3.4 3.4 0 0 1 .4 6.6z" fill="#cfe6ff"/><path d="M16 14.2l3.6 1.3v2.6c0 2.3-1.6 3.8-3.6 4.6-2-.8-3.6-2.3-3.6-4.6v-2.6z" fill="#2b4a66" stroke="#fff" stroke-width="1.2"/>`],
+    [/orbit|analytics/i, squircle("#1b2540", "#0b1122") + `<ellipse cx="16" cy="16" rx="10" ry="4.6" fill="none" stroke="#38bdf8" stroke-width="1.6" transform="rotate(-24 16 16)"/><circle cx="16" cy="16" r="4" fill="#e2e8f0"/><circle cx="24.4" cy="12.4" r="1.7" fill="#38bdf8"/>`],
+    [/pebble|mail/i, squircle("#f08a3c", "#d0611f") + `<rect x="7.5" y="10" width="17" height="12.5" rx="2" fill="#fff"/><path d="M8.3 11l7.7 6 7.7-6" fill="none" stroke="#d0611f" stroke-width="1.5" stroke-linejoin="round"/>`],
+    [/tidewater|router|wi-?fi/i, squircle("#17a398", "#0b7a71") + `<path d="M9 13.2a10 10 0 0 1 14 0M11.6 16a6.3 6.3 0 0 1 8.8 0M14.2 18.8a2.6 2.6 0 0 1 3.6 0" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path d="M7 24c2-1.4 3.6-1.4 5.6 0s3.6 1.4 5.6 0 3.6-1.4 5.6 0" fill="none" stroke="#bff3ec" stroke-width="1.4" stroke-linecap="round"/>`],
+  ];
+  function appIcon(name, size = 18) {
+    const hit = ICONS.find(([re]) => re.test(name || ""));
+    let markup = hit ? hit[1] : null;
+    if (!markup) {
+      const hues = ["#8e8e93", "#5e7d9a", "#7a6a9e", "#9a7a5e", "#5e9a7d"];
+      const c = hues[[...(name || "?")].reduce((a, ch) => a + ch.charCodeAt(0), 0) % hues.length];
+      markup = squircle(c, c) + `<text x="16" y="21" text-anchor="middle" font-family="Inter, Arial" font-weight="700" font-size="13" fill="#fff">${(name || "?").trim().charAt(0).toUpperCase()}</text>`;
+    }
+    const s = svg(markup);
+    s.setAttribute("width", size); s.setAttribute("height", size);
+    return s;
+  }
+  // Lookback's own mark: a frame with a turn-back arrow
+  const GLYPH = (size) => {
+    const s = svg(`<defs><linearGradient id="lb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a8af0"/><stop offset="1" stop-color="#1f56b8"/></linearGradient></defs>
+      <rect x="1" y="1" width="30" height="30" rx="7.2" fill="url(#lb)"/><rect x="7.5" y="9" width="17" height="12" rx="2" fill="none" stroke="#fff" stroke-width="1.6"/>
+      <path d="M12.5 26.2a6.3 6.3 0 1 0-2.6-6.9" fill="none" stroke="#cfe0ff" stroke-width="1.6" stroke-linecap="round" transform="translate(4 -6) scale(.8)"/><path d="M11 14.5h4.5M11 17h7" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".85"/>`);
+    s.setAttribute("width", size); s.setAttribute("height", size);
+    return s;
+  };
+  $("#glyph-mini").append(GLYPH(16));
+  const tick = () => { $("#clock").textContent = new Date().toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).replace(",", ""); };
+  tick(); setInterval(tick, 20_000);
+
+  // ---- the library ------------------------------------------------------------------------
+  const appOf = (s) => (s.analysis && s.analysis.app) || "Unknown app";
+  const telling = (a) => Object.entries(a.key_values || {})
+    .filter(([k, v]) => String(v).length <= 22 && !/url|address|date|time|clock|day|status/i.test(k)).map(([, v]) => String(v)).slice(0, 3);
+
+  function renderSidebar() {
+    const apps = {};
+    for (const s of screens) apps[appOf(s)] = (apps[appOf(s)] || 0) + 1;
+    const item = (label, n, on, onclick, ic, id) => el("button", { class: "side-item" + (on ? " on" : ""), type: "button", onclick, id }, ic, el("span", {}, label), n != null ? el("span", { class: "n" }, n) : null);
+    const ALL = svg('<rect x="4" y="7" width="24" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21l7-6 5 4 4-3 8 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>');
+    ALL.classList.add("ic");
+    const REDO = svg('<path d="M9 9.5A10 10 0 1 1 6.5 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M5 5.5v5.5h5.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>');
+    REDO.classList.add("ic");
+    $("#sidebar").replaceChildren(...[
+      el("h4", {}, "Library"),
+      item("All screenshots", screens.length || null, view === "library" && !filter, () => { filter = null; show("library"); }, ALL, "side-all"),
+      item("Redo a task", null, view === "howto", () => show("howto"), REDO, "side-howto"),
+      Object.keys(apps).length ? el("h4", {}, "Apps") : null,
+      ...Object.entries(apps).sort((a, b) => b[1] - a[1]).map(([name, n]) =>
+        item(name, n, view === "library" && filter === name, () => { filter = name; show("library"); }, appIcon(name, 18)))].filter(Boolean));
+  }
+
+  function card(s, { fresh = false } = {}) {
+    const a = s.analysis || null;
+    const on = cited.includes(s.id);
+    return el("button", { class: "shot" + (fresh ? " new" : "") + (on ? " cited" : ""), type: "button", id: s.id ? `shot-${s.id}` : `pending-${s.file}`, onclick: () => s.id && open(s) },
+      el("div", { class: "frame" }, el("img", { src: s.id ? img(s) : `/api/samples/${s.file}`, alt: a ? a.summary || s.file : s.file }),
+        s.id ? null : el("div", { class: "scan" }, el("span", {}, a ? "Remembering…" : "Reading…"))),
+      el("div", { class: "cap" }, appIcon(a ? appOf(s) : "", 18), el("b", {}, a ? appOf(s) : s.file), el("time", {}, `${short(s.captured_at)}, ${time(s.captured_at)}`)),
+      el("div", { class: "read" }, a ? telling(a).join(" · ") : ""));
+  }
+
+  function renderLibrary(freshId = null) {
+    const all = [...screens, ...pending].filter((s) => !filter || (s.analysis && appOf(s) === filter));
+    $("#viewtitle").textContent = filter || "All screenshots";
+    $("#count").textContent = screens.length ? `${screens.length} screenshot${screens.length === 1 ? "" : "s"}` : "";
+    renderSidebar();
+    const lib = $("#library");
+    if (!all.length) {
+      lib.replaceChildren(el("div", { class: "empty", id: "empty" },
+        svg(`<rect x="26" y="20" width="84" height="54" rx="5" fill="#fff" stroke="#c7c7cc" stroke-width="1.5" transform="rotate(-7 68 47)"/>
+          <rect x="34" y="28" width="84" height="54" rx="5" fill="#fff" stroke="#c7c7cc" stroke-width="1.5" transform="rotate(4 76 55)"/>
+          <rect x="30" y="34" width="84" height="54" rx="5" fill="#f4f6fa" stroke="#9fb4d6" stroke-width="1.5"/>
+          <path d="M38 44h30M38 51h44M38 58h22" stroke="#c9d3e3" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="100" cy="84" r="13" fill="#fff" stroke="#2a6fdb" stroke-width="3"/><path d="m109.5 93.5 9 9" stroke="#2a6fdb" stroke-width="4" stroke-linecap="round"/>`, "0 0 140 112"),
+        el("h2", {}, "No screenshots yet"),
+        el("p", {}, "Lookback reads each screenshot you take and remembers what was on it, and when. Ask about any of them later."),
+        el("div", { style: "display:flex; gap:10px" },
+          el("button", { class: "pbtn", id: "add-samples", type: "button", onclick: addSamples }, "Import 6 screenshots from Desktop"),
+          el("button", { class: "sbtn", type: "button", onclick: () => $("#file").click() }, "Choose files…"))));
+      lib.querySelector(".empty svg").setAttribute("width", 140);
+      return;
+    }
+    // newest first, by month
+    const sorted = [...all].sort((a, b) => b.captured_at.localeCompare(a.captured_at));
+    const months = [];
+    for (const s of sorted) {
+      const m = D(s.captured_at).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+      if (!months.length || months[months.length - 1].m !== m) months.push({ m, items: [] });
+      months[months.length - 1].items.push(s);
+    }
+    lib.replaceChildren(el("div", { id: "gallery" }, ...months.map((g) => el("div", { class: "group" },
+      el("h3", {}, g.m.split(" ")[0], el("small", {}, g.m.split(" ")[1])),
+      el("div", { class: "grid" }, ...g.items.map((s) => card(s, { fresh: s.id && s.id === freshId })))))));
+  }
+
+  async function loadScreens(freshId) {
+    screens = (await api("/api/screens")).screens;
+    renderLibrary(freshId);
+  }
+
+  function show(v) {
+    view = v;
+    $("#library").hidden = v !== "library";
+    $("#howto-view").hidden = v !== "howto";
+    if (v === "howto") { $("#viewtitle").textContent = "Redo a task"; renderSidebar(); }
+    else renderLibrary();
+  }
+
+  // ---- Quick Look ----------------------------------------------------------------------------
+  function open(s) {
+    const a = s.analysis;
+    $("#view-img").src = img(s);
+    $("#view-side").replaceChildren(
+      el("div", { style: "display:flex; align-items:center; gap:8px" }, appIcon(appOf(s), 26), el("div", {}, el("h3", {}, appOf(s)), el("div", { style: "color:var(--ink-2)" }, long(s.captured_at)))),
+      el("p", {}, a.activity),
+      el("dl", { class: "kv" }, ...Object.entries(a.key_values || {}).slice(0, 12).flatMap(([k, v]) => [el("dt", {}, k), el("dd", {}, String(v))])),
+      el("div", { style: "color:var(--ink-2); margin-top:10px" }, `What Lookback remembered (read in ${s.seconds.vision} s, stored in ${s.seconds.memory} s):`),
+      el("pre", {}, s.memory));
+    $("#view").hidden = false;
+  }
+  $("#view").addEventListener("click", () => { $("#view").hidden = true; });
+
+  // ---- importing ----------------------------------------------------------------------------
+  function busy(text) { $("#busy").hidden = !text; $("#busytext").textContent = text || ""; }
+
+  async function addSamples() {
+    const b = $("#add-samples");
+    if (b) b.disabled = true;
+    try {
+      const { samples } = await api("/api/samples");
+      const todo = samples.filter((s) => !s.added);
+      let n = samples.length - todo.length;
+      for (const s of todo) {
+        n += 1;
+        busy(`Reading ${n} of ${samples.length}`);
+        const p = { file: s.file, captured_at: s.captured_at, analysis: null };
+        pending = [p];
+        renderLibrary();
+        let added = null;
+        await stream("/api/samples/add", { file: s.file }, (ev) => {
+          if (ev.type === "read") { p.analysis = ev.analysis; renderLibrary(); }
+          else if (ev.type === "remembered") added = ev.screen;
+        });
+        pending = [];
+        await loadScreens(added && added.id);
+      }
+      busy(null);
+    } catch (e) {
+      pending = []; busy(null); renderLibrary();
+      $("#library").prepend(el("div", { class: "err" }, e.message || String(e)));
+    }
+  }
+
+  async function upload(files) {
+    $("#importer").hidden = false;
+    for (const f of files) {
+      const d = el("div", {}, `Reading ${f.name || "pasted image"}…`);
+      $("#progress").prepend(d);
+      busy(`Reading ${f.name || "image"}`);
+      const fd = new FormData();
+      fd.append("file", f, f.name || "pasted.png");
+      if ($("#when").value) fd.append("captured_at", $("#when").value);
+      try {
+        const r = await api("/api/screens", fd);
+        d.textContent = `${r.file}: ${appOf(r)}, remembered as ${r.id}`;
+        await loadScreens(r.id);
+      } catch (e) { d.replaceChildren(el("span", { class: "err" }, `${f.name || "image"}: ${e.message}`)); }
+    }
+    busy(null);
+  }
+  $("#import-btn").addEventListener("click", () => { $("#importer").hidden = !$("#importer").hidden; });
+  const drop = $("#drop");
+  drop.addEventListener("click", () => $("#file").click());
+  $("#file").addEventListener("change", (e) => upload([...e.target.files]));
+  for (const t of [drop, $("#content")]) {
+    t.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+    t.addEventListener("dragleave", () => drop.classList.remove("over"));
+    t.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); upload([...e.dataTransfer.files].filter((f) => f.type.startsWith("image/"))); });
+  }
+  document.addEventListener("paste", (e) => {
+    const files = [...(e.clipboardData?.files || [])].filter((f) => f.type.startsWith("image/"));
+    if (files.length) upload(files);
+  });
+
+  // ---- the search panel ---------------------------------------------------------------------
+  function openSpot() {
+    $("#scrim").hidden = false; $("#spot").hidden = false;
+    $("#scope").replaceChildren(GLYPH(16), `${screens.length} screenshot${screens.length === 1 ? "" : "s"}`);
+    if (!$("#list").childElementCount) idle();
+    $("#q").focus(); $("#q").select();
+  }
+  function closeSpot() { $("#scrim").hidden = true; $("#spot").hidden = true; }
+  $("#search").addEventListener("click", openSpot);
+  $("#scrim").addEventListener("click", closeSpot);
+  document.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openSpot(); }
+    if (e.key === "Escape") { closeSpot(); $("#view").hidden = true; $("#importer").hidden = true; }
+  });
+
+  function idle() {
+    const MAG = () => { const s = svg('<circle cx="13" cy="13" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m18.5 18.5 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'); return s; };
+    $("#list").replaceChildren(el("h5", {}, "Try"), el("div", { class: "suggest" }, ...SUGGEST.map((q) =>
+      el("button", { type: "button", onclick: () => { $("#q").value = q; ask(); } }, MAG(), q))));
+    const big = GLYPH(56);
+    $("#preview").replaceChildren(el("div", { class: "idle" }, big, screens.length
+      ? "Ask about anything you saw on screen. The answer opens the screenshot it came from."
+      : "No screenshots yet. Import some first."));
+    big.style.margin = "0 auto 14px";
+  }
+
+  // "[S1]" comes off the answer: the screenshot it names is shown instead
+  const clean = (t) => t.replace(/\s*\[(S\d+(?:\s*,\s*S\d+)*)\]/g, "").replace(/\s+([.,;])/g, "$1").trim();
+
+  function rows(hits, citedIds) {
+    // one row per screenshot memory returned, the ones the answer used first
+    const seen = [];
+    for (const h of hits) if (h.screen && !seen.includes(h.screen)) seen.push(h.screen);
+    const order = [...citedIds.filter((c) => seen.includes(c)), ...seen.filter((s) => !citedIds.includes(s))];
+    return order.map((id) => screens.find((s) => s.id === id)).filter(Boolean);
+  }
+
+  function renderList(question, hits, answerText, state, citedIds = [], openId = null) {
+    const list = $("#list");
+    const ans = state === "searching"
+      ? el("div", { class: "answer thinking", id: "answer" }, GLYPH(34), el("div", {}, el("div", { class: "t" }, "Looking through your screenshots…")))
+      : el("div", { class: "answer", id: "answer" }, GLYPH(34), el("div", {}, el("div", { class: "t", id: "answer-text" }, clean(answerText) || "…"),
+          el("div", { class: "s" }, state === "done" ? (citedIds.length ? `From ${citedIds.length === 1 ? "a screenshot" : `${citedIds.length} screenshots`}` : "Not on any screenshot") : "Answering…")));
+    const shots = rows(hits, citedIds);
+    list.replaceChildren(el("h5", {}, "Answer"), ans,
+      state === "searching" ? null : el("h5", {}, shots.length ? "Screenshots" : ""),
+      ...(state === "searching" ? [] : shots.length ? shots.map((s) => {
+        const used = citedIds.includes(s.id);
+        return el("button", { class: "row" + (used ? " cited" : " dim") + (s.id === openId ? " on" : ""), id: `row-${s.id}`, type: "button", onclick: () => preview(s, null, hits) },
+          el("div", { class: "th" }, el("img", { src: img(s), alt: "" })),
+          el("div", {}, el("div", { class: "nm" }, appIcon(appOf(s), 16), appOf(s), used ? el("span", { class: "used" }, "Used") : null),
+            el("div", { class: "when" }, `${short(s.captured_at)}, ${time(s.captured_at)}`)));
+      }) : [el("div", { class: "none" }, "Nothing on your screenshots matches.")]));
+  }
+
+  let lastRegions = {};
+  function preview(s, region, hits) {
+    region = region || lastRegions[s.id] || null;
+    document.querySelectorAll("#list .row").forEach((r) => r.classList.toggle("on", r.id === `row-${s.id}`));
+    const hit = (hits || []).find((h) => h.screen === s.id);
+    const frame = el("div", { class: "shotview", id: "shotview" });
+    const zoomer = el("div", { class: "zoomer" }, el("img", { src: img(s), alt: s.analysis.summary || "" }));
+    if (region) {
+      const holes = region.boxes.map(([x, y, w, h]) => {
+        const p = 0.006;
+        return `M${x - p},${y - p * 1.6}h${w + 2 * p}v${h + 3.2 * p}h${-(w + 2 * p)}z`;
+      }).join("");
+      const dim = document.createElementNS(NS, "svg");
+      dim.setAttribute("class", "dim"); dim.setAttribute("viewBox", "0 0 1 1"); dim.setAttribute("preserveAspectRatio", "none");
+      const path = document.createElementNS(NS, "path");
+      path.setAttribute("d", `M0,0H1V1H0z${holes}`); path.setAttribute("fill-rule", "evenodd"); path.setAttribute("fill", "rgba(20,24,34,.38)");
+      dim.append(path);
+      zoomer.append(dim, ...region.boxes.map(([x, y, w, h], i) => el("div", { class: "hl" + (i === region.primary ? " primary" : ""),
+        style: `left:calc(${x * 100}% - 4px); top:calc(${y * 100}% - 3px); width:calc(${w * 100}% + 8px); height:calc(${h * 100}% + 6px)` })));
+      // zoom so that every marked place fits, centred on them, never past the image's edges
+      const x0 = Math.min(...region.boxes.map((b) => b[0])), y0 = Math.min(...region.boxes.map((b) => b[1]));
+      const x1 = Math.max(...region.boxes.map((b) => b[0] + b[2])), y1 = Math.max(...region.boxes.map((b) => b[1] + b[3]));
+      // places spread across the screen: no zoom, the whole screen is the context
+      const k = x1 - x0 > 0.35 || y1 - y0 > 0.35 ? 1 : Math.max(1, Math.min(1.6, 0.8 / (x1 - x0), 0.8 / (y1 - y0)));
+      const fit = (c) => Math.min(0, Math.max(1 - k, 0.5 - c * k));
+      zoomer.style.transformOrigin = "0 0";
+      zoomer.dataset.zoom = `translate(${fit((x0 + x1) / 2) * 100}%, ${fit((y0 + y1) / 2) * 100}%) scale(${k})`;
+    }
+    frame.append(zoomer);
+    $("#preview").replaceChildren(el("div", { id: "from" },
+      el("div", { class: "ph" }, appIcon(appOf(s), 30), el("div", {}, el("b", {}, appOf(s)), el("span", {}, `Screenshot, ${long(s.captured_at)}`)))),
+      frame,
+      hit ? el("div", { class: "said", id: "said" }, el("b", {}, "Remembered: "), hit.content.replace(/^Screenshot S\d+ \([^)]*\),?\s*/, "")) : null);
+    $("#from").style.display = "contents";
+    if (region) {
+      requestAnimationFrame(() => requestAnimationFrame(() => frame.classList.add("lit")));
+      if (!/scale\(1\)$/.test(zoomer.dataset.zoom)) setTimeout(() => { zoomer.style.transform = zoomer.dataset.zoom; }, 900);
+    }
+  }
+
+  $("#ask").addEventListener("submit", (e) => { e.preventDefault(); ask(); });
+  // a new query clears the last answer, as a search panel does
+  $("#q").addEventListener("input", () => { if ($("#answer")) { cited = []; renderLibrary(); idle(); } });
+  let asking = 0;
+  async function ask() {
+    const question = $("#q").value.trim();
+    if (!question) return;
+    const mine = ++asking;
+    cited = []; renderLibrary();
+    let hits = [], raw = "";
+    renderList(question, [], "", "searching");
+    $("#preview").replaceChildren(el("div", { class: "idle" }, el("div", { class: "ring", style: "margin:0 auto 12px; width:22px; height:22px" }), "Searching your screenshots…"));
+    try {
+      await stream("/api/ask", { question }, (ev) => {
+        if (mine !== asking) return;
+        if (ev.type === "memories") { hits = ev.hits; renderList(question, hits, "", "answering"); }
+        else if (ev.type === "delta") { raw += ev.text; $("#answer-text").textContent = clean(raw); }
+        else if (ev.type === "done") {
+          cited = ev.cited; lastRegions = ev.regions || {};
+          renderList(question, hits, raw, "done", cited, ev.open);
+          renderLibrary();
+          const s = screens.find((x) => x.id === ev.open);
+          if (s) preview(s, lastRegions[s.id], hits);
+          else $("#preview").replaceChildren(el("div", { class: "idle" }, "None of your screenshots shows this."));
+          document.body.dataset.answered = String(mine);
+        }
+      });
+    } catch (e) {
+      $("#preview").replaceChildren(el("div", { class: "err" }, e.message || String(e)));
+    }
+  }
+
+  // ---- redo a task (agent memory) ------------------------------------------------------------
+  let session = null;
+  for (const t of ["My VPN won't connect again. Walk me through what I did last time to fix it.", "VPN says the handshake timed out at the airport lounge. How do I get it working?"]) {
+    $("#tasks").append(el("button", { type: "button", onclick: () => { $("#task").value = t; start(); } }, t));
+  }
+  const brief = (o) => JSON.stringify(o).replace(/"([a-z_0-9]+)":/g, "$1: ").replace(/,"/g, ', "');
+  function step(ev) {
+    let n = null;
+    if (ev.type === "tool_call") n = el("div", { class: "step call" }, el("code", {}, `${ev.name === "search_screens" ? "Searching" : "Opening"} ${ev.args.query || ev.args.id || ""}`));
+    else if (ev.type === "tool_result") n = el("div", { class: "step call" }, el("code", {}, brief(ev.result).slice(0, 300)));
+    else if (ev.type === "answer") n = el("div", { class: "step answer" }, ev.text);
+    else if (ev.type === "user") n = el("div", { class: "step user" }, ev.text);
+    if (n) $("#trace").append(n);
+  }
+  function renderUsed(ev) {
+    if (!ev.cases.length && !ev.skills.length) return $("#used").replaceChildren(el("div", { class: "note" }, "No saved procedure matched: it starts from scratch."));
+    $("#used").replaceChildren(...ev.skills.map((k) => el("details", { class: "note" }, el("summary", {}, el("b", {}, k.name.replaceAll("_", " "))), el("div", {}, k.description), el("pre", {}, k.content))),
+      ...ev.cases.map((c) => el("details", { class: "note" }, el("summary", {}, "Earlier run: ", c.task_intent), el("pre", {}, c.approach))));
+  }
+  async function run(message) {
+    const b = session ? $("#send") : $("#run");
+    b.disabled = true;
+    $("#reply").hidden = true;
+    try {
+      await stream("/api/howto", session ? { message, session } : { message }, (ev) => {
+        if (ev.type === "procedures") renderUsed(ev);
+        else if (ev.type === "session") session = ev.session;
+        else if (ev.type === "done") { $("#reply").hidden = false; $("#saved").textContent = `${ev.rounds} tool round${ev.rounds === 1 ? "" : "s"} so far.`; }
+        else step(ev);
+      });
+    } catch (e) { $("#saved").replaceChildren(el("div", { class: "err" }, e.message || String(e))); }
+    finally { b.disabled = false; }
+  }
+  $("#howto").addEventListener("submit", (e) => { e.preventDefault(); start(); });
+  function start() {
+    const task = $("#task").value.trim() || $("#task").placeholder;
+    session = null;
+    $("#trace").replaceChildren(); $("#saved").textContent = "";
+    step({ type: "user", text: task });
+    run(task);
+  }
+  $("#reply").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = $("#replytext").value.trim();
+    if (!text || !session) return;
+    $("#replytext").value = "";
+    step({ type: "user", text });
+    run(text);
+  });
+  $("#save").addEventListener("click", async () => {
+    const b = $("#save");
+    b.disabled = true;
+    try {
+      const r = await api("/api/howto/save", { session });
+      const why = (r.skipped || []).map((s) => s.reason).filter(Boolean).join(", ");
+      $("#saved").textContent = r.cases
+        ? `Saved: ${r.cases} run kept, ${r.skills_added} procedure added, ${r.skills_updated} updated (${r.seconds} s).`
+        : `Nothing was kept from this run${why ? ` (${why})` : ""}. A run needs three tool rounds and some exploring or a correction.`;
+      $("#reply").hidden = true;
+      await loadSkills();
+    } catch (e) { $("#saved").replaceChildren(el("div", { class: "err" }, e.message || String(e))); }
+    finally { b.disabled = false; }
+  });
+  async function loadSkills() {
+    const { skills } = await api("/api/howto/skills");
+    $("#skills").replaceChildren(...(skills.length ? skills.map((k) => el("details", { class: "note" },
+      el("summary", {}, el("b", {}, k.name.replaceAll("_", " ")), ` · from ${k.source_case_ids.length} run${k.source_case_ids.length === 1 ? "" : "s"}`),
+      el("div", {}, k.description), el("pre", {}, k.content))) : [el("div", { class: "note" }, "None yet.")]));
+  }
+
+  // ---- start -------------------------------------------------------------------------------
+  await document.fonts.ready.catch(() => {});
+  Promise.all([loadScreens(), loadSkills()]).catch((e) => $("#library").replaceChildren(el("div", { class: "err" }, e.message || String(e))));
+</script>
+</body>
+</html>

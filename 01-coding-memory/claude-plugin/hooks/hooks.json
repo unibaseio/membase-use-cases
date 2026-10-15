@@ -1,0 +1,26 @@
+{
+  "description": "Membase long-term memory: recall at session start and on every prompt, save the session when it ends.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\" claude session-start", "timeout": 30 }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\" claude prompt", "timeout": 15 }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\" claude session-end", "timeout": 10 }
+        ]
+      }
+    ]
+  }
+}

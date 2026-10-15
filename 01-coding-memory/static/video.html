@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>quillmate — zsh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Inter:wght@400;500;600&display=swap">
+<style>
+  /* A terminal app, full window: one tab, split in two panes. The top pane is the shell where
+     the two Claude Code sessions run (replayed from their captured stream-json, at the pace
+     they ran). The bottom pane tails the Membase plugin's own log. video.py drives it. */
+  :root {
+    --bg: #15171c; --chrome: #23262d; --rule: #30343d;
+    --fg: #d7dae0; --dim: #7d8492; --dim-2: #5b616d;
+    /* ANSI, a Tomorrow Night-like palette */
+    --red: #e06c75; --green: #98c379; --yellow: #e5c07b; --blue: #61afef; --magenta: #c678dd; --cyan: #56b6c2;
+    --bgreen: #a8d58a; --bcyan: #6fcfdb; --bblue: #7cbcf5;
+    --claude: #d97757; --sel: rgba(97, 175, 239, .28);
+    --mono: "JetBrains Mono", "SF Mono", Menlo, monospace; --ui: Inter, "Helvetica Neue", Arial, sans-serif;
+    --fs: 16.5px; --lh: 25px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); overflow: hidden; }
+  body { display: grid; grid-template-rows: 38px 32px 152px 7px 1fr; font: var(--fs)/var(--lh) var(--mono);
+    -webkit-font-smoothing: antialiased; font-variant-ligatures: none; }
+
+  /* the tab strip */
+  .tabs { background: var(--chrome); display: flex; align-items: flex-end; padding: 0 12px; gap: 2px;
+    border-bottom: 1px solid #111317; font: 500 13px var(--ui); color: var(--dim); }
+  .tab { height: 30px; padding: 0 16px 0 14px; display: flex; align-items: center; gap: 9px; border-radius: 7px 7px 0 0; min-width: 0; }
+  .tab.on { background: var(--bg); color: var(--fg); }
+  .tab .x { width: 14px; height: 14px; opacity: .45; }
+  .tab .n { font: 500 11.5px var(--ui); color: var(--dim-2); margin-left: 4px; }
+  .tab .busy { width: 7px; height: 7px; border-radius: 50%; background: var(--claude); display: none; }
+  .tab.running .busy { display: block; }
+  .tabs .plus { height: 30px; width: 30px; display: grid; place-items: center; color: var(--dim-2); }
+
+  /* panes */
+  .pane { position: relative; overflow: hidden; }
+  .pane .scroll { position: absolute; inset: 14px 22px 10px; overflow: hidden; }
+  #shell .scroll { bottom: 150px; }
+  .pane .lines { white-space: pre-wrap; word-break: break-word; }
+  #log { font-size: 13.5px; line-height: 21px; color: var(--dim); }
+  #log .scroll { inset: 10px 22px 8px; }
+  #log .ts { color: var(--dim-2); }
+  #log .ev { color: var(--fg); }
+  #log .kv b { font-weight: 400; color: var(--cyan); }
+  #log .fresh { animation: fresh 1.8s ease-out; }
+  @keyframes fresh { from { background: rgba(229, 192, 123, .16); } to { background: transparent; } }
+  .divider { position: relative; }
+  .divider::after { content: ""; position: absolute; left: 0; right: 0; top: 3px; height: 1px; background: var(--rule); }
+
+  /* the status bar */
+  .status { background: var(--chrome); border-bottom: 1px solid #111317; display: flex; align-items: center; gap: 18px;
+    padding: 0 14px; font: 500 13.5px var(--ui); color: var(--dim); white-space: nowrap; }
+  .status .seg { display: flex; align-items: center; gap: 6px; }
+  .status svg { opacity: .8; }
+  .status .grow { flex: 1; }
+  .status .mem { color: var(--fg); font-size: 14px; }
+  .status .mem .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dim-2); }
+  .status .mem.learning .dot { background: var(--yellow); animation: pulse 1s ease-in-out infinite; }
+  .status .mem.learned .dot { background: var(--green); }
+  @keyframes pulse { 50% { opacity: .35; } }
+
+  /* the shell: oh-my-zsh's default theme */
+  .p .arrow { color: var(--bgreen); font-weight: 700; }
+  .p .dir { color: var(--bcyan); font-weight: 700; }
+  .p .git { color: var(--bblue); font-weight: 700; }
+  .p .br { color: var(--red); font-weight: 700; }
+  .g { display: inline-block; width: .62em; height: .62em; vertical-align: -.02em; }
+  .bullet { display: inline-block; width: .52em; height: .52em; border-radius: 50%; background: var(--fg); vertical-align: .08em; }
+  .cc.tool .bullet { background: var(--green); }
+  .caret { display: inline-block; width: .6em; height: 1.1em; background: var(--fg); vertical-align: -.2em; }
+  .caret.blink { animation: blink 1.05s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .gap { height: calc(var(--lh) * .5); }
+
+  /* Claude Code's own marks */
+  .cc { margin-top: calc(var(--lh) * .5); }
+  .cc + .cc.res-only { margin-top: 0; }
+  .cc.tool .dot { color: var(--green); }
+  .cc.tool .name { font-weight: 700; }
+  .cc .res { color: var(--dim); }
+  .cc .res .more { color: var(--dim-2); }
+  .cc code { color: var(--bblue); }
+  .cc b { font-weight: 700; }
+  .cc mark { background: var(--sel); color: inherit; border-radius: 1px; box-shadow: 0 0 0 1px var(--sel); }
+  .cc .hookh { color: var(--dim); }
+  .cc .hookh .ev { color: var(--fg); }
+  .cc .ctx { color: var(--dim); }
+  .cc .ctx .tag { color: var(--magenta); }
+  .cc .ctx .item { color: var(--fg); }
+  .indent { display: grid; grid-template-columns: 5ch 1fr; }
+  .hang { display: grid; grid-template-columns: 2ch 1fr; }
+  .spinner { color: var(--claude); }
+  .spinner .w { color: var(--dim); }
+</style>
+</head>
+<body>
+<nav class="tabs">
+  <div class="tab on" id="tab">
+    <svg class="x" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M4 4l6 6M10 4l-6 6"/></svg>
+    <span id="tabtitle">quillmate — zsh</span><span class="busy"></span><span class="n">⌘1</span>
+  </div>
+  <div class="plus"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M6 1.5v9M1.5 6h9"/></svg></div>
+</nav>
+
+<footer class="status">
+  <span class="seg"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4.5h4l1.5 1.5H14v6.5H2z"/></svg>~/quillmate</span>
+  <span class="seg"><svg width="12" height="13" viewBox="0 0 12 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="3" cy="3" r="1.6"/><circle cx="3" cy="13" r="1.6"/><circle cx="9.5" cy="6" r="1.6"/><path d="M3 4.6v6.8M9.5 7.6c0 2.4-6.5 1.6-6.5 3.8"/></svg>main</span>
+  <span class="grow"></span>
+  <span class="seg mem" id="mem"><span class="dot"></span><span id="memtext">Membase · Coding</span></span>
+  <span class="seg" id="clock"></span>
+</footer>
+<section class="pane" id="log"><div class="scroll" id="log-scroll"><div class="lines" id="loglines"></div></div></section>
+<div class="divider"></div>
+<section class="pane" id="shell"><div class="scroll" id="shell-scroll"><div class="lines" id="screen"></div></div></section>
+
+
+<script>
+const screen = document.getElementById("screen"), shellScroll = document.getElementById("shell-scroll");
+const logLines = document.getElementById("loglines"), logScroll = document.getElementById("log-scroll");
+const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// a real terminal scrolls when it is full: the newest line stays on screen
+const follow = () => { shellScroll.scrollTop = shellScroll.scrollHeight; logScroll.scrollTop = logScroll.scrollHeight; };
+const PROMPT = '<span class="p"><span class="arrow"><svg class="g" viewBox="0 0 10 10"><path d="M1 5h7M5 1.8L8.4 5 5 8.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>  <span class="dir">quillmate</span> <span class="git">git:(</span><span class="br">main</span><span class="git">)</span></span> ';
+
+// Claude Code's light markdown: **bold**, `code`, *italic*; the decision's own words selected
+function md(s, marks) {
+  let h = esc(s).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*([^*\s][^*]*)\*/g, "<i>$1</i>");
+  for (const m of marks || []) h = h.split(esc(m)).join(`<mark>${esc(m)}</mark>`);
+  return h;
+}
+function add(html, cls, id) {
+  const d = document.createElement("div");
+  d.className = cls || ""; if (id) d.id = id; d.innerHTML = html;
+  screen.append(d); follow();
+  return d;
+}
+let prompt = null;  // the idle prompt line with its blinking caret
+
+window.term = {
+  title(t, running) {
+    document.getElementById("tabtitle").textContent = t;
+    document.getElementById("tab").classList.toggle("running", !!running);
+    document.title = t;
+  },
+  clock(t) { document.getElementById("clock").textContent = t; },
+  memory(text, state) {
+    document.getElementById("memtext").textContent = text;
+    document.getElementById("mem").className = "seg mem " + (state || "");
+  },
+  idle() { prompt = add(PROMPT + '<span class="t"></span><span class="caret blink"></span>', "cmd"); },
+  // type a command at the prompt, as a person would
+  async cmd(text, id, cps = 55) {
+    if (!prompt) this.idle();
+    const d = prompt; prompt = null;
+    if (id) d.id = id;
+    const t = d.querySelector(".t"), caret = d.querySelector(".caret");
+    caret.classList.remove("blink");
+    await sleep(300);
+    for (let i = 0; i < text.length; i++) { t.textContent += text[i]; follow(); await sleep(1000 / cps); }
+    await sleep(250);
+    caret.remove();
+  },
+  clear() { screen.replaceChildren(); prompt = null; },
+  out(lines, id) { return add(esc(lines.join("\n")), "out", id); },
+  gap() { add("", "gap"); },
+  // ⏺ Read(path)  /  ⎿  Read 7 lines
+  tool(name, arg, result) {
+    const res = result && result.length ? `<div class="indent res"><span>  ⎿</span><span>${result.map((r) => r.startsWith("… +") ? `<span class="more">${esc(r)}</span>` : esc(r)).join("\n")}</span></div>` : "";
+    add(`<div class="hang"><span class="dot"><i class="bullet"></i></span><span><span class="name">${esc(name)}</span>(${esc(arg)})</span></div>${res}`, "cc tool");
+  },
+  // what a hook added to the prompt, the way Claude Code prints hook output
+  hook(event, lines, id) {
+    const body = lines.map((l) => /^<\/?membase-memory>$/.test(l) ? `<span class="tag">${esc(l)}</span>` : l.startsWith("- ") ? `<span class="item">${esc(l)}</span>` : esc(l)).join("\n");
+    add(`<div class="indent"><span class="hookh">  ⎿</span><span><span class="hookh"><span class="ev">${esc(event)}</span> hook additional context:</span>\n<span class="ctx">${body}</span></span></div>`, "cc hook", id);
+  },
+  answer(id) { add('<div class="hang"><span class="dot"><i class="bullet"></i></span><span class="body"></span></div>', "cc answer", id); },
+  text(id, full, marks) { document.querySelector(`#${id} .body`).innerHTML = md(full, marks); follow(); },
+  spin(text, id) { return add(`<span class="spinner"><svg class="g" viewBox="0 0 10 10"><path d="M5 1v8M1.5 3l7 4M8.5 3l-7 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span> <span class="w">${esc(text)}…</span>`, "cc", id); },
+  unspin(id) { document.getElementById(id)?.remove(); },
+  // the plugin's own log, in the bottom pane
+  log(line, id) {
+    const m = line.match(/^(\S+ \S+) (\S+) +(\S+)(.*)$/);
+    const d = document.createElement("div");
+    d.className = "fresh"; if (id) d.id = id;
+    d.innerHTML = m ? `<span class="ts">${esc(m[1])}</span> ${esc(m[2])} <span class="ev">${esc(m[3].padEnd(14))}</span>${esc(m[4].trim()).replace(/([\w-]+)=(\S+)/g, '<span class="kv">$1=<b>$2</b></span>')}` : esc(line);
+    logLines.append(d); follow();
+    return d;
+  },
+  logCmd(text) {
+    const d = document.createElement("div");
+    d.innerHTML = PROMPT + esc(text);
+    logLines.append(d); follow();
+  },
+};
+</script>
+</body>
+</html>

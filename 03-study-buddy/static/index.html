@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cue · BIO 110</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Caveat:wght@500;600&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+  /* Cue: a flashcard app. A deck per lecture, one index card at a time that flips to the
+     verdict and the lecture line it came from. Missed cards go to the review pile with what you
+     said written in the margin; the next session's review deck is dealt from that pile. */
+  :root {
+    --desk: #e3e8e3; --desk-2: #d5ddd6; --mat: rgba(46, 84, 72, .07);
+    --ink: #1d2622; --ink-2: #4d5a54; --ink-3: #85918b; --line: #c9d3cc;
+    --green: #24584a; --green-2: #2f6f5d; --green-soft: #d9e8e0;
+    --card: #fffdf8; --rule: rgba(84, 130, 178, .2); --red-rule: #e48a7f;
+    --pencil: #c0412f; --blue-ink: #24448a; --hl: rgba(250, 222, 90, .75);
+    --serif: "Fraunces", Georgia, serif;
+    --ui: "Figtree", "Helvetica Neue", Arial, sans-serif;
+    --hand: "Caveat", "Bradley Hand", cursive;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--desk); color: var(--ink); font-family: var(--ui); font-size: 15px; -webkit-font-smoothing: antialiased; overflow: hidden;
+    background-image: radial-gradient(var(--mat) 1px, transparent 1.2px); background-size: 22px 22px; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  svg { display: block; }
+
+  /* ---- the app bar ---- */
+  .bar { height: 58px; display: flex; align-items: center; gap: 18px; padding: 0 28px; border-bottom: 1px solid var(--desk-2); background: rgba(227, 232, 227, .9); }
+  .brand { display: flex; align-items: center; gap: 9px; font-family: var(--serif); font-size: 23px; font-weight: 600; color: var(--green); letter-spacing: -.01em; }
+  .course { display: flex; align-items: baseline; gap: 10px; padding-left: 18px; border-left: 1px solid var(--line); }
+  .course b { font-weight: 600; font-size: 15px; }
+  .course span { color: var(--ink-2); font-size: 14px; }
+  .bar .sp { flex: 1; }
+  .style { position: relative; }
+  .style summary { list-style: none; cursor: pointer; color: var(--ink-2); font-size: 14px; display: flex; gap: 6px; align-items: center; padding: 6px 10px; border-radius: 8px; }
+  .style summary::-webkit-details-marker { display: none; }
+  .style summary:hover { background: var(--desk-2); }
+  .style .pop { position: absolute; right: 0; top: 40px; width: 320px; background: var(--card); border-radius: 10px; padding: 14px 16px; z-index: 5;
+    box-shadow: 0 0 0 1px var(--line), 0 18px 34px -16px rgba(20, 40, 30, .4); font-size: 14px; }
+  .style .pop ul { margin: 6px 0 10px; padding-left: 18px; color: var(--ink-2); }
+  .style .pop form { display: flex; gap: 6px; }
+  .style .pop input { flex: 1; border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; font: inherit; min-width: 0; }
+  .style .pop small { color: var(--ink-3); display: block; margin-top: 8px; }
+
+  /* ---- the room: the stage | the review pile ---- */
+  .room { height: calc(100% - 58px); display: grid; grid-template-columns: minmax(0, 1fr) 352px; }
+  .stage { min-height: 0; padding: 30px 40px 24px 56px; display: flex; flex-direction: column; }
+  .stage[data-mode="card"] { justify-content: center; padding-bottom: 56px; }
+  .pile { min-height: 0; border-left: 1px solid var(--desk-2); background: rgba(245, 247, 243, .55); padding: 26px 24px 20px; display: flex; flex-direction: column; }
+
+  .btn { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 20px; border-radius: 22px; font-weight: 600; font-size: 15px; white-space: nowrap; }
+  .btn.go { background: var(--green); color: #f4f1e6; box-shadow: 0 6px 14px -8px rgba(20, 60, 45, .7); }
+  .btn.go:hover:not(:disabled) { background: var(--green-2); }
+  .btn.quiet { color: var(--ink-2); box-shadow: inset 0 0 0 1.5px var(--line); }
+  .btn.quiet:hover { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+  .btn:disabled { opacity: .6; cursor: default; }
+  .busy { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .8s linear infinite; vertical-align: -2px; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .err { color: var(--pencil); background: rgba(192, 65, 47, .08); border-radius: 8px; padding: 9px 12px; font-size: 14px; margin-top: 10px; }
+
+  /* ---- home: the decks ---- */
+  .home h1 { font-family: var(--serif); font-weight: 500; font-size: 36px; letter-spacing: -.015em; margin: 4px 0 4px; }
+  .home .lead { color: var(--ink-2); margin: 0 0 26px; font-size: 15.5px; }
+  .due { display: grid; grid-template-columns: 112px 1fr auto; gap: 22px; align-items: center; padding: 18px 22px; margin-bottom: 28px; border-radius: 14px;
+    background: var(--card); box-shadow: 0 0 0 1px rgba(30, 60, 50, .08), 0 14px 28px -20px rgba(20, 50, 40, .5); }
+  .due .t { font-family: var(--serif); font-size: 24px; font-weight: 500; }
+  .due .s { color: var(--ink-2); margin-top: 3px; }
+  .decks-h { font-family: var(--serif); font-size: 19px; font-weight: 500; margin: 0 0 12px; color: var(--ink-2); }
+  .decks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px 22px; }
+  .lecture { position: relative; text-align: left; height: 150px; padding: 10px 18px 14px; border-radius: 6px; background: var(--card); display: flex; flex-direction: column;
+    box-shadow: 0 0 0 1px rgba(30, 60, 50, .1), 4px 4px 0 -1px var(--card), 4px 4px 0 0 rgba(30, 60, 50, .14), 8px 8px 0 -1px var(--card), 8px 8px 0 0 rgba(30, 60, 50, .12);
+    transition: transform .15s; }
+  .lecture::before { content: ""; position: absolute; left: 0; right: 0; top: 34px; border-top: 1.5px solid var(--red-rule); }
+  .lecture:hover:not(:disabled) { transform: translate(-2px, -2px); }
+  .lecture:disabled { cursor: default; opacity: .7; }
+  .lecture .no { font-size: 12.5px; color: var(--ink-3); font-weight: 600; letter-spacing: .02em; line-height: 16px; }
+  .lecture .name { font-family: var(--serif); font-size: 19px; line-height: 1.2; margin-top: 18px; }
+  .lecture .st { margin-top: auto; font-size: 13px; color: var(--green); display: flex; align-items: center; gap: 6px; }
+  .lecture .st.wait { color: #a7701d; }
+
+  /* ---- a session: one card at a time ---- */
+  .sess-h { width: 860px; max-width: 100%; margin: 0 auto 18px; display: flex; align-items: baseline; gap: 16px; }
+  .sess-h .deck { font-family: var(--serif); font-size: 24px; font-weight: 500; }
+  .sess-h .deck small { font-family: var(--ui); font-size: 14px; color: var(--ink-3); font-weight: 500; margin-right: 8px; }
+  .pips { display: flex; gap: 6px; margin-left: auto; align-items: center; }
+  .pips i { width: 26px; height: 8px; border-radius: 4px; background: var(--desk-2); display: block; }
+  .pips i.cur { background: var(--ink-3); }
+  .pips i.ok { background: var(--green-2); }
+  .pips i.no { background: var(--pencil); }
+  .pips span { margin-left: 8px; font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+  .cardwrap { perspective: 1800px; width: 860px; max-width: 100%; height: 500px; margin: 0 auto; }
+  .flip { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .75s cubic-bezier(.4, .1, .2, 1); }
+  .flip.over { transform: rotateY(180deg); }
+  .flip.deal { animation: deal .5s cubic-bezier(.2, .7, .3, 1); }
+  @keyframes deal { from { transform: translate(60px, 10px) rotate(2deg); opacity: 0; } }
+  .face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 6px; background-color: var(--card);
+    background-image: linear-gradient(var(--red-rule), var(--red-rule)), repeating-linear-gradient(transparent 0 43px, var(--rule) 43px 44px);
+    background-size: 100% 1.5px, 100% calc(100% - 100px); background-position: 0 66px, 0 88px; background-repeat: no-repeat;
+    box-shadow: 0 0 0 1px rgba(30, 60, 50, .08), 0 2px 3px rgba(30, 50, 40, .06), 0 30px 50px -30px rgba(20, 50, 40, .55);
+    padding: 0 48px 0 64px; }
+  .face::before { content: ""; position: absolute; left: 44px; top: 0; bottom: 0; border-left: 1px solid rgba(228, 138, 127, .35); }
+  .face.back { transform: rotateY(180deg); }
+  .face .top { height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 13.5px; color: var(--ink-3); font-weight: 500; }
+  .face .top b { color: var(--ink-2); font-weight: 600; }
+  .face .q { font-family: var(--serif); font-size: 36px; line-height: 44px; font-weight: 500; letter-spacing: -.01em; margin: 22px 0 0; text-wrap: balance; }
+  .face .write { position: absolute; left: 64px; right: 48px; bottom: 34px; display: flex; align-items: flex-end; gap: 12px; }
+  .face .write label { font-size: 13px; color: var(--ink-3); white-space: nowrap; padding-bottom: 9px; }
+  .face .write input { flex: 1; border: 0; border-bottom: 1.5px solid var(--ink-3); background: transparent; outline: none; padding: 0 2px 2px;
+    font-family: var(--hand); font-size: 38px; color: var(--blue-ink); min-width: 0; }
+  .face .write input:focus { border-bottom-color: var(--blue-ink); }
+  .face .write input:disabled { color: var(--blue-ink); -webkit-text-fill-color: var(--blue-ink); opacity: 1; }
+  .lastnote { position: absolute; right: 34px; top: 96px; width: 200px; transform: rotate(-3deg); font-family: var(--hand); color: var(--pencil); font-size: 27px; line-height: 1.05; text-align: right; }
+  .lastnote small { display: block; font-size: 19px; opacity: .9; margin-bottom: 2px; }
+  .face.front.aimed .q { padding-right: 220px; }
+
+  .stamp { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; letter-spacing: .12em; padding: 5px 11px; border-radius: 4px; border: 2px solid currentColor; transform: rotate(-2deg); }
+  .stamp.ok { color: var(--green-2); }
+  .stamp.no { color: var(--pencil); }
+  .back .ans { margin-top: 20px; display: flex; align-items: baseline; gap: 14px; padding-right: 230px; }
+  .back .ans span { font-size: 13.5px; color: var(--ink-3); font-weight: 500; white-space: nowrap; }
+  .back .ans b { font-family: var(--serif); font-weight: 500; font-size: 34px; line-height: 44px; }
+  .back .said { position: absolute; right: 36px; top: 88px; width: 220px; transform: rotate(-4deg); font-family: var(--hand); color: var(--pencil); font-size: 28px; line-height: 1; text-align: right; }
+  .back .said s { text-decoration-thickness: 2px; }
+  .back .said small { display: block; font-size: 20px; margin-top: 4px; }
+  .back .from { margin-top: 22px; font-size: 13px; color: var(--ink-3); font-weight: 600; display: flex; gap: 7px; align-items: center; }
+  .back blockquote { margin: 8px 0 0; font-family: var(--serif); font-size: 20px; line-height: 30px; color: var(--ink); max-height: 180px; overflow: hidden; max-width: 700px; }
+  .back blockquote mark { background: linear-gradient(transparent 12%, var(--hl) 12%, var(--hl) 92%, transparent 92%); color: inherit; padding: 0 1px; }
+  .back .tip { position: absolute; left: 64px; right: 48px; bottom: 26px; font-family: var(--hand); color: var(--green-2); font-size: 28px; line-height: 1.1; }
+  .controls { width: 860px; max-width: 100%; margin: 22px auto 0; display: flex; align-items: center; gap: 14px; }
+  .controls .hint { color: var(--ink-3); font-size: 14.5px; }
+  .controls .btn { margin-left: auto; }
+
+  .working { width: 860px; max-width: 100%; height: 500px; margin: 0 auto; border-radius: 6px; display: grid; place-content: center; justify-items: center; gap: 14px; text-align: center;
+    border: 2px dashed var(--line); color: var(--ink-2); }
+  .working .shuffle { position: relative; width: 120px; height: 80px; margin-bottom: 8px; }
+  .working .shuffle i { position: absolute; inset: 0; border-radius: 4px; background: var(--card); box-shadow: 0 0 0 1px rgba(30, 60, 50, .14), 0 6px 12px -8px rgba(20, 50, 40, .5); animation: shuffle 1.6s ease-in-out infinite; }
+  .working .shuffle i::before { content: ""; position: absolute; left: 0; right: 0; top: 18px; border-top: 1.2px solid var(--red-rule); }
+  .working .shuffle i:nth-child(2) { animation-delay: .2s; } .working .shuffle i:nth-child(3) { animation-delay: .4s; }
+  @keyframes shuffle { 0%, 100% { transform: translate(0, 0) rotate(0); } 40% { transform: translate(34px, -6px) rotate(6deg); } 70% { transform: translate(-20px, 4px) rotate(-4deg); } }
+  .working .w { font-family: var(--serif); font-size: 23px; color: var(--ink); }
+  .working .s { font-size: 14.5px; }
+
+  /* ---- the end of a session ---- */
+  .done { width: 100%; max-width: 960px; margin: 0 auto; display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 44px; align-items: start; }
+  .score .big { font-family: var(--serif); font-size: 80px; font-weight: 500; line-height: 1; letter-spacing: -.02em; font-variant-numeric: lining-nums; }
+  .score .big small { font-size: 42px; color: var(--ink-3); }
+  .score .of { color: var(--ink-2); margin: 8px 0 22px; font-size: 16px; }
+  .minis { display: grid; gap: 9px; }
+  .mini { display: grid; grid-template-columns: 20px 1fr; gap: 8px; font-size: 14.5px; line-height: 1.35; color: var(--ink-2); }
+  .mini b { font-weight: 700; padding-top: 1px; } .mini .ok { color: var(--green-2); } .mini .no { color: var(--pencil); }
+  .note { position: relative; background: var(--card); border-radius: 4px; padding: 22px 26px 20px 30px; transform: rotate(.5deg); margin-top: 14px;
+    box-shadow: 0 0 0 1px rgba(30, 60, 50, .1), 0 18px 34px -22px rgba(20, 50, 40, .55); }
+  .note::after { content: ""; position: absolute; top: -11px; left: 50%; width: 96px; height: 24px; margin-left: -48px; background: rgba(218, 206, 160, .72); transform: rotate(-2deg); }
+  .note .h { font-family: var(--serif); font-size: 21px; font-weight: 500; }
+  .note .h span { font-family: var(--ui); font-size: 13.5px; color: var(--ink-3); font-weight: 500; margin-left: 8px; }
+  .note pre { margin: 12px 0 0; white-space: pre-wrap; font: 16px/1.6 var(--ui); color: var(--ink); }
+  .note .state { margin-top: 14px; font-size: 14.5px; color: var(--ink-2); display: flex; gap: 8px; align-items: center; }
+  .note .state.ok { color: var(--green-2); font-weight: 600; }
+
+  /* ---- the review pile ---- */
+  .pile-h { display: flex; align-items: center; gap: 8px; }
+  .pile-h h2 { margin: 0; font-family: var(--serif); font-weight: 500; font-size: 25px; letter-spacing: -.01em; }
+  .pile-h button { margin-left: auto; width: 32px; height: 32px; border-radius: 8px; color: var(--ink-3); display: grid; place-items: center; }
+  .pile-h button:hover { background: var(--desk-2); color: var(--ink); }
+  .pilecount { color: var(--ink-2); font-size: 14.5px; margin: 4px 0 18px; font-variant-numeric: tabular-nums; display: flex; gap: 8px; align-items: center; }
+  .stack { display: grid; gap: 14px; overflow: auto; padding: 6px 6px 12px; margin: -6px; align-content: start; }
+  .spot { position: relative; background: var(--card); border-radius: 4px; padding: 12px 16px 13px 24px; transform: rotate(var(--tilt, 0deg));
+    box-shadow: 0 0 0 1px rgba(30, 60, 50, .1), 0 10px 20px -16px rgba(20, 50, 40, .55); animation: drop .45s cubic-bezier(.2, .7, .3, 1); }
+  @keyframes drop { from { opacity: 0; transform: translate(-40px, -10px) rotate(-4deg); } }
+  .spot::before { content: ""; position: absolute; left: 13px; top: 0; bottom: 0; border-left: 1px solid rgba(228, 138, 127, .55); }
+  .spot .name { font-family: var(--serif); font-size: 18px; font-weight: 500; line-height: 1.2; padding-right: 78px; }
+  .spot .why { font-size: 13.5px; color: var(--ink-2); line-height: 1.4; margin-top: 4px; }
+  .spot .said { font-family: var(--hand); color: var(--pencil); font-size: 23px; line-height: 1.05; margin-top: 5px; }
+  .spot .tally { position: absolute; right: 14px; top: 13px; font-size: 12.5px; color: var(--pencil); font-weight: 600; }
+  .spot.pending { background: rgba(255, 253, 248, .5); box-shadow: none; outline: 1.5px dashed var(--line); }
+  .spot.pending .tally { color: var(--ink-3); font-weight: 500; }
+  .spot.fixed .name { color: var(--ink-2); }
+  .spot.fixed .stamp { position: absolute; right: 12px; top: 11px; font-size: 11px; padding: 3px 7px; letter-spacing: .1em; }
+  .pile-sub { font-family: var(--serif); font-size: 16px; color: var(--ink-3); margin: 8px 0 -4px; }
+  .empty { display: grid; justify-items: center; text-align: center; gap: 10px; color: var(--ink-3); padding: 34px 10px; font-size: 14.5px; line-height: 1.45; }
+  .empty svg { color: var(--ink-3); }
+  .empty .t { font-family: var(--serif); font-size: 19px; color: var(--ink-2); }
+  .colophon { margin-top: auto; padding-top: 14px; font-size: 12px; color: var(--ink-3); line-height: 1.5; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <svg width="28" height="24" viewBox="0 0 28 24" fill="none" aria-hidden="true">
+      <rect x="6.5" y="1.5" width="20" height="14" rx="1.6" fill="#fffdf8" stroke="#24584a" stroke-width="1.4" transform="rotate(8 16.5 8.5)"/>
+      <rect x="1.5" y="6.5" width="20" height="14" rx="1.6" fill="#fffdf8" stroke="#24584a" stroke-width="1.4"/>
+      <path d="M1.5 10.5h20" stroke="#e48a7f" stroke-width="1.2"/><path d="M5 14.5h12M5 17.5h8" stroke="#24584a" stroke-width="1.1" stroke-linecap="round" opacity=".55"/>
+    </svg>
+    Cue
+  </div>
+  <div class="course"><b>BIO 110</b><span>Introductory Cell Biology</span></div>
+  <div class="sp"></div>
+  <details class="style" id="prefbox">
+    <summary><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>Study style</summary>
+    <div class="pop">
+      <b>How you like to learn</b>
+      <ul id="prefs"></ul>
+      <form id="prefform"><input id="pref" placeholder="e.g. Examples before definitions" autocomplete="off"><button class="btn quiet" id="prefsave" style="height:34px;padding:0 12px">Save</button></form>
+      <small>Cards and tips follow it.</small>
+    </div>
+  </details>
+</header>
+
+<main class="room">
+  <section class="stage" id="stage"></section>
+  <aside class="pile" id="pile">
+    <div class="pile-h"><h2>Review pile</h2>
+      <button id="refresh" type="button" title="Check the pile again">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+      </button></div>
+    <div class="pilecount" id="pilecount"><span class="busy"></span> Gathering your pile…</div>
+    <div class="stack" id="weak"></div>
+    <p class="colophon" id="colophon"></p>
+  </aside>
+</main>
+
+<script type="module">
+  import { $, el, api, stream } from "/kit/kit.js";
+
+  let course = [], weak = { weak_spots: [] }, quiz = null, results = [], idx = 0, pending = [], loaded = false;
+  const stage = $("#stage");
+  const show = (...nodes) => { stage.dataset.mode = ""; stage.replaceChildren(...nodes); };
+  const plain = (s) => String(s || "").replace(/^Lecture \d+:\s*/, "");
+  const lectureNo = (s) => (String(s || "").match(/Lecture (\d+)/) || [])[1];
+  // the notes are Markdown; the quote shows their words, not their markup
+  const unmark = (s) => String(s || "").replace(/^#+\s*/gm, "").replace(/\*\*([^*]+)\*\*/g, "$1").replace(/`([^`]+)`/g, "$1").replace(/\s+/g, " ").trim();
+  const failed = (where, e) => where.append(el("div", { class: "err" }, e.message || String(e)));
+  const WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+  const Word = (n) => { const w = WORDS[n] || String(n); return w[0].toUpperCase() + w.slice(1); };
+  const SVG = (markup, w, h, vb) => { const t = document.createElement("template");
+    t.innerHTML = `<svg width="${w}" height="${h}" viewBox="${vb}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${markup}</svg>`; return t.content.firstChild; };
+  const BOOK = () => SVG('<path d="M4 5.5C6.5 4.3 9.5 4.3 12 6c2.5-1.7 5.5-1.7 8-.5V19c-2.5-1.2-5.5-1.2-8 .5-2.5-1.7-5.5-1.7-8-.5z"/><path d="M12 6v13.5"/>', 15, 15, "0 0 24 24");
+  const CROSS = () => SVG('<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>', 16, 16, "0 0 24 24");
+  const CHECK = () => SVG('<path d="M5 12.5l4.5 4.5L19 7.5"/>', 16, 16, "0 0 24 24");
+  // a little stack of cards: the pile on the home screen
+  const STACK = (n) => SVG(`<g stroke="#24584a" stroke-width="1.3">
+      <rect x="22" y="8" width="72" height="46" rx="3" fill="#fffdf8" transform="rotate(9 58 31)"/>
+      <rect x="16" y="14" width="72" height="46" rx="3" fill="#fffdf8" transform="rotate(-5 52 37)"/>
+      <rect x="18" y="18" width="72" height="46" rx="3" fill="#fffdf8"/></g>
+      <path d="M18 29h72" stroke="#e48a7f" stroke-width="1.3"/>
+      <text x="54" y="58" text-anchor="middle" font-family="Caveat, cursive" font-size="30" font-weight="600" fill="#c0412f" stroke="none">${n}</text>`, 112, 76, "0 0 112 76");
+  const TRAY = () => SVG('<path d="M14 40h68l-8 16H22z" fill="#fffdf8"/><path d="M24 40V22h48v18" stroke-dasharray="3 4"/><path d="M14 40l8-8M82 40l-8-8" opacity=".6"/>', 96, 64, "0 0 96 64");
+
+  // ---- the course, and the review pile from memory -------------------------------------------
+  async function loadCourse() {
+    const data = await api("/api/course");
+    if (data.error) throw new Error(data.error);
+    course = data.documents;
+    renderPrefs(data.preferences || []);
+  }
+  async function loadWeak() {
+    $("#pilecount").replaceChildren(el("span", { class: "busy" }), " Gathering your pile…");
+    try {
+      weak = await api("/api/weak-spots");
+      pending = [];
+      loaded = true;
+      renderWeak();
+    } catch (e) { $("#pilecount").replaceChildren(); failed($("#pilecount"), e); }
+  }
+  const tilt = (i) => `--tilt:${[-0.8, 0.7, -0.4, 0.9, -0.6][i % 5]}deg`;
+  function spotCard(s, i) {
+    if (s.fixed) return el("div", { class: "spot fixed", style: tilt(i) },
+      el("span", { class: "stamp ok" }, "LEARNED"),
+      el("div", { class: "name" }, s.concept),
+      el("div", { class: "why" }, s.confusion));
+    return el("div", { class: "spot", style: tilt(i) },
+      el("span", { class: "tally" }, s.misses > 1 ? `missed ${s.misses}×` : "missed once"),
+      el("div", { class: "name" }, s.concept),
+      s.said ? el("div", { class: "said" }, `you said “${s.said}”`) : null,
+      el("div", { class: "why" }, s.confusion));
+  }
+  function renderWeak() {
+    const open = weak.weak_spots.filter((s) => !s.fixed), fixed = weak.weak_spots.filter((s) => s.fixed);
+    const toReview = open.length + pending.length;
+    $("#pilecount").textContent = !loaded ? "" : `${toReview} to review · ${fixed.length} learned`;
+    const cards = [
+      ...pending.map((p, i) => el("div", { class: "spot pending", style: tilt(i) },
+        el("span", { class: "tally" }, "this session"),
+        el("div", { class: "name" }, p.concept ? p.concept[0].toUpperCase() + p.concept.slice(1) : "Missed card"),
+        el("div", { class: "said" }, `you said “${p.given || "—"}”`),
+        el("div", { class: "why" }, `The notes say: ${p.answer}`))),
+      ...open.map(spotCard),
+    ];
+    if (fixed.length) cards.push(el("div", { class: "pile-sub" }, "Learned"), ...fixed.map(spotCard));
+    $("#weak").replaceChildren(...(cards.length ? cards : [el("div", { class: "empty" }, TRAY(),
+      el("div", { class: "t" }, "Nothing to review"), "Cards you miss land here, with what you said.")]));
+    if (!quiz && !$("#done")) home();
+  }
+  $("#refresh").addEventListener("click", loadWeak);
+
+  // ---- home: the decks, and the pile to review ------------------------------------------------
+  function home() {
+    const open = weak.weak_spots.filter((s) => !s.fixed).length;
+    show(el("div", { class: "home" },
+      el("h1", {}, "Cell Biology"),
+      el("p", { class: "lead" }, `${Word(course.length)} lecture decks. Every card is written from the lecture notes.`),
+      open ? el("div", { class: "due", id: "due" }, STACK(open),
+        el("div", {}, el("div", { class: "t" }, "Review these first"),
+          el("div", { class: "s" }, `${Word(open)} card${open > 1 ? "s" : ""} you missed last time, dealt as a fresh deck.`)),
+        el("button", { class: "btn go", id: "review", type: "button", onclick: startReview }, "Start review")) : null,
+      el("div", { class: "decks-h" }, "Decks"),
+      el("div", { class: "decks" }, ...course.map((d) =>
+        el("button", { class: "lecture", type: "button", disabled: !d.ready, "data-title": d.title, onclick: () => startQuiz(d.title) },
+          el("span", { class: "no" }, lectureNo(d.title) ? `LECTURE ${lectureNo(d.title)}` : "LECTURE"),
+          el("span", { class: "name" }, plain(d.title)),
+          el("span", { class: "st" + (d.ready ? "" : " wait") }, d.ready ? [BOOK(), d.learned ? "Notes in memory" : "Notes stored"] : [el("span", { class: "busy" }), "Reading the notes…"]))))));
+  }
+
+  // ---- a session, one card at a time ------------------------------------------------------------
+  function dealing(title, line) {
+    show(el("div", { class: "working", id: "dealing" },
+      el("div", { class: "shuffle" }, el("i"), el("i"), el("i")),
+      el("div", { class: "w" }, title), el("div", { class: "s", id: "dealline" }, line)));
+    stage.dataset.mode = "card";
+  }
+  async function loadQuiz(path, body, title, first) {
+    quiz = null;
+    dealing(title, first);
+    let next = null;
+    try {
+      await stream(path, body, (ev) => {
+        if (ev.type === "status") $("#dealline").textContent = ev.text;
+        else if (ev.type === "weak") { weak = ev; loaded = true; }
+        else if (ev.type === "quiz") next = ev;
+      });
+    } catch (e) {
+      show(el("div", {}, el("div", { class: "err" }, e.message), el("button", { class: "btn quiet", style: "margin-top:14px", onclick: home }, "Back to decks")));
+      return;
+    }
+    if (!next || !next.questions.length) { renderWeak(); return home(); }
+    quiz = next; results = []; idx = 0;
+    renderWeak();
+    card();
+  }
+  const startQuiz = (title) => loadQuiz("/api/quiz", { topic: title, count: 3 }, `Dealing ${plain(title)}`, "Reading the lecture notes");
+  const startReview = () => loadQuiz("/api/review", { count: 4 }, "Dealing your review deck", "Going through your pile");
+
+  // mark the answer's words in the lecture line
+  function quoteWith(passage, answer) {
+    const text = unmark(passage);
+    const clip = text.length > 330 ? text.slice(0, 327).trimEnd() + "…" : text;
+    const q = el("blockquote", { id: "line" });
+    const a = String(answer || "").trim(), low = clip.toLowerCase();
+    let at = a ? low.indexOf(a.toLowerCase()) : -1, len = a.length;
+    if (at < 0) {  // the longest answer word that is in the line
+      const w = a.split(/[^A-Za-z0-9⁺+-]+/).filter((x) => x.length > 3).sort((x, y) => y.length - x.length).find((x) => low.includes(x.toLowerCase()));
+      if (w) { at = low.indexOf(w.toLowerCase()); len = w.length; }
+    }
+    if (at < 0) q.append(clip);
+    else q.append(clip.slice(0, at), el("mark", {}, clip.slice(at, at + len)), clip.slice(at + len));
+    return q;
+  }
+
+  function pips() {
+    return el("div", { class: "pips", id: "pips" }, ...quiz.questions.map((_, i) =>
+      el("i", { class: results[i] ? (results[i].correct ? "ok" : "no") : i === idx ? "cur" : "" })),
+      el("span", {}, `Card ${idx + 1} of ${quiz.questions.length}`));
+  }
+
+  function card() {
+    const q = quiz.questions[idx];
+    // for the video's simulated student: the card being asked, with the notes' answer and the
+    // quiz writer's typical wrong answer (both already sent to this page with the deck)
+    window.__current = { answer: q.answer, trap: q.trap };
+    const review = quiz.topic === "Weak spots";
+    const said = q.target && q.target.said;
+    const input = el("input", { id: "answer", autocomplete: "off", spellcheck: "false" });
+    const front = el("div", { class: "face front" + (said ? " aimed" : "") },
+      el("div", { class: "top" }, el("b", {}, review ? `For your review pile · ${q.target.concept}` : `Lecture ${lectureNo(q.source) || ""}`), el("span", {}, review ? "" : q.concept)),
+      el("p", { class: "q", id: "question" }, q.question),
+      said ? el("div", { class: "lastnote", id: "lastnote" }, el("small", {}, "last time you said"), `“${said}”`) : null,
+      el("form", { class: "write", id: "write" }, el("label", { for: "answer" }, "Your answer"), input));
+    const back = el("div", { class: "face back", id: "back" });
+    const flip = el("div", { class: "flip deal", id: "flip" }, front, back);
+    const go = el("button", { class: "btn go", id: "check", type: "button" }, "Flip");
+    const hint = el("span", { class: "hint", id: "hint" }, "Write it, then flip the card.");
+    const controls = el("div", { class: "controls" }, hint, go);
+    show(el("div", { class: "sess-h" }, el("div", { class: "deck" }, el("small", {}, review ? "" : "Deck"), review ? "Review deck" : quiz.topic), pips()),
+      el("div", { class: "cardwrap", id: "card" }, flip), controls);
+    stage.dataset.mode = "card";
+    const submit = async (e) => {
+      e?.preventDefault();
+      if (go.disabled) return;
+      go.disabled = true; input.disabled = true;
+      go.replaceChildren(el("span", { class: "busy" }), "Checking");
+      try {
+        const r = await api("/api/check", { ...q, given: input.value });
+        results[idx] = r;
+        const last = idx === quiz.questions.length - 1;
+        back.replaceChildren(el("div", { id: "verdict" },
+          el("div", { class: "top" }, el("span", { class: `stamp ${r.correct ? "ok" : "no"}` }, r.correct ? "RIGHT" : "NOT QUITE"), el("span", {}, q.concept)),
+          el("div", { class: "ans" }, el("span", {}, "The notes say"), el("b", {}, q.answer)),
+          !r.correct ? el("div", { class: "said", id: "saidnote" }, el("s", {}, input.value.trim() || "(blank)"), el("small", {}, "→ review pile")) : null,
+          r.correct && r.fixed ? el("div", { class: "said", id: "saidnote", style: "color:var(--green-2)" }, "learned", el("small", {}, "off the pile")) : null,
+          el("div", { class: "from" }, BOOK(), q.source),
+          quoteWith(q.passage, q.answer),
+          r.feedback ? el("div", { class: "tip" }, r.feedback) : null));
+        flip.classList.remove("deal");
+        flip.classList.add("over");
+        $("#pips").replaceWith(pips());
+        if (!r.correct) setTimeout(() => { pending.push({ concept: q.concept, given: input.value.trim(), answer: q.answer }); renderWeak(); }, 900);
+        hint.textContent = r.correct ? "" : "It goes to your review pile.";
+        go.replaceWith(el("button", { class: "btn go", id: "next", type: "button", onclick: () => { if (last) finish(); else { idx++; card(); } } },
+          last ? "Finish session" : "Next card"));
+      } catch (err) {
+        input.disabled = false; go.disabled = false; go.textContent = "Flip";
+        failed(controls, err);
+      }
+    };
+    go.addEventListener("click", submit);
+    front.querySelector("form").addEventListener("submit", submit);
+    input.focus();
+  }
+
+  // ---- the end of a session: one note to memory --------------------------------------------------
+  async function finish() {
+    const right = results.filter((r) => r.correct).length;
+    const review = quiz.topic === "Weak spots";
+    const state = el("div", { class: "state", id: "savestate", "data-review": review ? "1" : null }, el("span", { class: "busy" }), "Putting it in your study memory…");
+    const text = el("pre", { id: "notetext" }, "");
+    show(el("div", { class: "done", id: "done" },
+      el("div", { class: "score" },
+        el("div", { class: "big" }, String(right), el("small", {}, ` / ${results.length}`)),
+        el("div", { class: "of" }, review ? "Review deck" : quiz.topic),
+        el("div", { class: "minis" }, ...quiz.questions.map((q, i) => el("div", { class: "mini" },
+          el("b", { class: results[i].correct ? "ok" : "no" }, results[i].correct ? CHECK() : CROSS()), el("span", {}, q.question)))),
+        el("button", { class: "btn quiet", id: "back", style: "margin-top:24px", onclick: () => { quiz = null; home(); } }, "Back to decks")),
+      el("div", { class: "note", id: "saved" },
+        el("div", { class: "h" }, "Session note", el("span", {}, "what Cue keeps from today")), text, state)));
+    stage.dataset.mode = "card";
+    const body = { topic: quiz.topic, questions: quiz.questions.map((q) => ({ ...q, given: "" })), results };
+    quiz = null;
+    try {
+      await stream("/api/finish", body, (ev) => {
+        if (ev.type === "saving") text.textContent = ev.text;
+        else if (ev.type === "waiting") state.replaceChildren(el("span", { class: "busy" }), "Waiting for the last note to settle…");
+        else if (ev.type === "saved") {
+          if (ev.learning && ev.document_id) {
+            state.replaceChildren(el("span", { class: "busy" }), "Membase is learning it…");
+            waitLearned(ev.document_id, ev, state);
+          } else learned(state);
+        }
+      });
+    } catch (e) { failed(state, e); }
+  }
+  function learned(state) {
+    state.className = "state ok";
+    state.replaceChildren(CHECK(), state.dataset.review ? "Learned. Your review pile is updated." : "Learned. The cards you missed come back next session.");
+    afterLearned();
+  }
+  async function waitLearned(id, saved, state, tries = 0) {
+    try {
+      const { learned: ok, done, run_id } = await api(`/api/learning/${encodeURIComponent(id)}`);
+      if (done && ok) return learned(state);
+      if (done && !saved.retried) {
+        // The service does not retry a failed learning run; write it once more.
+        state.replaceChildren(el("span", { class: "busy" }), `Learning run ${run_id} failed; writing it again…`);
+        return rewrite({ ...saved, retried: true }, state);
+      }
+      if (done) { state.textContent = `Learning run ${run_id} failed, so this session was not learned.`; return; }
+    } catch (e) { return failed(state, e); }
+    if (tries > 40) { state.textContent = "Still learning after 10 minutes. Check the pile again later."; return; }
+    setTimeout(() => waitLearned(id, saved, state, tries + 1), 15000);
+  }
+  async function rewrite(saved, state) {
+    try {
+      await stream("/api/rewrite", { text: saved.text, topic: saved.topic }, (ev) => {
+        if (ev.type === "saved") waitLearned(ev.document_id, { ...ev, retried: saved.retried }, state);
+      });
+    } catch (e) { failed(state, e); }
+  }
+  async function afterLearned() {
+    await loadCourse().catch(() => {});
+    await loadWeak();
+  }
+
+  // ---- how you like to learn ------------------------------------------------------------------
+  function renderPrefs(list) {
+    $("#prefs").replaceChildren(...(list.length ? list.map((p) => el("li", {}, p)) : [el("li", {}, "Nothing yet.")]));
+  }
+  $("#prefform").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = $("#pref").value.trim();
+    if (!text) return;
+    $("#prefsave").disabled = true;
+    try { renderPrefs((await api("/api/preferences", { text })).preferences); $("#pref").value = ""; }
+    catch (err) { failed($("#prefs"), err); }
+    finally { $("#prefsave").disabled = false; }
+  });
+
+  api("/api/info").then((i) => { $("#colophon").textContent = `Your study memory is kept by Membase (${i.mode === "local" ? "local engine" : "hosted"}).`; }).catch(() => {});
+  loadCourse().then(home).catch((e) => failed(stage, e));
+  loadWeak();
+</script>
+</body>
+</html>

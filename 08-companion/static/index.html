@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Line · Saltmarsh After Dark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400;1,9..144,500&family=Figtree:wght@400;500;600;700&family=Caveat:wght@400;500;600&display=swap">
+<style>
+  /* Night Line: the listener line of a late-night radio show. Wren's studio on the left, the
+     call in a phone in the middle, and on the right the notebook she keeps on each caller. */
+  :root {
+    --sky: #0b1220; --sky-2: #121c30; --deep: #0e1626; --glass: rgba(20, 30, 50, .72);
+    --ink: #eef0f5; --ink-2: #aab3c5; --ink-3: #6f7a90; --line: rgba(170, 185, 215, .14);
+    --sodium: #f3b562; --sodium-2: #e89a3c; --onair: #ff5a47; --sea: #5fb7a8;
+    --wren: #1c2840; --paper: #f6efdf; --paper-2: #ece2cb; --pen: #233a63; --pencil: #7c7466; --rule: rgba(80, 120, 170, .2); --margin: #d0705f;
+    --ui: "Figtree", "Helvetica Neue", Arial, sans-serif; --show: "Fraunces", Georgia, serif; --hand: "Caveat", "Segoe Print", cursive;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: radial-gradient(ellipse at 50% -10%, #1b2742 0%, var(--sky) 55%, #070b14 100%); color: var(--ink); font-family: var(--ui); font-size: 15px; -webkit-font-smoothing: antialiased; overflow: hidden; }
+  button, input { font: inherit; color: inherit; }
+  button { background: none; border: 0; padding: 0; cursor: pointer; }
+  svg { display: block; }
+  [hidden] { display: none !important; }
+
+  /* the town at night, behind everything */
+  .town { position: fixed; left: 0; right: 0; bottom: 0; height: 300px; pointer-events: none; }
+  .town svg { width: 100%; height: 100%; }
+  .stars { position: fixed; inset: 0 0 40% 0; pointer-events: none; opacity: .7;
+    background-image: radial-gradient(1px 1px at 12% 18%, #fff8, transparent), radial-gradient(1px 1px at 31% 9%, #fff6, transparent),
+      radial-gradient(1.2px 1.2px at 58% 22%, #fff7, transparent), radial-gradient(1px 1px at 77% 12%, #fff5, transparent),
+      radial-gradient(1px 1px at 88% 31%, #fff6, transparent), radial-gradient(1px 1px at 44% 35%, #fff4, transparent),
+      radial-gradient(1.3px 1.3px at 6% 40%, #fff6, transparent), radial-gradient(1px 1px at 66% 4%, #fff5, transparent); }
+  .beam { animation: beam 8s ease-in-out infinite; transform-origin: 1236px 112px; }
+  @keyframes beam { 0%, 100% { opacity: .35; } 50% { opacity: .7; } }
+
+  .room { position: relative; height: 100%; display: grid; grid-template-columns: 318px 412px 372px; gap: 0 58px; justify-content: center; align-items: start; padding-top: 38px; }
+
+  /* ---- the studio: the show, the on-air light, who is calling ------------------------------ */
+  .studio { padding-top: 6px; }
+  .show .town-name { font-family: var(--show); font-style: italic; font-size: 19px; color: var(--sodium); }
+  .show h1 { font-family: var(--show); font-weight: 600; font-size: 46px; line-height: .98; margin: 2px 0 10px; letter-spacing: -.01em; }
+  .show .freq { color: var(--ink-2); font-size: 14px; display: flex; gap: 10px; align-items: center; }
+  .show .freq b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .dial { margin: 22px 0 6px; position: relative; height: 40px; border-radius: 8px; background: linear-gradient(180deg, #0d1424, #111a2c); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+  .dial .ticks { position: absolute; left: 12px; right: 12px; top: 7px; height: 12px; background: repeating-linear-gradient(90deg, rgba(170,185,215,.4) 0 1px, transparent 1px 9px); }
+  .dial .ticks::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, rgba(170,185,215,.7) 0 1px, transparent 1px 45px); }
+  .dial .needle { position: absolute; top: 4px; bottom: 4px; left: 63%; width: 2px; border-radius: 2px; background: var(--onair); box-shadow: 0 0 10px var(--onair); }
+  .dial .nums { position: absolute; left: 8px; right: 8px; bottom: 4px; display: flex; justify-content: space-between; font-size: 9.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .onair { margin-top: 18px; display: inline-flex; align-items: center; gap: 10px; padding: 9px 16px 9px 12px; border-radius: 10px; border: 1.5px solid rgba(255, 90, 71, .25); color: rgba(255, 140, 120, .45); font-family: var(--show); font-style: italic; font-size: 20px; transition: all .4s; }
+  .onair i { width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+  .onair.live { border-color: var(--onair); color: #ffd9d2; background: rgba(255, 90, 71, .14); box-shadow: 0 0 22px -2px rgba(255, 90, 71, .55), inset 0 0 14px rgba(255, 90, 71, .25); text-shadow: 0 0 8px rgba(255, 90, 71, .8); }
+  .onair.live i { background: var(--onair); box-shadow: 0 0 10px var(--onair); animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .callers-h { font-family: var(--show); font-style: italic; color: var(--ink-2); font-size: 17px; margin: 34px 0 10px; }
+  .callers { display: grid; gap: 8px; }
+  .person { display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; text-align: left; padding: 10px 14px 10px 10px; border-radius: 14px; border: 1px solid var(--line); background: rgba(14, 22, 38, .55); transition: border-color .2s, background .2s; }
+  .person:hover { border-color: rgba(243, 181, 98, .4); }
+  .person.on { border-color: var(--sodium); background: rgba(243, 181, 98, .1); }
+  .person .av { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 16px; color: #0e1626; }
+  .person .n { font-weight: 600; font-size: 16px; }
+  .person .b { color: var(--ink-2); font-size: 13px; margin-top: 1px; }
+  .person .line { font-size: 12px; color: var(--ink-3); text-align: right; }
+  .person.on .line { color: var(--sodium); }
+  .studio .small { margin-top: 26px; font-size: 12px; line-height: 1.55; color: var(--ink-3); max-width: 300px; }
+
+  /* ---- the phone ------------------------------------------------------------------------------ */
+  .phone { position: relative; height: 776px; border-radius: 44px; background: #05080f; padding: 10px; box-shadow: 0 0 0 1.5px #2a3550, 0 40px 80px -30px rgba(0, 0, 0, .8), 0 0 60px -20px rgba(243, 181, 98, .15); }
+  .screen { height: 100%; border-radius: 35px; overflow: hidden; display: flex; flex-direction: column; background: linear-gradient(180deg, #111a2d 0%, #0d1424 100%); position: relative; }
+  .head { display: grid; grid-template-columns: 50px 1fr auto; gap: 11px; align-items: center; padding: 22px 16px 14px 18px; border-bottom: 1px solid var(--line); background: rgba(10, 16, 28, .6); }
+  .head .who { font-weight: 700; font-size: 17px; display: flex; align-items: center; gap: 7px; }
+  .head .st { font-size: 12.5px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+  .head .st i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); }
+  .head .st.live i { background: var(--onair); box-shadow: 0 0 8px var(--onair); animation: pulse 1.6s ease-in-out infinite; }
+  .wren { width: 50px; height: 50px; border-radius: 50%; overflow: hidden; box-shadow: 0 0 0 2px rgba(243, 181, 98, .55); }
+  .signoff { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 16px; background: rgba(255, 255, 255, .06); border: 1px solid var(--line); font-size: 13px; font-weight: 600; color: var(--ink-2); }
+  .signoff:hover:not(:disabled) { color: var(--ink); border-color: rgba(243, 181, 98, .5); }
+  .signoff:disabled { opacity: .45; cursor: default; }
+  .chat { flex: 1; overflow-y: auto; padding: 14px 14px 10px; display: flex; flex-direction: column; gap: 8px; scrollbar-width: none; }
+  .day { align-self: center; font-size: 11.5px; color: var(--ink-3); padding: 4px 10px; border-radius: 10px; background: rgba(255, 255, 255, .04); margin: 4px 0 6px; }
+  .msg { max-width: 82%; padding: 9px 13px 10px; border-radius: 18px; line-height: 1.42; font-size: 15px; white-space: pre-wrap; animation: rise .25s ease-out; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+  .msg.assistant { align-self: flex-start; background: #1e2a44; border-bottom-left-radius: 6px; color: #e9ecf3; }
+  .msg.user { align-self: flex-end; background: linear-gradient(180deg, #f6be6e, #eda651); color: #241606; border-bottom-right-radius: 6px; }
+  .typing { display: inline-flex; gap: 4px; padding: 4px 2px; }
+  .typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-2); animation: dot 1.1s infinite; }
+  .typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
+  @keyframes dot { 0%, 60%, 100% { opacity: .25; transform: none; } 30% { opacity: 1; transform: translateY(-3px); } }
+  .typing-l { font-size: 12.5px; color: var(--ink-3); font-style: italic; margin-left: 6px; }
+  /* a page torn from her notebook, under what she said */
+  .slip { align-self: flex-start; max-width: 84%; margin: -2px 0 4px 6px; background: var(--paper); color: var(--pen); border-radius: 3px 3px 3px 10px; padding: 7px 12px 9px; transform: rotate(-1.2deg); box-shadow: 0 6px 16px -8px rgba(0, 0, 0, .7);
+    background-image: repeating-linear-gradient(transparent 0 23px, var(--rule) 23px 24px); background-position: 0 6px; }
+  .slip .k { font-family: var(--ui); font-size: 11.5px; color: var(--pencil); display: flex; align-items: center; gap: 5px; }
+  .slip .t { font-family: var(--hand); font-size: 20px; line-height: 24px; }
+  .group { display: flex; flex-direction: column; gap: 8px; padding-bottom: 6px; }
+  .composer { display: flex; gap: 8px; align-items: center; padding: 10px 12px 16px; border-top: 1px solid var(--line); }
+  .composer input { flex: 1; height: 42px; border-radius: 21px; border: 1px solid var(--line); background: rgba(255, 255, 255, .05); padding: 0 16px; outline: none; font-size: 15px; }
+  .composer input::placeholder { color: var(--ink-3); }
+  .composer input:focus { border-color: rgba(243, 181, 98, .5); }
+  .send { width: 42px; height: 42px; border-radius: 50%; background: var(--sodium); color: #241606; display: grid; place-items: center; flex: none; }
+  .send:disabled { opacity: .4; cursor: default; }
+
+  /* signed off */
+  .ended { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 46px 30px 26px; }
+  .ended .moon { margin-bottom: 18px; }
+  .ended h2 { font-family: var(--show); font-weight: 400; font-style: italic; font-size: 32px; margin: 0; }
+  .ended .bye { color: var(--ink-2); font-size: 15px; line-height: 1.5; margin: 10px 0 0; max-width: 300px; }
+  .ended .jot { margin-top: 26px; font-size: 14px; color: var(--ink-2); display: flex; align-items: center; gap: 8px; min-height: 22px; }
+  .ended .jot.done { color: var(--sea); }
+  .ended .again { margin-top: auto; height: 46px; padding: 0 22px; border-radius: 23px; background: var(--sodium); color: #241606; font-weight: 700; font-size: 15px; display: inline-flex; align-items: center; gap: 9px; }
+  .ended .again:disabled { opacity: .5; cursor: default; }
+  .err { color: #ffb4a8; background: rgba(255, 90, 71, .12); border-radius: 10px; padding: 8px 11px; font-size: 13.5px; }
+
+  /* ---- Wren's notebook --------------------------------------------------------------------- */
+  .book { position: relative; margin-top: 46px; }
+  .book-h { font-family: var(--show); font-style: italic; color: var(--ink-2); font-size: 17px; margin: 0 0 10px 4px; display: flex; justify-content: space-between; align-items: baseline; }
+  .book-h span { font-family: var(--ui); font-style: normal; font-size: 12.5px; color: var(--ink-3); }
+  .page { position: relative; min-height: 560px; background: var(--paper); color: var(--pen); border-radius: 4px 10px 10px 4px; padding: 26px 22px 26px 46px; box-shadow: 0 30px 60px -30px rgba(0, 0, 0, .9), 0 0 0 1px rgba(0, 0, 0, .2);
+    background-image: linear-gradient(90deg, transparent 34px, var(--margin) 34px, var(--margin) 35.5px, transparent 35.5px), repeating-linear-gradient(transparent 0 31px, var(--rule) 31px 32px);
+    background-position: 0 0, 0 58px; background-repeat: no-repeat, repeat-y; transform: rotate(.6deg); transition: transform .5s; }
+  .page::before { /* the spiral */ content: ""; position: absolute; left: -9px; top: 18px; bottom: 18px; width: 18px;
+    background: radial-gradient(circle at 9px 9px, #0b1220 4px, transparent 4.5px) 0 0 / 18px 30px repeat-y; }
+  .page .name { font-family: var(--hand); font-size: 40px; line-height: 1; font-weight: 600; display: inline-block; border-bottom: 2px solid rgba(35, 58, 99, .5); padding: 0 6px 2px 0; }
+  .page h4 { font-family: var(--hand); font-size: 24px; font-weight: 500; color: var(--margin); margin: 18px 0 2px; line-height: 32px; }
+  .page .item { font-family: var(--hand); font-size: 22.5px; line-height: 32px; position: relative; padding-left: 18px; }
+  .page .item::before { content: "–"; position: absolute; left: 0; color: var(--pencil); }
+  .page .item.loop::before { content: "?"; color: var(--margin); font-weight: 600; }
+  .page .item.ink { animation: ink 1.4s ease-out; }
+  @keyframes ink { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+  .page .item.call { color: var(--pencil); font-size: 20px; }
+  .page .none { font-family: var(--hand); font-size: 22px; color: var(--pencil); line-height: 32px; }
+  .page .doodle { color: rgba(35, 58, 99, .35); margin: 26px 0 0 30px; }
+  .page .pen { font-family: var(--ui); font-size: 12.5px; color: var(--pencil); display: flex; align-items: center; gap: 6px; margin-top: 16px; min-height: 18px; }
+  .page .pen svg { animation: write 0.9s ease-in-out infinite; }
+  @keyframes write { 50% { transform: translate(4px, -1px) rotate(-6deg); } }
+  .page .stamp { position: absolute; left: 46px; right: 22px; bottom: 12px; font-family: var(--ui); font-size: 11px; color: rgba(124, 116, 102, .8); display: flex; justify-content: space-between; }
+  .page.flip { animation: flip .5s ease; }
+  @keyframes flip { 0% { transform: rotate(.6deg) rotateY(0); } 50% { transform: rotate(.6deg) rotateY(80deg); opacity: .4; } 100% { transform: rotate(.6deg) rotateY(0); } }
+</style>
+</head>
+<body>
+<div class="stars"></div>
+<div class="town" aria-hidden="true">
+  <!-- Saltmarsh at night: rooftops, a few lit windows, the harbour wall and the lighthouse -->
+  <svg viewBox="0 0 1440 300" preserveAspectRatio="xMidYMax slice">
+    <defs>
+      <linearGradient id="bm" x1="1" x2="0"><stop offset="0" stop-color="#f3d79a" stop-opacity=".22"/><stop offset="1" stop-color="#f3d79a" stop-opacity="0"/></linearGradient>
+      <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0f1a2c"/><stop offset="1" stop-color="#070b14"/></linearGradient>
+    </defs>
+    <path class="beam" d="M1236 112 L760 60 L760 170 Z" fill="url(#bm)"/>
+    <g fill="#0a101c">
+      <path d="M0 230 L0 196 L40 196 L40 178 L62 160 L84 178 L84 196 L120 196 L120 184 L150 166 L180 184 L180 200 L230 200 L230 176 L262 150 L294 176 L294 204 L340 204 L340 190 L372 172 L404 190 L404 210 L470 210 L470 230 Z"/>
+      <path d="M980 232 L980 206 L1020 206 L1020 188 L1046 170 L1072 188 L1072 206 L1120 206 L1120 196 L1150 180 L1180 196 L1180 220 L1210 220 L1210 232 Z"/>
+      <path d="M1222 232 L1228 118 L1244 118 L1250 232 Z"/>
+      <rect x="1224" y="104" width="24" height="16" rx="2"/>
+      <path d="M1220 104 L1236 92 L1252 104 Z"/>
+    </g>
+    <circle cx="1236" cy="112" r="5" fill="#f6dc9e"/>
+    <g fill="#f3b562" opacity=".8">
+      <rect x="54" y="184" width="6" height="7"/><rect x="140" y="188" width="6" height="7"/><rect x="252" y="182" width="6" height="8"/>
+      <rect x="380" y="196" width="6" height="7" opacity=".6"/><rect x="1040" y="194" width="6" height="7"/><rect x="1140" y="200" width="6" height="7" opacity=".7"/>
+    </g>
+    <rect x="0" y="230" width="1440" height="70" fill="url(#sea)"/>
+    <g stroke="#f3b562" stroke-width="1.2" opacity=".35" stroke-linecap="round">
+      <path d="M58 244h10M142 250h8M254 242h12M1042 246h9M1236 244h14M1232 256h22M1238 270h8"/>
+    </g>
+    <path d="M0 232 H1440" stroke="#1b2740" stroke-width="1"/>
+  </svg>
+</div>
+
+<main class="room">
+  <section class="studio" id="studio">
+    <div class="show">
+      <div class="town-name">Saltmarsh</div>
+      <h1>After Dark</h1>
+      <div class="freq"><b>98.4 FM</b> · weeknights, eleven till two</div>
+    </div>
+    <div class="dial" aria-hidden="true"><div class="ticks"></div><div class="needle"></div>
+      <div class="nums"><span>88</span><span>92</span><span>96</span><span>100</span><span>104</span><span>108</span></div></div>
+    <div class="onair" id="onair"><i></i>On air</div>
+    <div class="callers-h">On the line tonight</div>
+    <div class="callers" id="users"></div>
+    <p class="small" id="colophon">Wren is an AI character. She is not a counsellor or a doctor. Everyone here is made up.</p>
+  </section>
+
+  <section class="phone" id="stage">
+    <div class="screen">
+      <header class="head">
+        <div class="wren" id="wrenav"></div>
+        <div>
+          <div class="who">Wren</div>
+          <div class="st" id="callstate"><i></i><span>Off air</span></div>
+        </div>
+        <button id="end" class="signoff" type="button" title="Wren signs off and jots down what to ask next time">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>
+          Sign off
+        </button>
+      </header>
+      <div id="session" style="display:contents">
+        <div id="chat" class="chat"></div>
+        <form id="composer" class="composer" autocomplete="off">
+          <input id="msg" placeholder="Say something to Wren…">
+          <button id="send" class="send" type="submit" title="Send">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+        </form>
+      </div>
+      <div id="ended" class="ended" hidden>
+        <svg class="moon" width="92" height="92" viewBox="0 0 92 92" aria-hidden="true">
+          <circle cx="46" cy="46" r="40" fill="#f3b562" opacity=".08"/>
+          <path d="M60 58a24 24 0 1 1-20-36 19 19 0 0 0 20 36z" fill="#f6dc9e"/>
+          <circle cx="68" cy="24" r="1.6" fill="#fff" opacity=".7"/><circle cx="20" cy="66" r="1.2" fill="#fff" opacity=".5"/>
+        </svg>
+        <h2 id="endedtitle">Wren signed off</h2>
+        <p class="bye" id="bye"></p>
+        <div class="jot" id="writestate"></div>
+        <button id="again" class="again" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a8 8 0 0 1 16 0M2 15v-2a2 2 0 0 1 2-2h1v6H4a2 2 0 0 1-2-2zM22 15v-2a2 2 0 0 0-2-2h-1v6h1a2 2 0 0 0 2-2z"/></svg>
+          Tune in again
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="book" id="rail">
+    <div class="book-h"><span style="font-family:var(--show);font-style:italic;font-size:17px;color:var(--ink-2)">Wren’s notebook</span><span id="bookcount"></span></div>
+    <div class="page" id="page"></div>
+  </section>
+</main>
+
+<script type="module">
+  import { $, el, api, stream } from "/kit/kit.js";
+
+  const params = new URLSearchParams(location.search);
+  let user = params.get("user") || "maya";
+  let turns = [], users = [], poll = null;
+  const COLORS = { maya: "#5fb7a8", theo: "#8fb0e0" };
+  const NS = "http://www.w3.org/2000/svg";
+
+  // Wren: short dark hair, headphones, a studio mic. Drawn for this page.
+  const WREN = `<svg viewBox="0 0 64 64" width="100%" height="100%">
+    <rect width="64" height="64" fill="#1c2840"/>
+    <circle cx="50" cy="12" r="1" fill="#fff" opacity=".6"/><circle cx="12" cy="18" r=".8" fill="#fff" opacity=".5"/>
+    <path d="M14 64c1-11 8-17 18-17s17 6 18 17z" fill="#c9563c"/>
+    <path d="M27 44h10v6c-2 2-8 2-10 0z" fill="#e2ad8c"/>
+    <path d="M19 31c0-11 6-17 13-17s13 6 13 17c0 6-2 10-4 12H23c-2-2-4-6-4-12z" fill="#5b2f22"/>
+    <ellipse cx="32" cy="32" rx="10" ry="12" fill="#efc2a2"/>
+    <path d="M22 28c2-8 7-11 12-11 5 0 9 4 10 9-6-1-11-4-13-8-2 5-5 8-9 10z" fill="#5b2f22"/>
+    <circle cx="28" cy="33" r="1.2" fill="#2a1a12"/><circle cx="36.5" cy="33" r="1.2" fill="#2a1a12"/>
+    <path d="M29.5 39c1.6 1.2 3.8 1.2 5.2 0" stroke="#a5523e" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    <path d="M17 32c0-12 7-19 15-19s15 7 15 19" stroke="#262a33" stroke-width="3" fill="none"/>
+    <rect x="14" y="28" width="7" height="11" rx="3" fill="#f3b562"/><rect x="43" y="28" width="7" height="11" rx="3" fill="#f3b562"/>
+    <path d="M17 38c0 6 3 9 7 10" stroke="#262a33" stroke-width="1.6" fill="none"/>
+    <circle cx="25.5" cy="48" r="2.4" fill="#262a33"/>
+  </svg>`;
+  $("#wrenav").innerHTML = WREN;
+
+  // A remembered note opens with when it was written ("On 2026-10-14 10:25 UTC, …"): the slip
+  // shows that date in its corner, so the text starts after it.
+  const plain = (text) => { const t = text.replace(/^On \d{4}-\d{2}-\d{2}[^,]*,\s*/, ""); return t[0].toUpperCase() + t.slice(1); };
+  const firstSentence = (text) => text.split(/(?<=\.)\s+(?=[A-Z])/)[0];
+  // A recalled follow-up as Wren wrote it in her notebook: the app keeps the line it wrote for
+  // each memory, and the engine's rewrite of it ("On 2026-10-14, the user noted…") stays as the
+  // tooltip. A hit it did not write is shown as returned, with the caller's name for "the user".
+  function jot(h) {
+    if (h.jot) return { text: h.jot.text, day: h.jot.day };
+    const m = h.content.match(/^On (\d{4}-\d{2}-\d{2})/);
+    let t = firstSentence(plain(h.content))
+      .replace(/^the user (?:noted|recorded|mentioned|said|shared|reported)(?: an open loop)?(?: to follow up)?(?: next time)?(?: regarding| about| that|:)?\s*/i, "")
+      .replace(/\bthe user's\b/gi, `${me().name}’s`).replace(/\bthe user\b/gi, me().name);
+    return { text: t[0].toUpperCase() + t.slice(1), day: m ? m[1] : "" };
+  }
+  const me = () => users.find((u) => u.id === user) || { name: user, id: user };
+  const chat = $("#chat");
+  const scroll = () => { chat.scrollTop = chat.scrollHeight; };
+  const fmtDay = (d) => new Date(d + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+  const today = () => new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const clock = () => new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+
+  function onAir(live) {
+    $("#onair").classList.toggle("live", live);
+    $("#callstate").classList.toggle("live", live);
+    $("#callstate span").textContent = live ? `On air · with ${me().name}` : "Off air";
+  }
+
+  function bubble(role, text = "") {
+    const b = el("div", { class: `msg ${role}` }, text);
+    chat.append(b); scroll();
+    return b;
+  }
+  function typing(b, label = "") {
+    b.replaceChildren(el("span", { class: "typing" }, el("i"), el("i"), el("i")), label ? el("span", { class: "typing-l" }, label) : "");
+  }
+
+  // ---- who is calling ------------------------------------------------------------------------
+  const counts = {};
+  async function loadUsers() {
+    const data = await api("/api/users");
+    users = data.users;
+    renderUsers();
+    await Promise.all(users.map((u) => refresh(u.id, false)));
+  }
+  function renderUsers() {
+    $("#users").replaceChildren(...users.map((u) => {
+      const c = counts[u.id];
+      return el("button", { class: "person" + (u.id === user ? " on" : ""), type: "button", "data-user": u.id, onclick: () => switchTo(u.id) },
+        el("span", { class: "av", style: `background:${COLORS[u.id] || "#aab"}` }, u.name[0]),
+        el("span", {}, el("div", { class: "n" }, u.name), el("div", { class: "b" }, u.blurb)),
+        el("span", { class: "line" }, u.id === user ? "on the line" : c ? `${c} in the notebook` : "first call"));
+    }));
+  }
+
+  // ---- the notebook: what Wren knows about this caller, and what she means to ask ------------
+  const notebook = {}; // per caller: {facts, loops, fresh, writing, directory, error}
+  async function refresh(id = user, render = true) {
+    try {
+      const m = await api(`/api/memory?user=${id}`);
+      const nb = notebook[id] || (notebook[id] = { loops: [], fresh: false });
+      Object.assign(nb, { facts: m.facts, writing: m.pending, directory: m.directory, error: m.error, containers: m.containers });
+      counts[id] = m.facts.length + nb.loops.length;
+      if (id === user && render) renderBook();
+      renderUsers();
+      clearTimeout(poll);
+      if (m.pending && id === user) poll = setTimeout(() => refresh(id), 1200);
+      return m;
+    } catch (e) {
+      $("#page").append(el("div", { class: "err" }, e.message));
+    }
+  }
+  function renderBook(flip = false) {
+    const nb = notebook[user] || { facts: [], loops: [] };
+    const page = $("#page");
+    const facts = nb.facts || [], loops = nb.loops || [];
+    const parts = [el("div", { class: "name" }, me().name)];
+    if (!facts.length && !loops.length && !nb.call) {
+      parts.push(el("div", { class: "none", style: "margin-top:16px" }, "new caller. nothing yet."));
+      parts.push(doodle());
+    } else {
+      if (facts.length) parts.push(el("h4", {}, "knows"), ...facts.map((f) => el("div", { class: "item", "data-fact": "" }, f)));
+      if (nb.call) parts.push(el("div", { class: "item call write", id: "callnote" }, nb.call));
+      if (loops.length) parts.push(el("h4", { id: "askhead" }, "ask next time"), ...loops.map((l) => el("div", { class: "item loop write" + (nb.fresh ? " ink" : "") }, l)));
+    }
+    parts.push(el("div", { class: "pen", id: "pen" }, nb.writing ? [pencil(), `writing ${nb.writing === 1 ? "it" : "them"} down…`] : nb.error ? el("span", { class: "err" }, nb.error) : ""));
+    parts.push(el("div", { class: "stamp" }, el("span", {}, "kept by Membase"), el("span", { id: "dir" }, nb.directory || "")));
+    page.replaceChildren(...parts);
+    nb.fresh = false;
+    $("#bookcount").textContent = facts.length + loops.length ? `${me().name}’s page` : "";
+    if (flip) { page.classList.remove("flip"); void page.offsetWidth; page.classList.add("flip"); }
+  }
+  const pencil = () => { const t = document.createElement("template"); t.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg>`; return t.content.firstChild; };
+  function doodle() {
+    // a tiny radio and a question mark: nothing written yet
+    const t = document.createElement("template");
+    t.innerHTML = `<svg class="doodle" width="140" height="90" viewBox="0 0 140 90" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="14" y="32" width="78" height="46" rx="8"/><circle cx="38" cy="55" r="12"/><path d="M60 46h22M60 55h22M60 64h14M28 32 64 12"/>
+      <path d="M108 30c0-8 14-8 14 0 0 6-7 7-7 13M115 52v1"/></svg>`;
+    return t.content.firstChild;
+  }
+
+  // ---- a call opens: Wren speaks first, from what she remembers ------------------------------
+  async function openSession() {
+    chat.replaceChildren(el("div", { class: "day" }, `${today()} · ${clock()}`));
+    turns = [];
+    $("#session").hidden = false; $("#session").style.display = "contents";
+    $("#ended").hidden = true;
+    $("#end").disabled = true; $("#send").disabled = true;
+    onAir(true);
+    renderUsers();
+    const b = bubble("assistant");
+    typing(b);
+    let text = "", recalled = [];
+    try {
+      await stream("/api/open", { user }, (ev) => {
+        if (ev.type === "waiting") typing(b, "finishing her notes from last time");
+        else if (ev.type === "memories") {
+          recalled = ev.hits.filter((h) => h.container_name === "Follow-ups");
+          const nb = notebook[user] || (notebook[user] = { loops: [], facts: [] });
+          if (recalled.length && !nb.loops.length) { nb.loops = recalled.map((h) => jot(h).text); renderBook(); }
+          if (recalled.length) typing(b, "checking her notebook");
+        } else if (ev.type === "delta") { text += ev.text; b.textContent = text; scroll(); }
+      });
+      turns.push({ role: "assistant", content: text });
+      if (recalled.length) {
+        // the note she called back about, as her memory holds it
+        const h = recalled[0], j = jot(h);
+        const group = el("div", { class: "group", id: "opener" });
+        b.before(group);
+        group.append(b);
+        group.append(el("div", { class: "slip", id: "opener-from" },
+          el("div", { class: "k" }, pencil(), j.day ? `from her notebook, ${fmtDay(j.day)}` : "from her notebook"),
+          el("div", { class: "t", title: `As memory holds it: ${h.content}` }, j.text)));
+        scroll();
+      }
+    } catch (e) {
+      b.replaceChildren(el("span", { class: "err" }, e.message));
+    } finally {
+      $("#send").disabled = false; $("#end").disabled = false;
+      $("#msg").focus();
+      refresh();
+    }
+  }
+
+  async function switchTo(id) {
+    if (id === user) return;
+    user = id;
+    window.history.replaceState(null, "", `?user=${id}`);
+    renderUsers();
+    renderBook(true);
+    await openSession();
+  }
+
+  // ---- talk ----------------------------------------------------------------------------------
+  $("#composer").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const message = $("#msg").value.trim();
+    if (!message || $("#send").disabled) return;
+    $("#msg").value = "";
+    bubble("user", message);
+    $("#send").disabled = true; $("#end").disabled = true;
+    const b = bubble("assistant");
+    typing(b);
+    let text = "";
+    try {
+      await stream("/api/chat", { user, message, history: turns }, (ev) => {
+        if (ev.type === "delta") { text += ev.text; b.textContent = text; scroll(); }
+      });
+      turns.push({ role: "user", content: message }, { role: "assistant", content: text });
+    } catch (err) {
+      b.replaceChildren(el("span", { class: "err" }, err.message));
+    } finally {
+      $("#send").disabled = false; $("#end").disabled = false;
+      refresh();
+    }
+  });
+
+  // ---- Wren signs off and jots down what to ask next time -----------------------------------
+  $("#end").addEventListener("click", async () => {
+    const button = $("#end");
+    button.disabled = true; $("#send").disabled = true;
+    const said = turns.filter((t) => t.role === "user").length;
+    const b = bubble("assistant");
+    typing(b, "signing off");
+    try {
+      const out = await api("/api/end", { user, history: turns });
+      onAir(false);
+      const nb = notebook[user] || (notebook[user] = { loops: [], facts: [] });
+      if (out.written) {
+        nb.loops = out.loops; nb.fresh = true;
+        nb.call = `called ${today()}`;
+      }
+      $("#bye").textContent = out.written
+        ? `Thanks for calling in, ${me().name}. ${out.loops.length ? `She jotted down ${out.loops.length === 1 ? "one thing" : `${out.loops.length} things`} to ask you next time.` : "Nothing to follow up this time."}`
+        : `${me().name} didn’t say anything, so there’s nothing to write down.`;
+      $("#session").hidden = true; $("#session").style.display = "none";
+      $("#ended").hidden = false;
+      renderBook();
+      watchWrites();
+    } catch (e) {
+      b.replaceChildren(el("span", { class: "err" }, e.message));
+      button.disabled = false; $("#send").disabled = false;
+    }
+  });
+  async function watchWrites() {
+    const st = $("#writestate"), again = $("#again");
+    st.className = "jot"; again.disabled = true;
+    st.replaceChildren(pencil(), "Writing it in her notebook…");
+    const m = await refresh();
+    if (!m) return;
+    if (m.pending) return setTimeout(watchWrites, 1200);
+    again.disabled = false;
+    if (m.error) st.replaceChildren(el("span", { class: "err" }, m.error));
+    else { st.className = "jot done"; st.replaceChildren(el("span", { id: "written" }, "In her notebook. She’ll remember.")); }
+  }
+  $("#again").addEventListener("click", openSession);
+
+  await document.fonts.ready.catch(() => {});
+  loadUsers().then(() => { renderBook(); return openSession(); }).catch((e) => chat.replaceChildren(el("div", { class: "err" }, e.message)));
+</script>
+</body>
+</html>

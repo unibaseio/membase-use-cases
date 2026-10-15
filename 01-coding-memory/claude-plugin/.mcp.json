@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "membase": {
+      "type": "http",
+      "url": "${MEMBASE_MCP_URL:-https://api.app.membase.ai/mcp-http}",
+      "headers": { "Authorization": "Bearer ${MEMBASE_API_KEY}" }
+    }
+  }
+}

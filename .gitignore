@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.secrets/
+data/
+node_modules/
+.DS_Store
+
+# Full-size recordings stay local; each demo commits a compressed docs/demo.mp4
+*/docs/video.mp4
+*/docs/preview.gif

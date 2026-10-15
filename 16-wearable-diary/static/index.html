@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Earshot · Today</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap">
+<style>
+  /* Earshot: the companion app of a clip-on recording pendant. The day on the left, as a diary
+     and a timeline of conversations with their waveforms; asking on the right, where an answer
+     comes with the clip it came from, ready to play at the line that says it. */
+  :root {
+    --bg: #eeece7; --sheet: #fbfaf7; --card: #ffffff; --ink: #1b1a18; --ink-2: #57534c; --ink-3: #8e8a82;
+    --line: #e1ddd5; --line-2: #ebe8e1; --rec: #f0532a; --rec-soft: #fde6de; --rec-ink: #b83a17;
+    --ui: "Geist", "Helvetica Neue", Arial, sans-serif; --mono: "Geist Mono", ui-monospace, Menlo, monospace;
+    --serif: "Newsreader", "Iowan Old Style", Georgia, serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--ink); font: 15px/1.45 var(--ui); -webkit-font-smoothing: antialiased; overflow: hidden; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  svg { display: block; }
+  [hidden] { display: none !important; }
+
+  /* ---- the bar: the app, the pendant's state, recording your own ---- */
+  .bar { height: 64px; display: flex; align-items: center; gap: 14px; padding: 0 28px; }
+  .brand { display: flex; align-items: center; gap: 10px; font: 600 19px/1 var(--ui); letter-spacing: -.02em; }
+  .brand svg { width: 26px; height: 26px; }
+  .device { margin-left: auto; display: flex; align-items: center; gap: 10px; padding: 7px 14px 7px 9px; border-radius: 99px; background: var(--sheet); border: 1px solid var(--line); font-size: 13.5px; color: var(--ink-2); }
+  .device svg.p { width: 22px; height: 26px; }
+  .device b { font-weight: 500; color: var(--ink); }
+  .device .bat { display: flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 12.5px; }
+  .device .sep { width: 1px; height: 14px; background: var(--line); }
+  /* the pendant is listening: its light breathes (this also keeps the page painting, so a
+     screen recording always catches the last change) */
+  .device .led { width: 7px; height: 7px; border-radius: 50%; background: #3bb273; animation: breathe 2.4s ease-in-out infinite; }
+  @keyframes breathe { 50% { opacity: .45; } }
+  .device.syncing .led { background: var(--rec); animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .25; } }
+  .recbtn-open { display: flex; align-items: center; gap: 8px; padding: 9px 16px 9px 13px; border-radius: 99px; background: var(--ink); color: #fff; font-weight: 500; font-size: 14px; }
+  .recbtn-open i { width: 9px; height: 9px; border-radius: 50%; background: var(--rec); }
+
+  /* ---- the app: the day | asking ---- */
+  .app { display: grid; grid-template-columns: minmax(0, 1fr) 560px; gap: 22px; padding: 0 28px; height: calc(100vh - 64px); }
+  .day { overflow: auto; scrollbar-width: none; padding: 10px 6px 40px 4px; }
+  .dayhead { display: flex; align-items: baseline; gap: 14px; }
+  .dayhead h1 { margin: 0; font: 400 46px/1.05 var(--serif); letter-spacing: -.01em; }
+  .dayhead .date { font-size: 17px; color: var(--ink-3); }
+  .days { margin-left: auto; display: flex; gap: 4px; }
+  .days button { font-size: 13px; padding: 4px 10px; border-radius: 99px; color: var(--ink-2); }
+  .days button.on { background: var(--ink); color: #fff; }
+  .stats { margin-top: 8px; font-size: 14px; color: var(--ink-3); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .stats .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-3); }
+  .diary { margin: 14px 0 20px; font: 400 21px/1.48 var(--serif); color: var(--ink); max-width: 720px; min-height: 63px; }
+  .diary.writing { color: var(--ink-3); font-style: italic; }
+  .diary.fresh { animation: rise .7s ease-out; }
+  @keyframes rise { from { opacity: 0; transform: translateY(4px); } }
+
+  /* the day's conversations, top to bottom */
+  .timeline { list-style: none; margin: 0; padding: 0; position: relative; }
+  .timeline::before { content: ""; position: absolute; left: 66px; top: 10px; bottom: 10px; width: 1.5px; background: var(--line); }
+  .conv { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 0 24px; margin-bottom: 10px; position: relative; transition: opacity .4s; }
+  .conv .when { text-align: right; padding-top: 14px; }
+  .conv .when b { display: block; font: 500 15px/1 var(--mono); }
+  .conv .when span { display: block; font: 400 12.5px/1 var(--mono); color: var(--ink-3); margin-top: 6px; }
+  .conv::before { content: ""; position: absolute; left: 63px; top: 17px; width: 9px; height: 9px; border-radius: 50%; background: var(--bg); border: 1.5px solid var(--ink-3); }
+  .conv.saved::before { background: var(--ink); border-color: var(--ink); }
+  .conv .card { background: var(--card); border-radius: 14px; padding: 12px 16px 11px; box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 0 0 1px var(--line-2); transition: box-shadow .3s; }
+  .conv .top { display: flex; align-items: baseline; gap: 12px; }
+  .conv h3 { margin: 0; font: 600 16.5px/1.25 var(--ui); letter-spacing: -.01em; }
+  .conv .who { display: flex; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); margin-left: auto; }
+  .who-n { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .who-n i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+  .conv canvas.wave { display: block; width: 100%; height: 30px; margin: 8px 0 2px; }
+  .conv .todos { list-style: none; margin: 5px 0 0; padding: 0; display: grid; gap: 2px; font-size: 14px; }
+  .conv .todos li { display: flex; gap: 8px; align-items: center; }
+  .conv .todos svg { width: 14px; height: 14px; flex: none; color: var(--ink-3); }
+  .conv .todos .whom { color: var(--ink-3); }
+  .conv .state { font-size: 13.5px; color: var(--ink-3); display: flex; align-items: center; gap: 8px; }
+  .conv .state.err { color: var(--rec-ink); }
+  .conv .forget { margin-top: 8px; font-size: 12px; color: var(--ink-3); opacity: 0; transition: opacity .2s; }
+  .conv:hover .forget { opacity: 1; }
+  .conv .forget:hover { color: var(--rec-ink); }
+  .bars { display: inline-flex; gap: 2px; align-items: center; height: 12px; }
+  .bars i { width: 2.5px; height: 100%; border-radius: 2px; background: currentColor; animation: eq .9s ease-in-out infinite; }
+  .bars i:nth-child(2) { animation-delay: .15s; } .bars i:nth-child(3) { animation-delay: .3s; } .bars i:nth-child(4) { animation-delay: .45s; }
+  @keyframes eq { 0%, 100% { transform: scaleY(.3); } 50% { transform: scaleY(1); } }
+  .day.asked .conv { opacity: .42; }
+  .day.asked .conv.cited { opacity: 1; }
+  .conv.cited .card { box-shadow: 0 0 0 2px var(--rec), 0 6px 18px rgba(240, 83, 42, .12); }
+  .conv.cited::before { background: var(--rec); border-color: var(--rec); }
+
+  /* nothing synced yet */
+  .empty-day { display: grid; justify-items: center; text-align: center; padding: 70px 20px; gap: 10px; }
+  .empty-day svg { width: 150px; height: 186px; margin-bottom: 10px; }
+  .empty-day h2 { margin: 0; font: 400 30px/1.2 var(--serif); }
+  .empty-day p { margin: 0; color: var(--ink-2); font-size: 15.5px; }
+  .cta { margin-top: 14px; display: inline-flex; align-items: center; gap: 10px; padding: 13px 22px; border-radius: 99px; background: var(--ink); color: #fff; font-size: 15.5px; font-weight: 500; }
+  .cta:disabled { opacity: .6; cursor: progress; }
+  .cta svg { width: 18px; height: 18px; }
+  .fine { font-size: 12.5px; color: var(--ink-3); }
+
+  /* ---- asking ---- */
+  .ask { background: var(--sheet); border-radius: 20px 20px 0 0; margin-top: 4px; padding: 22px 24px 0; display: flex; flex-direction: column; box-shadow: 0 0 0 1px var(--line); min-height: 0; }
+  .askform { display: flex; align-items: center; gap: 8px; background: var(--card); border-radius: 16px; padding: 6px 6px 6px 16px; box-shadow: 0 0 0 1px var(--line), 0 4px 14px rgba(0,0,0,.04); }
+  .askform svg.s { width: 18px; height: 18px; color: var(--ink-3); flex: none; }
+  .askform input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: 400 17px/1.4 var(--ui); padding: 10px 4px; color: var(--ink); }
+  .askform input::placeholder { color: var(--ink-3); }
+  .go { width: 42px; height: 42px; border-radius: 12px; background: var(--ink); color: #fff; display: grid; place-items: center; flex: none; }
+  .go:disabled { opacity: .5; cursor: progress; }
+  .go svg { width: 18px; height: 18px; }
+  .samples { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
+  .sample { font-size: 14px; padding: 7px 13px; border-radius: 99px; background: var(--card); box-shadow: 0 0 0 1px var(--line); color: var(--ink-2); }
+  .sample:hover { color: var(--ink); box-shadow: 0 0 0 1px var(--ink-3); }
+  .view { flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; padding: 20px 0 24px; }
+  .idle { display: grid; justify-items: center; text-align: center; gap: 8px; padding-top: 60px; color: var(--ink-2); }
+  .idle svg { width: 120px; height: 90px; margin-bottom: 8px; }
+  .idle b { font: 400 24px/1.25 var(--serif); color: var(--ink); }
+  .thinking { display: flex; align-items: center; gap: 12px; color: var(--ink-2); font-size: 15px; padding: 8px 2px; }
+  .thinking .bars { height: 18px; color: var(--rec); }
+  .thinking .bars i { width: 3px; }
+
+  .q-asked { font: italic 400 17px/1.35 var(--serif); color: var(--ink-3); margin: 0 0 4px; }
+  .a { font: 500 26px/1.32 var(--ui); letter-spacing: -.02em; margin: 0 0 18px; }
+  .a .chg { display: block; margin-top: 4px; font-size: 19px; font-weight: 400; letter-spacing: -.01em; color: var(--rec-ink); }
+  .cite { background: var(--card); border-radius: 16px; padding: 14px 16px 12px; box-shadow: 0 0 0 1px var(--line), 0 6px 20px rgba(0,0,0,.05); }
+  .cite + .cite, .moved + .cite { margin-top: 10px; }
+  .cite header { display: flex; align-items: center; gap: 10px; }
+  .cite header .t { font: 500 14px/1 var(--mono); padding: 5px 8px; border-radius: 7px; background: var(--bg); }
+  .cite header b { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+  .tag { margin-left: auto; font-size: 12.5px; font-weight: 500; padding: 4px 10px; border-radius: 99px; background: var(--rec-soft); color: var(--rec-ink); white-space: nowrap; }
+  .tag.was { background: var(--bg); color: var(--ink-2); }
+  .cite canvas.wave { display: block; width: 100%; height: 52px; margin: 12px 0 8px; cursor: pointer; }
+  .quote { margin: 0; font: 400 19px/1.4 var(--serif); color: var(--ink); }
+  .quote .spk { font: 500 13.5px/1 var(--ui); margin-right: 6px; color: var(--c); }
+  .cite.earlier .quote { color: var(--ink-2); font-size: 17px; }
+  .cite.earlier { padding-bottom: 10px; }
+  .cite.earlier header { margin-bottom: 6px; } .cite.earlier .tag { margin-left: auto; }
+  .cite .row { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+  .play { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px 8px 11px; border-radius: 99px; background: var(--ink); color: #fff; font-size: 13.5px; font-weight: 500; }
+  .play svg { width: 14px; height: 14px; }
+  .play.mini { width: 30px; height: 30px; padding: 0; justify-content: center; margin-left: 4px; }
+  .play.mini svg { width: 12px; height: 12px; }
+  .cite .clock { font: 400 13px/1 var(--mono); color: var(--ink-3); }
+  .mem { display: flex; gap: 8px; margin: 10px 0 0; padding-top: 9px; border-top: 1px dashed var(--line); font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+  .mem svg { width: 14px; height: 14px; flex: none; margin-top: 2px; }
+  .mem span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .moved { display: flex; align-items: center; gap: 8px; margin: 8px 0 0 22px; font-size: 13.5px; color: var(--rec-ink); }
+  .moved svg { width: 16px; height: 16px; }
+  .again { margin-top: 16px; font-size: 14px; color: var(--ink-3); }
+  .again:hover { color: var(--ink); }
+  .err-msg { color: var(--rec-ink); font-size: 14px; }
+  .foot { padding: 10px 0 14px; border-top: 1px solid var(--line-2); }
+
+  /* ---- record your own ---- */
+  .capture { position: fixed; right: 28px; top: 60px; width: 360px; z-index: 10; background: var(--card); border-radius: 16px; padding: 18px; box-shadow: 0 0 0 1px var(--line), 0 18px 40px rgba(0,0,0,.14); }
+  .capture h3 { margin: 0 0 10px; font: 400 22px/1.2 var(--serif); }
+  .recrow { display: flex; align-items: center; gap: 14px; }
+  .recbtn { width: 52px; height: 52px; border-radius: 50%; border: 3px solid var(--line); display: grid; place-items: center; flex: none; }
+  .recbtn i { width: 20px; height: 20px; border-radius: 50%; background: var(--rec); transition: all .2s; }
+  .recbtn.on { border-color: var(--rec); }
+  .recbtn.on i { border-radius: 4px; width: 17px; height: 17px; }
+  .capture label { display: block; font-size: 13px; color: var(--ink-3); margin: 14px 0 4px; }
+  .capture input { width: 100%; font: inherit; font-size: 14px; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--sheet); }
+  .capture .add { margin-top: 12px; padding: 9px 16px; border-radius: 99px; background: var(--ink); color: #fff; font-size: 14px; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><svg viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="11.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="13" cy="13" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".45"/><circle cx="13" cy="13" r="2.4" fill="#f0532a"/></svg>Earshot</div>
+  <div class="device" id="device">
+    <svg class="p" viewBox="0 0 22 26" aria-hidden="true"><rect x="8" y="0.5" width="6" height="9" rx="2" fill="#3a3936"/><circle cx="11" cy="15.5" r="9.5" fill="#d9d6cf" stroke="#b7b2a8"/><circle cx="11" cy="15.5" r="6.5" fill="#efece6"/><circle cx="11" cy="10.5" r="1.2" fill="#f0532a"/></svg>
+    <span><b>Pendant</b></span><span class="sep"></span>
+    <span class="bat"><svg width="20" height="11" viewBox="0 0 20 11" aria-hidden="true"><rect x=".75" y=".75" width="16.5" height="9.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="2.5" y="2.5" width="11.5" height="6" rx="1.2" fill="currentColor"/><rect x="18.3" y="3.6" width="1.4" height="3.8" rx=".7" fill="currentColor"/></svg>84%</span>
+    <span class="sep"></span><i class="led"></i><span id="sync">Nothing to sync</span>
+  </div>
+  <button class="recbtn-open" id="rec-open" type="button"><i></i>Record</button>
+</header>
+
+<main class="app">
+  <section class="day" id="day">
+    <div class="dayhead"><h1 id="dayname">Today</h1><span class="date" id="daydate"></span><div class="days" id="days"></div></div>
+    <div class="stats" id="stats"></div>
+    <p class="diary" id="diary" hidden></p>
+    <ol class="timeline" id="timeline"></ol>
+    <div id="empty"></div>
+  </section>
+
+  <aside class="ask" id="askpane">
+    <form class="askform" id="ask" autocomplete="off">
+      <svg class="s" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M13 13l4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <input id="q" placeholder="Ask about your day">
+      <button class="go" id="go" aria-label="Ask"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 15V3M4 8l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </form>
+    <div class="samples" id="samples" hidden></div>
+    <div class="view" id="view"></div>
+    <div class="foot fine">The sample day is synthetic speech from made-up people. Record only yourself, or people who agreed to it.</div>
+  </aside>
+</main>
+
+<audio id="player" preload="auto"></audio>
+<div class="capture" id="capture" hidden>
+  <h3>Record a conversation</h3>
+  <div class="recrow">
+    <button class="recbtn" id="recbtn" type="button" aria-label="Record"><i></i></button>
+    <div><div id="recstate">Tap to record</div><div class="fine">Uses this browser's microphone</div></div>
+  </div>
+  <form id="upload">
+    <label for="file">Or add an audio file</label><input id="file" type="file" accept="audio/*">
+    <label for="when">Recorded at</label><input id="when" type="datetime-local">
+    <button class="add" id="upbtn">Add to the day</button>
+  </form>
+  <div id="uperr" class="err-msg"></div>
+</div>
+
+<script type="module">
+  import { $, el, api } from "/kit/kit.js";
+
+  const SAMPLES = ["What did I promise Sam?", "What time is the design review?", "What do I owe Marco?"];
+  const STATE = { transcribing: "Transcribing", splitting: "Working out who spoke", remembering: "Remembering" };
+  const PALETTE = ["#2a8a7e", "#c4851a", "#8a4c9e", "#2f68c9", "#c24c38", "#5a7d2c"];
+  const pad = (n) => String(n).padStart(2, "0");
+  const hhmm = (iso) => iso.slice(11, 16);
+  const mmss = (s) => `${Math.floor(s / 60)}:${pad(Math.floor(s % 60))}`;
+  const name = (s) => (s === "Me" ? "You" : s);
+  const localNow = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const svg = (markup) => { const t = document.createElement("template"); t.innerHTML = markup.trim(); return t.content.firstChild; };
+  const ICON = {
+    play: '<svg viewBox="0 0 14 14"><path d="M3.5 2v10l8.5-5z" fill="currentColor"/></svg>',
+    pause: '<svg viewBox="0 0 14 14"><rect x="3" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="8" y="2" width="3" height="10" rx="1" fill="currentColor"/></svg>',
+    todo: '<svg viewBox="0 0 14 14"><rect x="1.5" y="1.5" width="11" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
+    mem: '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="7" r="1.8" fill="currentColor"/></svg>',
+    down: '<svg viewBox="0 0 16 16"><path d="M8 2v11M3.5 8.5 8 13l4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    sync: '<svg viewBox="0 0 18 18"><path d="M3 9a6 6 0 0 1 10.3-4.2M15 9a6 6 0 0 1-10.3 4.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M13.6 1.8v3.3h-3.3M4.4 16.2v-3.3h3.3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  };
+  const PENDANT = `<svg viewBox="0 0 150 186" aria-hidden="true">
+    <defs><linearGradient id="alu" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4f2ee"/><stop offset=".55" stop-color="#d4d0c8"/><stop offset="1" stop-color="#b9b4aa"/></linearGradient>
+    <radialGradient id="face" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#fbfaf8"/><stop offset="1" stop-color="#e3dfd8"/></radialGradient></defs>
+    <path d="M30 26 Q75 8 120 26" fill="none" stroke="#cfc9bd" stroke-width="2" stroke-dasharray="3 5"/>
+    <rect x="62" y="12" width="26" height="54" rx="8" fill="#34332f"/><rect x="66" y="18" width="18" height="40" rx="5" fill="#4a4843"/>
+    <ellipse cx="75" cy="176" rx="46" ry="6" fill="#000" opacity=".07"/>
+    <circle cx="75" cy="112" r="60" fill="url(#alu)"/><circle cx="75" cy="112" r="49" fill="url(#face)" stroke="#cdc8bf"/>
+    ${Array.from({ length: 7 }, (_, i) => `<circle cx="${57 + i * 6}" cy="140" r="1.6" fill="#a9a398"/>`).join("")}
+    <circle cx="75" cy="84" r="4.5" fill="#f0532a"/><circle cx="75" cy="84" r="9" fill="#f0532a" opacity=".18"/>
+  </svg>`;
+
+  let day = "", D = null, poll = null, answer = null, color = {}, diaryKey = "";
+  for (const s of SAMPLES) $("#samples").append(el("button", { class: "sample", type: "button", onclick: () => { $("#q").value = s; ask(); } }, s));
+  $("#ask").addEventListener("submit", (e) => { e.preventDefault(); ask(); });
+  $("#when").value = localNow();
+  $("#rec-open").addEventListener("click", () => { $("#capture").hidden = !$("#capture").hidden; });
+  idle();
+
+  // ---- waveforms: the real audio, coloured by who was speaking --------------------------
+  const peaks = {};
+  function peaksOf(c) {
+    if (!peaks[c.id]) {
+      peaks[c.id] = fetch(`/api/clips/${c.id}/audio`).then((r) => r.arrayBuffer())
+        .then((buf) => new OfflineAudioContext(1, 1, 44100).decodeAudioData(buf))
+        .then((audio) => {
+          const data = audio.getChannelData(0), n = 400, size = Math.floor(data.length / n), out = [];
+          for (let i = 0; i < n; i++) { let m = 0; for (let j = i * size; j < (i + 1) * size; j += 8) m = Math.max(m, Math.abs(data[j])); out.push(m); }
+          const top = Math.max(...out) || 1;
+          return { duration: audio.duration, v: out.map((x) => x / top) };
+        });
+    }
+    return peaks[c.id];
+  }
+  function speakerAt(c, t) {
+    for (const turn of c.turns || []) if (turn.start != null && t >= turn.start - .05 && t <= turn.end + .45) return turn.speaker;
+    return null;
+  }
+  // opts: {span: [start, end] to light, at: playhead seconds}
+  async function drawWave(canvas, c, opts = {}) {
+    const p = await peaksOf(c).catch(() => null);
+    const w = canvas.clientWidth, h = canvas.clientHeight, r = devicePixelRatio || 1;
+    if (!w) return;
+    canvas.width = w * r; canvas.height = h * r;
+    const g = canvas.getContext("2d");
+    g.scale(r, r);
+    if (!p) return;
+    const step = 4, bars = Math.floor(w / step), dur = c.duration || p.duration;
+    if (opts.span) {
+      const x0 = (opts.span[0] / dur) * w, x1 = (opts.span[1] / dur) * w;
+      g.fillStyle = "rgba(240, 83, 42, .10)";
+      g.beginPath(); g.roundRect(x0 - 3, 0, x1 - x0 + 6, h, 6); g.fill();
+    }
+    for (let i = 0; i < bars; i++) {
+      const t = ((i + .5) / bars) * dur;
+      const v = p.v[Math.floor((i / bars) * p.v.length)] || 0;
+      const bh = Math.max(2, v * (h - 4));
+      const who = c.turns ? speakerAt(c, t) : null;
+      let alpha = c.turns ? 1 : .4;
+      if (opts.span) alpha = t >= opts.span[0] && t <= opts.span[1] ? 1 : .28;
+      if (opts.at != null && t <= opts.at) alpha = 1;
+      g.globalAlpha = alpha;
+      g.fillStyle = who ? color[who] || "#8e8a82" : "#b8b3aa";
+      g.beginPath(); g.roundRect(i * step, (h - bh) / 2, step - 1.5, bh, 1.5); g.fill();
+    }
+    g.globalAlpha = 1;
+    if (opts.at != null) {
+      const x = (opts.at / dur) * w;
+      g.fillStyle = "#1b1a18"; g.fillRect(x - 1, 0, 2, h);
+      g.beginPath(); g.arc(x, 3, 3.5, 0, Math.PI * 2); g.fill();
+    }
+  }
+
+  // ---- the day -------------------------------------------------------------------------
+  async function load() {
+    D = await api("/api/clips" + (day ? `?date=${day}` : ""));
+    day = D.day;
+    const date = new Date(D.day + "T12:00");
+    $("#dayname").textContent = date.toLocaleDateString("en-GB", { weekday: "long" });
+    $("#daydate").textContent = date.toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+    $("#days").replaceChildren(...(D.days.length > 1 ? D.days.slice(0, 5).map((x) => el("button", { class: x === day ? "on" : "", onclick: () => { day = x; answer = null; diaryKey = ""; idle(); load(); } },
+      new Date(x + "T12:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric" }))) : []));
+    color = {};
+    for (const c of D.clips) for (const s of c.speakers || []) if (!(s in color)) color[s] = s === "Me" ? "#1b1a18" : PALETTE[Object.keys(color).filter((k) => k !== "Me").length % PALETTE.length];
+    device();
+    stats();
+    timeline();
+    const pending = D.clips.some((c) => !["saved", "error"].includes(c.status));
+    $("#samples").hidden = !D.clips.some((c) => c.status === "saved");
+    if (pending && !poll) poll = setInterval(() => load().catch(() => {}), 1200);
+    if (!pending && poll) { clearInterval(poll); poll = null; }
+    if (!pending) writeDiary();
+  }
+
+  function device() {
+    const busy = D.clips.filter((c) => !["saved", "error"].includes(c.status)).length;
+    $("#device").classList.toggle("syncing", !!busy);
+    const last = D.clips.filter((c) => c.status === "saved").map((c) => hhmm(c.when)).pop();
+    $("#sync").textContent = busy ? `Syncing ${busy} conversation${busy === 1 ? "" : "s"}` : last ? `Synced · last at ${last}` : "Nothing to sync";
+  }
+
+  function stats() {
+    const saved = D.clips.filter((c) => c.status === "saved");
+    if (!D.clips.length) { $("#stats").replaceChildren(); return; }
+    const secs = saved.reduce((s, c) => s + (c.duration || 0), 0);
+    const people = [...new Set(saved.flatMap((c) => c.speakers || []))].filter((s) => s !== "Me");
+    const bits = [`${D.clips.length} conversation${D.clips.length === 1 ? "" : "s"}`];
+    if (secs) bits.push(`${Math.max(1, Math.round(secs / 60))} min of talk`);
+    if (people.length) bits.push("with " + people.join(", "));
+    $("#stats").replaceChildren(...bits.flatMap((b, i) => (i ? [el("i", { class: "dot" }), el("span", {}, b)] : [el("span", {}, b)])));
+  }
+
+  async function writeDiary() {
+    const saved = D.clips.filter((c) => c.status === "saved");
+    const key = day + ":" + saved.map((c) => c.id).join(",");
+    if (!saved.length) { $("#diary").hidden = true; diaryKey = ""; return; }
+    if (key === diaryKey) return;
+    diaryKey = key;
+    const p = $("#diary");
+    p.hidden = false; p.className = "diary writing"; p.textContent = "Writing today's entry…";
+    try {
+      const d = await api(`/api/diary?date=${day}`);
+      if (key !== diaryKey) return;
+      p.className = "diary fresh"; p.textContent = d.entry;
+    } catch (e) { p.className = "diary writing"; p.textContent = e.message; }
+  }
+
+  function timeline() {
+    $("#empty").replaceChildren();
+    if (!D.clips.length) {
+      $("#timeline").replaceChildren();
+      $("#diary").hidden = true;
+      $("#empty").replaceChildren(el("div", { class: "empty-day" },
+        svg(PENDANT),
+        el("h2", {}, "Nothing from today yet"),
+        D.sample
+          ? el("p", {}, "Your pendant has four conversations from today.")
+          : el("p", {}, "Run  uv run 16-wearable-diary/seed.py --audio-only  for a sample day, or press Record."),
+        D.sample ? el("button", { class: "cta", id: "sample", type: "button", onclick: addSample }, svg(ICON.sync), el("span", {}, "Sync from the pendant")) : null,
+        el("div", { id: "sampleerr", class: "err-msg" })));
+      return;
+    }
+    const cited = new Set((answer?.cited || []).map((c) => c.id));
+    $("#day").classList.toggle("asked", !!answer);
+    const items = D.clips.map((c) => {
+      const old = document.getElementById("clip-" + c.id);
+      const sig = JSON.stringify([c.status, c.title, c.turns?.length, c.duration, cited.has(c.id)]);
+      if (old && old.dataset.sig === sig) return old;
+      const li = conv(c, cited.has(c.id));
+      li.dataset.sig = sig;
+      return li;
+    });
+    $("#timeline").replaceChildren(...items);
+    for (const li of items) if (!li.dataset.drawn) { li.dataset.drawn = 1; drawWave(li.querySelector("canvas"), D.clips.find((c) => "clip-" + c.id === li.id)); }
+  }
+
+  function conv(c, isCited) {
+    const saved = c.status === "saved";
+    const cls = ["conv", saved ? "saved" : "", isCited ? "cited" : ""].join(" ");
+    const head = el("div", { class: "top" }, el("h3", {}, saved ? c.title : c.status === "error" ? "Couldn't read this one" : "New conversation"));
+    if (saved) head.append(el("div", { class: "who" }, ...(c.speakers || []).map((s) => el("span", { class: "who-n", style: `--c:${color[s]}` }, el("i"), name(s)))));
+    const body = [head, el("canvas", { class: "wave" })];
+    if (saved) {
+      const todos = (c.commitments || []).filter((p) => p.what && p.who === "Me");
+      if (todos.length) body.push(el("ul", { class: "todos" }, ...todos.slice(0, 3).map((p) =>
+        el("li", {}, svg(ICON.todo), el("span", {}, p.what)))));
+    } else if (c.status === "error") {
+      body.push(el("div", { class: "state err" }, c.error));
+    } else {
+      body.push(el("div", { class: "state" }, el("span", { class: "bars" }, el("i"), el("i"), el("i"), el("i")), STATE[c.status] + "…"));
+    }
+    const forget = saved || c.status === "error" ? el("button", { class: "forget", type: "button", onclick: () => forgetClip(c) }, "Forget") : null;
+    return el("li", { class: cls, id: "clip-" + c.id, "data-time": hhmm(c.when) },
+      el("div", { class: "when" }, el("b", {}, hhmm(c.when)), el("span", {}, c.duration ? mmss(c.duration) : ""), forget),
+      el("div", { class: "card" }, ...body));
+  }
+
+  async function forgetClip(c) {
+    if (!confirm("Forget this conversation? Its memory and its audio are deleted.")) return;
+    try { await api(`/api/clips/${c.id}/forget`, {}); answer = null; idle(); await load(); } catch (e) { alert(e.message); }
+  }
+
+  async function addSample() {
+    const b = $("#sample");
+    b.disabled = true; b.lastChild.textContent = "Syncing…";
+    try { await api("/api/sample-day", {}); answer = null; await load(); }
+    catch (e) { $("#sampleerr").textContent = e.message; b.disabled = false; b.lastChild.textContent = "Sync from the pendant"; }
+  }
+
+  // ---- asking --------------------------------------------------------------------------
+  function idle() {
+    $("#view").replaceChildren(el("div", { class: "idle" },
+      svg(`<svg viewBox="0 0 120 90" aria-hidden="true">${Array.from({ length: 23 }, (_, i) => { const hgt = 8 + 62 * Math.abs(Math.sin(i * 1.7) * Math.cos(i * .45)); return `<rect x="${4 + i * 5}" y="${45 - hgt / 2}" width="3" height="${hgt}" rx="1.5" fill="${i > 8 && i < 15 ? "#f0532a" : "#c9c4ba"}"/>`; }).join("")}</svg>`),
+      el("b", {}, "Ask anything you heard today."),
+      el("span", {}, "Answers come with the moment it was said.")));
+  }
+
+  async function ask() {
+    const question = $("#q").value.trim();
+    if (!question) return;
+    $("#go").disabled = true;
+    stopAll();
+    answer = null;
+    timeline();
+    $("#view").replaceChildren(el("div", { class: "thinking", id: "thinking" }, el("span", { class: "bars" }, el("i"), el("i"), el("i"), el("i")), "Listening back through your day…"));
+    try {
+      answer = await api("/api/ask", { question });
+      showAnswer();
+    } catch (e) {
+      $("#view").replaceChildren(el("div", { class: "err-msg" }, e.message));
+    } finally {
+      $("#go").disabled = false;
+    }
+  }
+
+  function showAnswer() {
+    const a = answer;
+    timeline();
+    const cards = [];
+    const changed = a.cited.find((c) => c.changed_it);
+    a.cited.forEach((c, i) => {
+      const earlier = !!changed && c.when < changed.when;
+      if (c.changed_it && i > 0) cards.push(el("div", { class: "moved", id: "moved" }, svg(ICON.down), `later, at ${hhmm(c.when)}`));
+      cards.push(cite(c, earlier ? (a.was ? `Was ${a.was}` : "Earlier") : c.changed_it ? "Changed it" : null, earlier));
+    });
+    $("#view").replaceChildren(el("div", { id: "answer" },
+      el("p", { class: "q-asked" }, `“${a.question}”`),
+      el("p", { class: "a", id: "answer-text" }, a.answer, a.change ? el("span", { class: "chg" }, a.change) : null),
+      el("div", { id: "cites" }, ...cards),
+      el("button", { class: "again", type: "button", id: "back", onclick: () => { stopAll(); answer = null; timeline(); idle(); $("#samples").hidden = false; } }, "Clear")));
+    for (const card of document.querySelectorAll(".cite")) card._draw();
+    $("#samples").hidden = true;
+    const last = a.cited[a.cited.length - 1];
+    if (last) document.getElementById("clip-" + last.id)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+
+  // One player for every clip, kept in the page: cards take turns with it. (A media element
+  // that has played and is then thrown away with its card can stop a headless browser from
+  // painting, which froze the recording.)
+  const player = $("#player");
+  let owner = null; // the card playing, or paused mid-clip: {id, show(playing), tick()}
+  player.addEventListener("timeupdate", () => owner?.tick());
+  player.addEventListener("ended", () => owner?.show(false));
+  function playClip(card, at) {
+    if (owner && owner !== card) owner.show(false);
+    owner = card;
+    const go = () => { if (at != null) player.currentTime = at; player.play().catch(() => {}); card.show(true); };
+    if (player.dataset.clip !== card.id) {
+      player.dataset.clip = card.id;
+      player.src = `/api/clips/${card.id}/audio`;
+      player.addEventListener("loadedmetadata", go, { once: true });
+    } else go();
+  }
+  function stopAll() { if (!player.paused) player.pause(); owner?.show(false); owner = null; }
+
+  function cite(c, tag, earlier) {
+    const m = c.moment;
+    const from = m && m.start != null ? m.start : 0;
+    const label = (t) => (earlier ? [] : [el("span", {}, t)]);
+    const btn = el("button", { type: "button", class: "play" + (earlier ? " mini" : ""), "aria-label": "Play" }, svg(ICON.play), ...label(from ? `Play from ${mmss(from)}` : "Play"));
+    const clock = el("span", { class: "clock" }, c.duration ? `${mmss(from)} / ${mmss(c.duration)}` : "");
+    const canvas = el("canvas", { class: "wave" });
+    const card = el("article", { class: "cite" + (earlier ? " earlier" : ""), id: "cite-" + c.id, "data-time": hhmm(c.when) },
+      el("header", {}, el("span", { class: "t" }, hhmm(c.when)), el("b", {}, c.title), tag ? el("span", { class: "tag" + (earlier ? " was" : "") }, tag) : null, earlier ? btn : null),
+      earlier ? null : canvas,
+      m ? el("p", { class: "quote" }, el("span", { class: "spk", style: `--c:${color[m.speaker] || "#57534c"}` }, name(m.speaker)), `“${m.text}”`) : null,
+      earlier ? null : el("div", { class: "row" }, btn, clock),
+      ...c.passages.slice(0, 1).map((p) => el("p", { class: "mem" }, svg(ICON.mem), el("span", {}, "Remembered: " + p.replace(/^On \d{4}-\d{2}-\d{2} at \d{1,2}:\d{2}( UTC)?,?\s*/, "")))));
+    const span = m && m.start != null ? [m.start, m.end] : null;
+    let started = false;
+    const mine = () => owner === me;
+    const redraw = () => drawWave(canvas, c, { span, at: started ? (mine() ? player.currentTime : card.dataset.at || null) : null });
+    const me = {
+      id: c.id,
+      show(playing) { btn.replaceChildren(svg(playing ? ICON.pause : ICON.play), ...label(playing ? "Pause" : "Play")); card.dataset.playing = playing ? "1" : ""; },
+      tick() { card.dataset.at = player.currentTime; clock.textContent = `${mmss(player.currentTime)} / ${mmss(c.duration || player.duration)}`; if (!earlier) redraw(); },
+    };
+    btn.addEventListener("click", () => {
+      if (mine() && !player.paused) { player.pause(); me.show(false); return; }
+      const at = !started ? from : mine() ? null : +(card.dataset.at || from);
+      started = true;
+      playClip(me, at);
+    });
+    canvas.addEventListener("click", (e) => { // scrub: play from where you click
+      const dur = c.duration || player.duration; if (!dur) return;
+      started = true;
+      playClip(me, (e.offsetX / canvas.clientWidth) * dur);
+    });
+    card._draw = earlier ? () => {} : redraw;
+    return card;
+  }
+
+  // ---- record your own -----------------------------------------------------------------
+  async function send(blob, fname, when) {
+    const form = new FormData();
+    form.append("audio", blob, fname);
+    form.append("when", when);
+    const clip = await api("/api/clips", form);
+    day = clip.when.slice(0, 10);
+    answer = null; idle();
+    $("#capture").hidden = true;
+    await load();
+  }
+  $("#upload").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = $("#file").files[0];
+    if (!f) { $("#uperr").textContent = "Choose an audio file first."; return; }
+    $("#upbtn").disabled = true;
+    try { await send(f, f.name, $("#when").value); $("#file").value = ""; $("#uperr").textContent = ""; }
+    catch (x) { $("#uperr").textContent = x.message; }
+    finally { $("#upbtn").disabled = false; }
+  });
+  let recorder = null, chunks = [], startedAt = 0, timer = null;
+  $("#recbtn").addEventListener("click", async () => {
+    if (recorder) { recorder.stop(); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recorder = new MediaRecorder(stream);
+      chunks = [];
+      const when = localNow();
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        clearInterval(timer);
+        $("#recbtn").classList.remove("on");
+        $("#recstate").textContent = "Tap to record";
+        const type = recorder.mimeType || "audio/webm";
+        recorder = null;
+        try { await send(new Blob(chunks, { type }), type.includes("ogg") ? "recording.ogg" : type.includes("mp4") ? "recording.mp4" : "recording.webm", when); }
+        catch (x) { $("#uperr").textContent = x.message; }
+      };
+      recorder.start();
+      startedAt = Date.now();
+      $("#recbtn").classList.add("on");
+      timer = setInterval(() => { $("#recstate").textContent = `Recording ${mmss((Date.now() - startedAt) / 1000)} · tap to stop`; }, 500);
+    } catch (x) {
+      $("#uperr").textContent = "The microphone is not available here: " + (x.message || x);
+    }
+  });
+
+  load().catch((e) => { $("#empty").replaceChildren(el("div", { class: "err-msg" }, e.message)); });
+</script>
+</body>
+</html>

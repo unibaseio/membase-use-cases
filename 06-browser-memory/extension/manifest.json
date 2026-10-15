@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Browser Memory",
+  "version": "0.1.0",
+  "description": "Ask your Membase memory about the page you are on, or remember the page. Talks only to the local companion server; holds no key.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArDvu/TonlMxjo/edsysLb6b6EbOMadBoURc4pnFGJNcR1Ka23dHjATVerChYswnPfbbUofkijaV8+VCx46+ko79vISmAm/q087o8VNqmVhf1sC7VgypY8IQveCclJ3rcsxhJnYwky6bxwl7/KrRWR2HT4m5FnP9nAqy9MzHYwjch7V53TWI125yYU+IjDgm6nOF8mbYWzdf8l7uCF2eeKVq/vDHC76opqaWCfgLPPIksZ6ixT35xyNYnz32Lx9X1qNCrJ8cX7KkWX4CU8su62ODLm4twNAo3QgZoGb+9FQHxiayaaWfW6cMmSgyDEEntCtxaY7zwqgpxJnp6xNDWeQIDAQAB",
+  "action": {
+    "default_title": "Open Browser Memory",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "panel.html"
+  },
+  "permissions": [
+    "sidePanel",
+    "activeTab",
+    "scripting",
+    "tabs",
+    "favicon"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "optional_host_permissions": [
+    "<all_urls>"
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

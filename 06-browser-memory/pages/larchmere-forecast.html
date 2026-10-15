@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Larchmere valley: weekend forecast</title>
+<link rel="icon" href="valley.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+  :root { --ink: #10213a; --ink-2: #4b5a70; --sky: #1d6fd8; --line: #dfe6ef; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #eef3f9; color: var(--ink); font: 16px/1.5 Figtree, system-ui, sans-serif; }
+  header { background: linear-gradient(180deg, #1d6fd8, #2b7fe6); color: #fff; }
+  .bar { max-width: 980px; margin: 0 auto; padding: 14px 28px; display: flex; align-items: center; gap: 12px; font-weight: 600; }
+  .bar img { width: 28px; height: 28px; border-radius: 7px; box-shadow: 0 0 0 1.5px rgba(255,255,255,.6); }
+  .bar .name { font-size: 19px; font-weight: 700; }
+  .bar .search { margin-left: auto; background: rgba(255,255,255,.18); border-radius: 18px; padding: 7px 16px; font-weight: 500; font-size: 14px; min-width: 240px; }
+  main { max-width: 980px; margin: 0 auto; padding: 28px 28px 40px; }
+  h1 { font-size: 32px; font-weight: 700; margin: 0 0 18px; letter-spacing: -.01em; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0 12px; margin-top: -12px; }
+  tr:first-child th { font-size: 12.5px; font-weight: 600; color: var(--ink-2); text-align: left; padding: 0 18px; letter-spacing: .04em; text-transform: uppercase; }
+  td { background: #fff; padding: 18px; font-size: 17px; vertical-align: middle; }
+  td:first-child { border-radius: 14px 0 0 14px; font-size: 22px; font-weight: 700; width: 150px; }
+  td:last-child { border-radius: 0 14px 14px 0; color: var(--ink-2); font-size: 15.5px; }
+  td:nth-child(2) { white-space: nowrap; }
+  td svg { display: inline-block; vertical-align: -10px; margin-right: 10px; }
+  .sun { margin-top: 6px; font-size: 16px; color: var(--ink-2); }
+  .radar { max-width: 980px; margin: 0 auto 40px; padding: 0 28px; }
+  .radar svg { display: block; width: 100%; border-radius: 14px; }
+  footer { max-width: 980px; margin: 0 auto; padding: 0 28px 30px; font-size: 13px; color: #7c8aa0; }
+</style></head>
+<body>
+<header><div class="bar"><img src="valley.svg" alt=""><span class="name">Valley Weather</span><span class="search">Larchmere, Holloway</span></div></header>
+<main>
+<h1>Larchmere valley: weekend forecast</h1>
+<table>
+<tr><th>Day</th><th>Morning</th><th>Afternoon</th><th>Notes</th></tr>
+<tr><td>Saturday</td><td><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M9 21h16a5 5 0 0 0 0-10 7 7 0 0 0-13.3 2A4 4 0 0 0 9 21z" fill="#8a98ad"/><path d="M12 25l-2 4M18 25l-2 4M24 25l-2 4" stroke="#1d6fd8" stroke-width="2" stroke-linecap="round"/></svg>Heavy rain, 9°C</td><td>Showers clearing after 15:00</td><td>Thunderstorms possible on high ground until noon</td></tr>
+<tr><td>Sunday</td><td><svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="7" fill="#ffc53d"/><path d="M17 3v4M17 27v4M3 17h4M27 17h4M7 7l3 3M24 24l3 3M27 7l-3 3M10 24l-3 3" stroke="#ffc53d" stroke-width="2.2" stroke-linecap="round"/></svg>Clear, 14°C</td><td>Sunny, 24°C</td><td>Light wind; hot on exposed ridges</td></tr>
+</table>
+<p class="sun">Sunset on Sunday is at 19:42.</p>
+</main>
+<div class="radar"><svg viewBox="0 0 920 140" aria-hidden="true"><rect width="920" height="140" fill="#dbe6f3"/><path d="M0 100 C 150 60, 300 120, 460 80 S 760 40, 920 90 V140 H0z" fill="#c6d6ea"/><path d="M80 30c40-20 110-10 130 20s-30 50-80 40-90-40-50-60z" fill="#7aa7e0" opacity=".55"/><path d="M150 42c20-8 50-2 56 12s-14 24-36 20-40-24-20-32z" fill="#3f7fd6" opacity=".55"/><circle cx="610" cy="78" r="5" fill="#10213a"/><text x="622" y="83" font-family="Figtree, sans-serif" font-size="14" fill="#10213a">Holloway</text></svg></div>
+<footer>Valley Weather. A fictional forecast and site, made for the Membase browser-memory demo.</footer>
+</body></html>

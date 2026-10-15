@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kith · Lena’s map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap">
+<style>
+  /* Kith: a personal notes app with a map of the people, places and things in your notes.
+     Dark, quiet, the map in the middle; a card on the right for whatever you open. */
+  :root {
+    --bg: #121316; --bg-2: #17181c; --panel: #1b1c21; --panel-2: #222329; --line: #2b2c33; --line-2: #34353d;
+    --ink: #ecebe6; --ink-2: #b4b2aa; --ink-3: #7d7b74; --ink-4: #56554f;
+    --self: #f1ede3; --person: #efb45d; --place: #5fc4a2; --project: #e7836c; --event: #c6a3e6; --org: #78aee0;
+    --glow: #ffd57e; --edge: rgba(200, 196, 185, .16); --edge-on: rgba(236, 235, 230, .55);
+    --ui: "Hanken Grotesk", "Helvetica Neue", Arial, sans-serif;
+    --read: "Newsreader", Georgia, serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--ui); font-size: 14px; -webkit-font-smoothing: antialiased; overflow: hidden; }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { background: none; border: 0; padding: 0; cursor: pointer; }
+  svg { display: block; }
+  .hidden { display: none !important; }
+
+  /* ---- app frame ------------------------------------------------------------------------- */
+  .app { height: 100%; display: grid; grid-template-columns: 236px 1fr 392px; grid-template-rows: 52px 1fr; }
+  .bar { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; padding: 0 16px 0 18px; border-bottom: 1px solid var(--line); background: var(--bg-2); }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 16px; letter-spacing: .01em; width: 202px; }
+  .crumb { color: var(--ink-3); font-size: 13.5px; display: flex; gap: 8px; align-items: center; }
+  .crumb b { color: var(--ink); font-weight: 500; }
+  .find { margin-left: auto; position: relative; width: 340px; }
+  .find input { width: 100%; height: 34px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--panel); padding: 0 12px 0 34px; outline: none; font-size: 13.5px; }
+  .find input:focus { border-color: #4a4b55; background: var(--panel-2); }
+  .find input::placeholder { color: var(--ink-3); }
+  .find input::-webkit-calendar-picker-indicator { display: none !important; }
+  .find svg { position: absolute; left: 11px; top: 10px; color: var(--ink-3); }
+  .find .miss { position: absolute; top: 40px; left: 0; right: 0; font-size: 12.5px; color: var(--ink-2); background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 10px; z-index: 5; }
+  .rebuild { height: 34px; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px 0 12px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line-2); font-weight: 500; font-size: 13.5px; }
+  .rebuild:hover:not(:disabled) { border-color: #4a4b55; }
+  .rebuild:disabled { opacity: .55; cursor: default; }
+  .rebuild .badge { background: var(--glow); color: #2a2110; font-size: 11.5px; font-weight: 700; border-radius: 99px; padding: 1px 7px; margin-left: 8px; }
+  .rebuild.due { border-color: rgba(255, 213, 126, .55); box-shadow: 0 0 0 3px rgba(255, 213, 126, .1); }
+  .rebuild.spin svg { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---- sidebar: whose notes, what kinds of things are on the map -------------------------- */
+  .side { border-right: 1px solid var(--line); background: var(--bg-2); padding: 18px 14px 14px; display: flex; flex-direction: column; min-height: 0; }
+  .owner { display: flex; gap: 11px; align-items: center; padding: 0 4px 16px; border-bottom: 1px solid var(--line); }
+  .owner .av { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: #2a2620; color: var(--self); font-weight: 600; font-size: 14px; box-shadow: inset 0 0 0 1.5px var(--self); flex: none; }
+  .owner .n { font-weight: 600; font-size: 15px; }
+  .owner .s { color: var(--ink-3); font-size: 12.5px; margin-top: 2px; }
+  .side h3 { font-size: 12.5px; font-weight: 600; color: var(--ink-3); margin: 18px 6px 6px; }
+  .kinds { display: grid; gap: 1px; }
+  .kind { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 8px; padding: 7px 8px 7px 6px; border-radius: 7px; text-align: left; color: var(--ink-2); font-size: 13.5px; }
+  .kind:hover { background: var(--panel); }
+  .kind.off { color: var(--ink-4); }
+  .kind.off svg { opacity: .35; }
+  .kind .c { font-variant-numeric: tabular-nums; color: var(--ink-3); font-size: 12.5px; }
+  .notes { display: grid; gap: 1px; align-content: start; overflow: auto; min-height: 0; flex: 1; margin: 0 -4px; padding: 0 4px; scrollbar-width: none; }
+  .nrow { display: grid; grid-template-columns: 44px 1fr; gap: 6px; padding: 6px 6px; border-radius: 6px; font-size: 12.5px; color: var(--ink-2); line-height: 1.35; }
+  .nrow .d { color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .nrow .t { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .nrow.fresh { background: rgba(255, 213, 126, .07); }
+  .nrow.fresh .d { color: var(--glow); }
+  .foot { margin-top: 10px; padding: 10px 6px 0; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--ink-4); line-height: 1.5; }
+  .foot button { color: var(--ink-3); text-decoration: underline; text-underline-offset: 3px; font-size: 11.5px; }
+
+  /* ---- the map ---------------------------------------------------------------------------- */
+  .map { position: relative; min-width: 0; min-height: 0; overflow: hidden;
+    background: radial-gradient(ellipse at 50% 45%, #1a1b20 0%, var(--bg) 70%); }
+  .map::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .55;
+    background-image: radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.2px); background-size: 22px 22px; }
+  #svg { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; user-select: none; }
+  #svg.panning { cursor: grabbing; }
+  path.edge { fill: none; stroke: var(--edge); stroke-width: 1.2; transition: stroke .25s, opacity .25s; }
+  path.edge.on { stroke: var(--edge-on); stroke-width: 1.6; }
+  path.edge.new { stroke: var(--glow); stroke-width: 2; stroke-dasharray: 5 5; animation: march 1.2s linear infinite; opacity: .9; }
+  @keyframes march { to { stroke-dashoffset: -20; } }
+  text.elabel { font-family: var(--ui); font-size: 10.5px; fill: var(--ink-2); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; pointer-events: none; }
+  text.elabel.new { fill: var(--glow); }
+  g.node { cursor: pointer; transition: opacity .25s; }
+  g.node .shape { stroke-width: 1.6; }
+  g.node text.lbl { font-family: var(--ui); font-size: 12px; fill: var(--ink-2); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; pointer-events: none; }
+  g.node text.ini { font-family: var(--ui); font-weight: 700; pointer-events: none; letter-spacing: .02em; }
+  g.node:hover text.lbl, g.node.sel text.lbl, g.node.near text.lbl { fill: var(--ink); }
+  g.node.sel text.lbl { font-weight: 600; }
+  g.node.sel .shape { stroke-width: 2.6; }
+  g.node .halo { fill: none; stroke: var(--glow); stroke-width: 2; opacity: 0; }
+  g.node.new .halo { animation: halo 2.2s ease-out infinite; }
+  g.node.new text.lbl { fill: var(--glow); font-weight: 600; }
+  @keyframes halo { 0% { opacity: .9; transform: scale(1); } 100% { opacity: 0; transform: scale(2.1); } }
+  g.node .glowdisc { opacity: 0; transition: opacity .4s; }
+  g.node.new .glowdisc { opacity: 1; }
+  .dim, path.edge.new.dim { opacity: .14; }
+  .hiddenkind { display: none; }
+  .zoom { position: absolute; right: 14px; top: 14px; display: grid; gap: 2px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+  .zoom button { width: 28px; height: 26px; border-radius: 5px; color: var(--ink-2); display: grid; place-items: center; }
+  .zoom button:hover { background: var(--panel-2); color: var(--ink); }
+  .maphead { position: absolute; left: 18px; top: 14px; font-size: 12.5px; color: var(--ink-3); pointer-events: none; }
+  .maphead b { color: var(--ink-2); font-weight: 500; }
+  .progress { position: absolute; left: 0; right: 0; top: 0; height: 2px; overflow: hidden; }
+  .progress i { position: absolute; top: 0; bottom: 0; width: 30%; background: linear-gradient(90deg, transparent, var(--glow), transparent); animation: slide 1.4s ease-in-out infinite; }
+  @keyframes slide { from { left: -30%; } to { left: 100%; } }
+  .toast { position: absolute; left: 50%; top: 16px; transform: translateX(-50%); background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 99px; padding: 7px 14px; font-size: 13px; color: var(--ink-2); display: flex; gap: 9px; align-items: center; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+  .toast .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--glow); animation: blink 1s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity: .25; } }
+
+  /* the empty map, and the first build */
+  .empty { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; text-align: center; padding: 30px 30px 80px; }
+  .empty .art { color: var(--ink-3); margin-bottom: 20px; }
+  .empty h2 { font-family: var(--read); font-weight: 400; font-size: 30px; margin: 0; letter-spacing: -.005em; }
+  .empty p { color: var(--ink-2); font-size: 14.5px; line-height: 1.5; max-width: 380px; margin: 10px 0 22px; }
+  .primary { height: 40px; padding: 0 18px; border-radius: 9px; background: var(--ink); color: #17181c; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; }
+  .primary:hover { background: #fff; }
+  .steps { display: grid; gap: 11px; text-align: left; width: 330px; margin-top: 4px; }
+  .steps > div { display: grid; grid-template-columns: 18px 1fr; column-gap: 10px; align-items: center; color: var(--ink-3); font-size: 14.5px; }
+  .steps > div.now { color: var(--ink); }
+  .steps > div.done { color: var(--ink-2); }
+  .steps .mk { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid currentColor; display: grid; place-items: center; }
+  .steps > div.now .mk { border-color: var(--glow); border-top-color: transparent; animation: spin .8s linear infinite; }
+  .steps > div.done .mk { background: var(--place); border-color: var(--place); }
+  .steps > div.done .mk::after { content: ""; width: 6px; height: 3px; border: 1.6px solid #11241c; border-top: 0; border-right: 0; transform: rotate(-45deg) translate(1px, -1px); }
+  .steps .sub { color: var(--ink-3); font-size: 12.5px; grid-column: 2; }
+  .steps .sub:empty { display: none; }
+
+  /* ---- the card ---------------------------------------------------------------------------- */
+  .card { border-left: 1px solid var(--line); background: var(--bg-2); min-height: 0; overflow: auto; padding: 18px 20px 24px; scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+  .back { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: 13px; margin-bottom: 14px; }
+  .back:hover { color: var(--ink); }
+  .who { display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: center; }
+  .who h2 { font-family: var(--read); font-weight: 500; font-size: 27px; line-height: 1.1; margin: 0; letter-spacing: -.005em; }
+  .who .role { color: var(--ink-2); font-size: 13.5px; margin-top: 5px; line-height: 1.35; }
+  .who .tag { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; margin-top: 7px; }
+  .sect { margin-top: 22px; }
+  .sect > .h { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; font-weight: 600; color: var(--ink-3); margin-bottom: 8px; }
+  .sect > .h span { font-weight: 400; }
+  .conns { display: grid; gap: 1px; }
+  .conn { display: grid; grid-template-columns: 22px 1fr; gap: 9px; align-items: center; padding: 6px 6px 6px 4px; border-radius: 7px; text-align: left; font-size: 13.5px; }
+  .conn:hover { background: var(--panel); }
+  .conn .rel { color: var(--ink-3); }
+  .conn.new { background: rgba(255, 213, 126, .08); }
+  .conn.new .rel { color: var(--glow); }
+  .note { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 11px 13px 12px; margin-bottom: 8px; }
+  .note .d { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; margin-bottom: 5px; }
+  .note .d b { color: var(--ink-2); font-weight: 600; }
+  .note .x { font-family: var(--read); font-size: 15px; line-height: 1.45; color: #d9d7cf; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .note mark { background: rgba(239, 180, 93, .2); color: var(--ink); border-radius: 3px; padding: 0 2px; }
+  .note.fresh { border-color: rgba(255, 213, 126, .55); box-shadow: 0 0 0 3px rgba(255, 213, 126, .08), 0 0 24px -6px rgba(255, 213, 126, .35); }
+  .note.fresh .d b { color: var(--glow); }
+  .note.std { padding: 9px 13px; }
+  .note.std .x { font-size: 14.5px; }
+  .live { font-size: 13px; color: var(--ink-3); display: flex; align-items: center; gap: 8px; padding: 4px 2px 8px; }
+  .live .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--place); flex: none; }
+  .live.busy .dot { background: var(--glow); animation: blink 1s infinite; }
+  .err { color: #f19a8a; background: rgba(231, 131, 108, .1); border-radius: 8px; padding: 9px 11px; font-size: 13px; line-height: 1.4; }
+
+  /* today: write a note; what changed */
+  .today h2 { font-family: var(--read); font-weight: 400; font-size: 26px; margin: 2px 0 2px; }
+  .today .sub { color: var(--ink-3); font-size: 13px; }
+  .compose { margin-top: 16px; background: var(--panel); border: 1px solid var(--line-2); border-radius: 11px; padding: 12px 13px 10px; }
+  .compose textarea { width: 100%; min-height: 92px; resize: none; border: 0; outline: none; background: none; font-family: var(--read); font-size: 16.5px; line-height: 1.45; color: var(--ink); }
+  .compose textarea::placeholder { color: var(--ink-3); font-style: italic; }
+  .compose .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); padding-top: 9px; margin-top: 4px; }
+  .compose .st { font-size: 12.5px; color: var(--ink-3); }
+  .compose .st.ok { color: var(--place); }
+  .save { height: 30px; padding: 0 13px; border-radius: 7px; background: var(--ink); color: #17181c; font-weight: 600; font-size: 13px; flex: none; }
+  .save:disabled { opacity: .5; cursor: default; }
+  .newbox { margin-top: 18px; border: 1px solid rgba(255, 213, 126, .45); border-radius: 12px; padding: 13px 14px 10px; background: linear-gradient(180deg, rgba(255, 213, 126, .07), rgba(255, 213, 126, .02)); }
+  .newbox .h { font-weight: 600; font-size: 14.5px; color: var(--glow); }
+  .newbox .s { color: var(--ink-3); font-size: 12.5px; margin: 3px 0 8px; }
+  .newbox .conn { font-size: 14px; }
+  .newbox .links { border-top: 1px solid rgba(255, 213, 126, .18); margin-top: 6px; padding-top: 6px; }
+  .newbox .lk { display: flex; flex-wrap: wrap; gap: 5px; align-items: baseline; font-size: 13px; padding: 4px 4px; color: var(--ink-2); }
+  .newbox .lk em { font-style: normal; color: var(--glow); }
+
+  dialog { background: var(--panel); color: var(--ink); border: 1px solid var(--line-2); border-radius: 12px; width: 560px; max-height: 70vh; padding: 20px 22px; }
+  dialog::backdrop { background: rgba(0,0,0,.5); }
+  dialog h3 { margin: 0 0 8px; font-size: 16px; }
+  dialog p { color: var(--ink-2); line-height: 1.5; font-size: 13.5px; }
+  dialog pre { font-size: 12px; color: var(--ink-3); white-space: pre-wrap; max-height: 260px; overflow: auto; background: var(--bg); border-radius: 8px; padding: 10px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+        <!-- three people, joined: kith -->
+        <path d="M6.5 16.5 12 6.5l5.5 10z" opacity=".55"/>
+        <circle cx="12" cy="6" r="2.6" fill="#efb45d" stroke="none"/><circle cx="6" cy="17" r="2.6" fill="#5fc4a2" stroke="none"/><circle cx="18" cy="17" r="2.6" fill="#78aee0" stroke="none"/>
+      </svg>
+      Kith
+    </div>
+    <div class="crumb"><span id="ownername">Lena Varga</span><svg width="7" height="12" viewBox="0 0 7 12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="m1 1 5 5-5 5"/></svg><b>Map</b></div>
+    <form class="find" id="findform" autocomplete="off">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg>
+      <input id="search" list="names" placeholder="Find a person, place or project">
+      <datalist id="names"></datalist>
+    </form>
+    <button class="rebuild" id="rebuild" type="button" disabled>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.6-4.5M4 4v3h3M4 13a8 8 0 0 0 14.6 4.5M20 20v-3h-3"/></svg>
+      <span id="rebuildtext">Rebuild map</span>
+    </button>
+  </header>
+
+  <aside class="side" id="side">
+    <div class="owner">
+      <div class="av" id="ownerav">LV</div>
+      <div><div class="n" id="ownerfull">Lena Varga</div><div class="s" id="ownersub">&nbsp;</div></div>
+    </div>
+    <h3>On the map</h3>
+    <div class="kinds" id="kinds"></div>
+    <h3>Notes</h3>
+    <div class="notes" id="notes"></div>
+    <div class="foot" id="foot"><button type="button" id="howbtn">How this map was made</button><div id="colophon"></div></div>
+  </aside>
+
+  <main class="map" id="map">
+    <svg id="svg"><defs>
+      <radialGradient id="gl"><stop offset="0" stop-color="#ffd57e" stop-opacity=".42"/><stop offset="1" stop-color="#ffd57e" stop-opacity="0"/></radialGradient>
+    </defs><g id="vp"><g id="edges"></g><g id="elabels"></g><g id="nodes"></g></g></svg>
+    <div class="maphead" id="maphead"></div>
+    <div class="zoom" id="zoom">
+      <button id="zin" title="Zoom in" type="button"><svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" stroke-width="1.6"><path d="M6 1v10M1 6h10"/></svg></button>
+      <button id="zout" title="Zoom out" type="button"><svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" stroke-width="1.6"><path d="M1 6h10"/></svg></button>
+      <button id="zfit" title="Fit the map" type="button"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 5V1h4M9 1h4v4M13 9v4H9M5 13H1V9"/></svg></button>
+    </div>
+    <div class="empty" id="overlay"></div>
+    <div class="progress hidden" id="progress"><i></i></div>
+  </main>
+
+  <aside class="card" id="detail"></aside>
+</div>
+
+<dialog id="how">
+  <h3>How this map was made</h3>
+  <p>Kith has no list of everything you wrote. It asks your memory: your standing facts and latest
+    notes, eight broad questions (“people I work with”, “places I live in or travelled to”…), then
+    one more for every name those turn up. A model names the people, places and things in what
+    comes back and how they connect; anything no note states is left off. Notes your memory never
+    returns for these questions are not on the map.</p>
+  <p id="howstats"></p>
+  <pre id="log"></pre>
+  <button class="save" type="button" onclick="this.closest('dialog').close()">Close</button>
+</dialog>
+
+<script type="module">
+  import { $, el, api, stream } from "/kit/kit.js";
+
+  const USER = new URLSearchParams(location.search).get("user") || "default";
+  const KINDS = { person: "People", place: "Places", project: "Projects", event: "Events", org: "Organisations" };
+  const ONE = { self: "You", person: "Person", place: "Place", project: "Project", event: "Event", org: "Organisation" };
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = $("#svg"), vp = $("#vp");
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const color = (t) => css(`--${t}`) || "#999";
+  let G = null, owner = "Lena Varga", nodes = [], links = [], byId = {}, selected = null;
+  const hidden = new Set();
+  let view = { k: 1, x: 0, y: 0 }, alpha = 0, frame = null, building = false, unsaved = 0;
+  const pending = []; // notes saved since the last build: {text, at}
+  let added = { nodes: new Set(), links: new Set(), passages: new Set() };
+  const linkKey = (l) => `${l.source}|${l.target}|${l.label.toLowerCase()}`;
+  const first = () => owner.split(" ")[0];
+  const initials = (name) => name.split(/\s+/).filter((w) => /^[A-ZÀ-Ý]/.test(w)).slice(0, 2).map((w) => w[0]).join("") || name[0];
+  const s = (tag, attrs = {}) => { const n = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); return n; };
+
+  // ---- the shapes: one per kind of thing ------------------------------------------------------
+  // person: a round avatar with initials · place: a map pin · project: a folder
+  // event: a diamond with a calendar's rings · organisation: a hexagon with a building · you: a double ring
+  function shapePath(type, r) {
+    if (type === "place") return `M0 ${r * 1.25} C ${-r * .35} ${r * .62} ${-r} ${r * .2} ${-r} ${-r * .3} A ${r} ${r} 0 1 1 ${r} ${-r * .3} C ${r} ${r * .2} ${r * .35} ${r * .62} 0 ${r * 1.25} Z`;
+    if (type === "project") { const w = r * .98, h = r * .8, t = r * .3; return `M${-w} ${-h + t} V${h} H${w} V${-h + t} H${-w * .05} L${-w * .3} ${-h} H${-w} Z`; }
+    if (type === "event") return `M0 ${-r * 1.18} L${r * 1.18} 0 L0 ${r * 1.18} L${-r * 1.18} 0 Z`;
+    if (type === "org") { const p = []; for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + (i * Math.PI) / 3; p.push(`${(r * 1.06 * Math.cos(a)).toFixed(2)} ${(r * 1.06 * Math.sin(a)).toFixed(2)}`); } return `M${p.join(" L")} Z`; }
+    return null;
+  }
+  function glyph(type, r, name) {
+    const g = s("g");
+    const c = color(type);
+    const fill = type === "self" ? "#2a2620" : `color-mix(in srgb, ${c} 17%, #16171b)`;
+    const d = shapePath(type, r);
+    g.append(d ? s("path", { d, class: "shape", fill, stroke: c, "stroke-linejoin": "round" }) : s("circle", { r, class: "shape", fill, stroke: c }));
+    if (type === "self") g.append(s("circle", { r: r + 4.5, fill: "none", stroke: c, "stroke-width": 1, opacity: .45 }));
+    if (type === "person" && !name) {
+      // too small for initials: a head and shoulders
+      g.append(s("circle", { cy: -r * .22, r: r * .3, fill: c }), s("path", { d: `M${-r * .55} ${r * .6} a ${r * .55} ${r * .45} 0 0 1 ${r * 1.1} 0`, fill: c }));
+    } else if (type === "person" || type === "self") {
+      const t = s("text", { class: "ini", "text-anchor": "middle", dy: "0.36em", fill: c, "font-size": (type === "self" ? r * .68 : r * .74).toFixed(1) });
+      t.textContent = initials(name || "?");
+      g.append(t);
+    } else if (type === "place") g.append(s("circle", { cy: -r * .3, r: r * .32, fill: c }));
+    else if (type === "event") g.append(s("path", { d: `M${-r * .42} ${-r * .05} H${r * .42} M${-r * .2} ${-r * .4} V${-r * .2} M${r * .2} ${-r * .4} V${-r * .2} M${-r * .42} ${r * .22} H${r * .1}`, stroke: c, "stroke-width": 1.4, "stroke-linecap": "round" }));
+    else if (type === "org") g.append(s("path", { d: `M${-r * .36} ${r * .4} V${-r * .32} H${r * .36} V${r * .4} M${-r * .13} ${-r * .06} H${r * .13} M${-r * .13} ${r * .16} H${r * .13}`, fill: "none", stroke: c, "stroke-width": 1.3, "stroke-linecap": "round" }));
+    else if (type === "project") g.append(s("path", { d: `M${-r * .45} ${r * .12} H${r * .45} M${-r * .45} ${r * .4} H${r * .2}`, stroke: c, "stroke-width": 1.3, "stroke-linecap": "round", opacity: .8 }));
+    return g;
+  }
+  function icon(type, size = 18, name = "") {
+    const sv = s("svg", { width: size, height: size, viewBox: "-13 -13 26 26", "aria-hidden": "true" });
+    sv.append(glyph(type, 9.5, type === "self" ? name : ""));
+    return sv;
+  }
+
+  // ---- the graph --------------------------------------------------------------------------------
+  function load(graph) {
+    // What is new since the last build: a note the last build did not have, and whatever cites
+    // one. Labels drift between builds (each build names things afresh), so notes decide.
+    if (G) {
+      const had = new Set(G.passages.map((p) => p.text));
+      const fresh = new Set(graph.passages.filter((p) => !had.has(p.text)).map((p) => p.id));
+      const cites = (x) => (x.passages || []).some((id) => fresh.has(id));
+      added = { nodes: new Set(graph.nodes.filter((n) => n.type !== "self" && cites(n)).map((n) => n.id)), links: new Set(graph.links.filter(cites).map(linkKey)), passages: fresh };
+    } else added = { nodes: new Set(), links: new Set(), passages: new Set() };
+    G = graph;
+    const old = Object.fromEntries(nodes.map((n) => [n.id, n]));
+    nodes = graph.nodes.map((n, i) => {
+      const a = (2 * Math.PI * i) / graph.nodes.length, prev = old[n.id];
+      const lw = (n.type === "self" ? 4 : n.name.length) * 6.4;
+      return { ...n, lw, x: prev ? prev.x : Math.cos(a) * 240, y: prev ? prev.y : Math.sin(a) * 240, vx: 0, vy: 0, deg: 0 };
+    });
+    byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
+    links = graph.links.filter((l) => byId[l.source] && byId[l.target] && l.source !== l.target).map((l) => ({ ...l, s: byId[l.source], t: byId[l.target] }));
+    for (const l of links) { l.s.deg++; l.t.deg++; }
+    const self = nodes.find((n) => n.type === "self");
+    if (self) { self.x = 0; self.y = 0; self.pinned = true; }
+    draw();
+    for (let i = 0; i < 320; i++) tick(1 - i / 320);
+    if (self) self.pinned = false;
+    fit(false);
+    $("#overlay").replaceChildren();
+    $("#overlay").classList.add("hidden");
+    $("#names").replaceChildren(...nodes.filter((n) => n.type !== "self").map((n) => el("option", { value: n.name })));
+    for (const l of links) if (added.links.has(linkKey(l))) { l.path.classList.add("new"); l.text.classList.add("new"); }
+    renderSide();
+    select(null);
+  }
+
+  // Lena's own words for a passage. Memory returns its rewrite of a note ("On 2026-06-02, the
+  // user announced the kickoff…"); when the passage is one of the notes this app wrote, the page
+  // shows the note as she wrote it, and the passage stays as its tooltip. Anything else is shown
+  // as returned, with "the user" said as her name.
+  const keyOf = (p) => (p.note ? p.note.text : p.text);
+  function own(p) {
+    if (p.note) {
+      let t = p.note.text;
+      if (/^User:/m.test(t)) t = t.split("\n").filter((l) => l.startsWith("User:")).map((l) => l.slice(5).trim()).join(" ");
+      t = t.replace(/^\d{4}-\d{2}-\d{2}(?: and \d{1,2})?\.\s*/, "");
+      return { text: t, date: p.note.day || p.date };
+    }
+    return { text: inWorld(body(p.text)), date: p.date };
+  }
+  // The model names the owner "You" or "the user" in its one-line notes; the app says her name.
+  const role = (n) => (n.note || "")
+    .replace(/\b(?:the user's|user's|you's|your)\b/gi, `${first()}’s`)
+    .replace(/\b(?:the user|user|you)\b/gi, first())
+    .replace(/^./, (c) => c.toUpperCase());
+  function inWorld(t) {
+    t = t.replace(/^the user (?:reported|announced|shared|said|mentioned|noted|explained|recounted|stated|wrote|described|detailed|informed)(?: that)?\s+/i, "");
+    t = t.replace(/\bthe user's\b/gi, `${first()}’s`).replace(/\bthe user\b/gi, first());
+    return t[0].toUpperCase() + t.slice(1);
+  }
+  // one entry per note (a chat can come back as several passages); fresh if any of them is new
+  function uniqueNotes(list) {
+    const out = new Map();
+    for (const p of list) {
+      const k = keyOf(p), had = out.get(k);
+      if (had) had.fresh ||= added.passages.has(p.id);
+      else out.set(k, { ...p, fresh: added.passages.has(p.id) });
+    }
+    return [...out.values()];
+  }
+  const notesOf = (ids) => uniqueNotes(ids.map((id) => G.passages[id - 1]).filter(Boolean));
+  const today = new Date().toISOString().slice(0, 10);
+  const fmtDay = (d, long = false) => d === today ? "Today" : new Date(d + "T12:00:00Z").toLocaleDateString("en-GB",
+    long ? { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" } : { day: "numeric", month: "short", timeZone: "UTC" });
+  // A remembered note opens with its own date ("On 2026-06-02 at 19:00 UTC, …"); the card shows
+  // that date above it, so the text starts after it.
+  const body = (text) => {
+    const t = text.replace(/^On \d{4}-\d{2}-\d{2}(?: and \d{4}-\d{2}-\d{2})?(?: at)?(?: \d{1,2}:\d{2}(?: UTC)?)?,\s*/, "");
+    return t === text ? text : t[0].toUpperCase() + t.slice(1);
+  };
+
+  function renderSide() {
+    const dated = G.passages.filter((p) => p.date).map((p) => p.date).sort();
+    const since = dated.length ? new Date(dated[0] + "T12:00:00Z").toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" }) : "";
+    $("#ownersub").textContent = `${uniqueNotes(G.passages.filter((p) => p.date)).length} notes${since ? ` since ${since}` : ""}`;
+    const counts = {};
+    for (const n of nodes) counts[n.type] = (counts[n.type] || 0) + 1;
+    $("#kinds").replaceChildren(...Object.entries(KINDS).filter(([t]) => counts[t]).map(([t, label]) =>
+      el("button", { class: "kind" + (hidden.has(t) ? " off" : ""), type: "button", "data-kind": t, title: hidden.has(t) ? "Show on the map" : "Hide from the map",
+        onclick: () => { hidden.has(t) ? hidden.delete(t) : hidden.add(t); applyHidden(); renderSide(); } },
+        icon(t, 20), el("span", {}, label), el("span", { class: "c" }, counts[t]))));
+    const sorted = uniqueNotes(G.passages).map((p) => ({ ...p, ...own(p) })).sort((a, b) => (b.date || "0").localeCompare(a.date || "0"));
+    $("#notes").replaceChildren(...sorted.map((p) => el("div", { class: "nrow" + (p.fresh ? " fresh" : ""), title: `As memory holds it: ${G.passages.filter((x) => keyOf(x) === keyOf(p)).map((x) => x.text).join(" · ")}` },
+      el("span", { class: "d" }, p.date ? fmtDay(p.date) : "Always"), el("span", { class: "t" }, p.text))));
+    const count = sorted.filter((p) => p.date).length;
+    $("#maphead").replaceChildren(el("b", {}, `${nodes.length - 1} people, places and things`), ` from ${count} notes`);
+    $("#colophon").textContent = `Your notes are kept by Membase (${G.mode === "hosted" ? "hosted" : "local engine"}). Map made ${G.built_at.replace(" UTC", "")} UTC.`;
+    $("#howstats").textContent = `This map: ${G.profile.static} standing facts and ${G.profile.dynamic} latest notes; ${G.queries.length} broad questions; ${G.expanded.length} names followed (${G.expanded.join(", ")}). ${G.passages.length} passages from memory, read in ${G.seconds} s.`;
+  }
+
+  function applyHidden() {
+    for (const n of nodes) n.g.classList.toggle("hiddenkind", hidden.has(n.type));
+    for (const l of links) { const h = hidden.has(l.s.type) || hidden.has(l.t.type); l.path.classList.toggle("hiddenkind", h); l.text.classList.toggle("hiddenkind", h); }
+  }
+
+  // ---- layout -------------------------------------------------------------------------------------
+  function tick(a) {
+    const n = nodes.length;
+    for (let i = 0; i < n; i++) {
+      const p = nodes[i];
+      for (let j = i + 1; j < n; j++) {
+        const q = nodes[j];
+        let dx = q.x - p.x, dy = q.y - p.y, d2 = dx * dx + dy * dy;
+        if (d2 < 1) { dx = Math.random() - .5; dy = Math.random() - .5; d2 = 1; }
+        const d = Math.sqrt(d2), f = (12000 * a) / d2, fx = (dx / d) * f, fy = (dy / d) * f;
+        p.vx -= fx; p.vy -= fy; q.vx += fx; q.vy += fy;
+      }
+    }
+    for (const l of links) {
+      const dx = l.t.x - l.s.x, dy = l.t.y - l.s.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+      const rest = 105 + 6 * Math.min(l.s.deg, l.t.deg);
+      const f = ((d - rest) * .05 * a) / d;
+      l.s.vx += dx * f; l.s.vy += dy * f; l.t.vx -= dx * f; l.t.vy -= dy * f;
+    }
+    // labels side by side must not overlap: push apart along x
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const p = nodes[i], q = nodes[j], dy = q.y - p.y, dx = q.x - p.x;
+      const need = (p.lw + q.lw) / 2 + 10;
+      if (Math.abs(dy) < 26 && Math.abs(dx) < need) {
+        const push = (need - Math.abs(dx)) * .25 * (dx < 0 ? -1 : 1);
+        p.vx -= push; q.vx += push;
+      }
+    }
+    for (const p of nodes) {
+      p.vx -= p.x * .007 * a; p.vy -= p.y * .022 * a;
+      if (p.pinned) { p.vx = p.vy = 0; continue; }
+      p.vx *= .55; p.vy *= .55;
+      p.x += Math.max(-30, Math.min(30, p.vx)); p.y += Math.max(-30, Math.min(30, p.vy));
+    }
+  }
+  function heat(a = .5) { alpha = Math.max(alpha, a); if (!frame) frame = requestAnimationFrame(loop); }
+  function loop() { tick(alpha); paint(); alpha *= .97; frame = alpha > .01 ? requestAnimationFrame(loop) : null; }
+
+  // ---- drawing -------------------------------------------------------------------------------------
+  const radius = (n) => (n.type === "self" ? 19 : 10 + 2 * Math.sqrt(n.deg));
+  function draw() {
+    for (const id of ["#edges", "#elabels", "#nodes"]) $(id).replaceChildren();
+    for (const l of links) {
+      l.path = s("path", { class: "edge" });
+      l.text = s("text", { class: "elabel", "text-anchor": "middle" });
+      l.text.textContent = l.label;
+      l.text.style.display = "none";
+      $("#edges").append(l.path); $("#elabels").append(l.text);
+    }
+    for (const n of nodes) {
+      const r = radius(n);
+      n.g = s("g", { class: "node", "data-id": n.id, "data-type": n.type });
+      n.g.append(s("circle", { class: "glowdisc", r: r * 2.1, fill: "url(#gl)" }));
+      const halo = s("circle", { class: "halo", r: r + 5 });
+      halo.style.transformBox = "fill-box"; halo.style.transformOrigin = "center";
+      n.g.append(halo, glyph(n.type, r, n.type === "self" ? owner : n.name));
+      const t = s("text", { class: "lbl", y: r + (n.type === "place" ? 22 : n.type === "event" ? 21 : 17), "text-anchor": "middle" });
+      t.textContent = n.type === "self" ? first() : n.name;
+      const title = s("title"); title.textContent = `${n.type === "self" ? owner : n.name} · ${ONE[n.type]}`;
+      n.g.append(t, title);
+      n.g.addEventListener("pointerdown", (e) => dragNode(e, n));
+      $("#nodes").append(n.g);
+    }
+    applyHidden();
+    paint();
+  }
+  function paint() {
+    vp.setAttribute("transform", `translate(${view.x},${view.y}) scale(${view.k})`);
+    for (const l of links) {
+      const mx = (l.s.x + l.t.x) / 2, my = (l.s.y + l.t.y) / 2, dx = l.t.x - l.s.x, dy = l.t.y - l.s.y;
+      const cx = mx - dy * .08, cy = my + dx * .08;
+      l.path.setAttribute("d", `M${l.s.x},${l.s.y} Q${cx},${cy} ${l.t.x},${l.t.y}`);
+      l.text.setAttribute("x", (mx + cx) / 2); l.text.setAttribute("y", (my + cy) / 2 - 3);
+    }
+    for (const n of nodes) n.g.setAttribute("transform", `translate(${n.x},${n.y})`);
+  }
+  function fit(animate = true) {
+    if (!nodes.length) return;
+    const r = svg.getBoundingClientRect();
+    const shown = nodes.filter((n) => !hidden.has(n.type));
+    const xs = shown.map((n) => n.x), ys = shown.map((n) => n.y);
+    const minX = Math.min(...xs) - 70, maxX = Math.max(...xs) + 70, minY = Math.min(...ys) - 40, maxY = Math.max(...ys) + 50;
+    // keep clear of the header line at the top and the caption band at the bottom
+    const k = Math.min(1.6, (r.width - 30) / (maxX - minX), (r.height - 130) / (maxY - minY));
+    const to = { k, x: r.width / 2 - ((minX + maxX) / 2) * k, y: (r.height - 40) / 2 + 20 - ((minY + maxY) / 2) * k };
+    animate ? glide(to) : (view = to, paint());
+  }
+  function zoomAt(px, py, factor) {
+    const k = Math.max(.25, Math.min(4, view.k * factor));
+    view.x = px - ((px - view.x) * k) / view.k; view.y = py - ((py - view.y) * k) / view.k; view.k = k;
+    paint();
+  }
+  function glide(to) {
+    const from = { ...view }, t0 = performance.now();
+    const step = (t) => {
+      const u = Math.min(1, (t - t0) / 450), e = 1 - Math.pow(1 - u, 3);
+      view = { k: from.k + (to.k - from.k) * e, x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e };
+      paint();
+      if (u < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  function centerOn(n) {
+    const r = svg.getBoundingClientRect(), k = Math.max(view.k, 1.2);
+    glide({ k, x: r.width / 2 - n.x * k, y: r.height / 2 - 30 - n.y * k });
+  }
+
+  // ---- pan, zoom, drag --------------------------------------------------------------------------
+  const local = (e) => { const r = svg.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  svg.addEventListener("wheel", (e) => { e.preventDefault(); const [x, y] = local(e); zoomAt(x, y, Math.exp(-e.deltaY * .0015)); }, { passive: false });
+  svg.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("g.node")) return;
+    const start = [e.clientX, e.clientY, view.x, view.y];
+    let moved = false;
+    svg.classList.add("panning"); svg.setPointerCapture(e.pointerId);
+    const move = (m) => { if (Math.abs(m.clientX - start[0]) + Math.abs(m.clientY - start[1]) > 3) moved = true; view.x = start[2] + m.clientX - start[0]; view.y = start[3] + m.clientY - start[1]; paint(); };
+    const up = () => { svg.classList.remove("panning"); svg.removeEventListener("pointermove", move); svg.removeEventListener("pointerup", up); if (!moved && selected) select(null); };
+    svg.addEventListener("pointermove", move); svg.addEventListener("pointerup", up);
+  });
+  function dragNode(e, n) {
+    e.stopPropagation();
+    const [x0, y0] = local(e);
+    let moved = false;
+    svg.setPointerCapture(e.pointerId);
+    const move = (m) => {
+      const [x, y] = local(m);
+      if (Math.abs(x - x0) + Math.abs(y - y0) > 3) moved = true;
+      if (!moved) return;
+      n.pinned = true; n.x = (x - view.x) / view.k; n.y = (y - view.y) / view.k; heat(.3); paint();
+    };
+    const up = () => { svg.removeEventListener("pointermove", move); svg.removeEventListener("pointerup", up); n.pinned = false; if (!moved) select(n); };
+    svg.addEventListener("pointermove", move); svg.addEventListener("pointerup", up);
+  }
+  $("#zin").onclick = () => { const r = svg.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, 1.25); };
+  $("#zout").onclick = () => { const r = svg.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, .8); };
+  $("#zfit").onclick = () => fit();
+
+  // ---- the card ---------------------------------------------------------------------------------
+  function select(n) {
+    selected = n;
+    const near = new Set(n ? [n.id] : []);
+    for (const l of links) {
+      const on = !!n && (l.s === n || l.t === n);
+      if (on) { near.add(l.s.id); near.add(l.t.id); }
+      l.path.classList.toggle("on", on);
+      l.path.classList.toggle("dim", !!n && !on);
+      l.text.style.display = on ? "" : "none";
+    }
+    for (const m of nodes) {
+      m.g.classList.toggle("sel", m === n);
+      m.g.classList.toggle("near", !!n && near.has(m.id) && m !== n);
+      m.g.classList.toggle("dim", !!n && !near.has(m.id));
+      m.g.classList.toggle("new", added.nodes.has(m.id) && (!n || near.has(m.id)));
+    }
+    n ? card(n) : todayCard();
+  }
+  const nameOf = (n) => (n.type === "self" ? owner : n.name);
+  const short = (n) => (n.type === "self" ? first() : n.type === "person" ? n.name.split(" ")[0] : n.name);
+  const go = (n) => { select(n); centerOn(n); };
+  const conn = (n, rel, isNew) => el("button", { class: "conn" + (isNew ? " new" : ""), type: "button", onclick: () => go(n), "data-id": n.id },
+    icon(n.type, 20, nameOf(n)), el("span", {}, nameOf(n), rel ? el("span", { class: "rel" }, ` · ${rel}`) : null));
+
+  // The entity's name (or a person's first name) marked where a note mentions it. A long note
+  // shows from the sentence that mentions it.
+  const wordsOf = (n) => (n.type === "self" ? [] : [n.name, n.name.split(" ")[0]].filter((w) => w.length > 2));
+  function snippet(text, n) {
+    const sentences = text.split(/(?<=[.!?])\s+(?=[A-Z“"])/);
+    const i = sentences.findIndex((x) => wordsOf(n).some((w) => x.toLowerCase().includes(w.toLowerCase())));
+    return i <= 0 ? text : "…" + sentences.slice(i).join(" ");
+  }
+  function marked(text, n) {
+    for (const w of wordsOf(n)) {
+      const i = text.toLowerCase().indexOf(w.toLowerCase());
+      if (i >= 0) return [text.slice(0, i), el("mark", {}, text.slice(i, i + w.length)), text.slice(i + w.length)];
+    }
+    return [text];
+  }
+  function noteCard(p, n, live = false) {
+    const fresh = !!p.fresh, o = own(p);
+    return el("div", { class: "note" + (fresh ? " fresh" : "") + (o.date ? "" : " std"), "data-pid": live ? null : p.id, title: `As memory holds it: ${p.text}` },
+      el("div", { class: "d" }, el("b", {}, o.date ? fmtDay(o.date, true) : "Standing fact"), fresh ? el("span", { style: "color:var(--glow)" }, "new since last build") : null),
+      el("div", { class: "x" }, ...marked(snippet(o.text, n), n)));
+  }
+
+  function card(n) {
+    // one row per neighbour: its newest link first, else the first the build named
+    const rels = [];
+    for (const l of links.filter((x) => x.s === n || x.t === n).sort((a, b) => added.links.has(linkKey(b)) - added.links.has(linkKey(a)))) {
+      const other = l.s === n ? l.t : l.s;
+      if (!rels.some((r) => (r.s === n ? r.t : r.s) === other)) rels.push(l);
+    }
+    const notes = notesOf(n.passages).sort((a, b) => (b.fresh - a.fresh) || (own(b).date || "0").localeCompare(own(a).date || "0"));
+    const live = el("div", { class: "live busy", id: "live" }, el("i", { class: "dot" }), `Looking through ${first()}’s notes for ${short(n)}…`);
+    const also = el("div", { id: "also" });
+    const big = s("svg", { width: 64, height: 64, viewBox: "-32 -32 64 64" });
+    big.append(glyph(n.type, 21, nameOf(n)));
+    $("#detail").replaceChildren(
+      el("button", { class: "back", id: "back", type: "button", onclick: () => select(null) }, el("span", { "aria-hidden": "true" }, "←"), "Today"),
+      el("div", { class: "who", id: "who" }, big,
+        el("div", {}, el("h2", {}, nameOf(n)), n.note ? el("div", { class: "role" }, role(n)) : null,
+          el("div", { class: "tag", style: `color:${color(n.type)}` }, ONE[n.type], n.date ? el("span", { style: "color:var(--ink-3);font-weight:400" }, `· ${n.date}`) : null))),
+      el("div", { class: "sect", id: "connections" },
+        el("div", { class: "h" }, "Connections", el("span", {}, String(rels.length))),
+        el("div", { class: "conns" }, ...rels.map((l) => l.s === n ? conn(l.t, l.label, added.links.has(linkKey(l))) : conn(l.s, l.label, added.links.has(linkKey(l)))))),
+      el("div", { class: "sect", id: "fromnotes" },
+        el("div", { class: "h" }, `From ${first()}’s notes`, el("span", {}, String(notes.length))),
+        live, also, ...notes.map((p) => noteCard(p, n))));
+    // what memory holds on this name right now, beyond the notes the map was built from
+    api("/api/recall", { name: n.type === "self" ? "You" : n.name, user: USER }).then((r) => {
+      if (selected !== n) return;
+      const shown = new Set(notes.map(keyOf));
+      const more = uniqueNotes(r.hits.map((h) => ({ text: h.content, date: h.date, note: h.note }))).filter((h) => !shown.has(keyOf(h)));
+      live.classList.remove("busy");
+      live.replaceChildren(el("i", { class: "dot" }), more.length
+        ? `${more.length} more note${more.length > 1 ? "s" : ""} on ${short(n)}, not on the map yet`
+        : `Checked just now: nothing newer on ${short(n)}`);
+      also.replaceChildren(...more.slice(0, 3).map((h) => noteCard(h, n, true)));
+    }).catch((e) => { live.classList.remove("busy"); live.replaceChildren(el("div", { class: "err" }, e.message)); });
+  }
+
+  function todayCard() {
+    const now = new Date();
+    const area = el("textarea", { id: "newnote", placeholder: `What happened today, ${first()}?`, rows: 4 });
+    const st = el("span", { class: "st", id: "notestate" }, unsaved ? `${unsaved} new note${unsaved > 1 ? "s" : ""}, not on the map yet` : "");
+    const save = el("button", { class: "save", id: "savenote", type: "submit" }, "Save note");
+    const form = el("form", { class: "compose", id: "compose" }, area, el("div", { class: "row" }, st, save));
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const text = area.value.trim();
+      if (!text) return;
+      save.disabled = true; area.disabled = true;
+      st.className = "st"; st.textContent = "Saving…";
+      try {
+        const out = await api("/api/remember", { text, user: USER });
+        area.value = "";
+        unsaved += 1;
+        pending.unshift({ text, at: new Date() });
+        markDue();
+        if (selected) return;
+        todayCard();
+        const state = $("#notestate");
+        state.className = "st ok"; state.id = "saved";
+        state.textContent = out.learning ? "Saved. Your memory is still reading it; rebuild in a minute." : "Saved to your memory";
+      } catch (err) {
+        st.className = "st"; st.replaceChildren(el("span", { class: "err" }, err.message));
+      } finally {
+        save.disabled = false; area.disabled = false;
+      }
+    });
+    const parts = [
+      el("div", { class: "today" },
+        el("h2", {}, now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })),
+        el("div", { class: "sub" }, G ? `${nodes.length - 1} people, places and things in your notes` : "Write a note, or build your map")),
+      form,
+    ];
+    if (pending.length) parts.push(el("div", { class: "sect", id: "pending" }, ...pending.map((x) =>
+      el("div", { class: "note", "data-pending": "" },
+        el("div", { class: "d" }, el("b", {}, `Today, ${x.at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`), el("span", {}, "not on the map yet")),
+        el("div", { class: "x" }, x.text)))));
+    if (G && (added.nodes.size || added.links.size)) {
+      const fresh = links.filter((l) => added.links.has(linkKey(l)));
+      parts.push(el("div", { class: "newbox", id: "newlist" },
+        el("div", { class: "h" }, "New since last build"),
+        el("div", { class: "s" }, (() => { const k = uniqueNotes(G.passages.filter((p) => added.passages.has(p.id))).length; return `From ${k} note${k > 1 ? "s" : ""} the last map didn’t have`; })()),
+        el("div", { class: "conns" }, ...nodes.filter((n) => added.nodes.has(n.id)).map((n) => conn(n, role(n), false))),
+        fresh.length ? el("div", { class: "links" }, ...fresh.map((l) => el("div", { class: "lk" }, el("span", {}, nameOf(l.s)), el("em", {}, l.label), el("span", {}, nameOf(l.t))))) : null));
+    }
+    if (G) {
+      const top = [...nodes].filter((n) => n.type !== "self").sort((a, b) => b.deg - a.deg).slice(0, 5);
+      parts.push(el("div", { class: "sect" }, el("div", { class: "h" }, "Most connected"), el("div", { class: "conns" }, ...top.map((n) => conn(n, role(n), false)))));
+    }
+    $("#detail").replaceChildren(...parts);
+  }
+
+  function markDue() {
+    $("#rebuild").classList.toggle("due", unsaved > 0);
+    $("#rebuildtext").replaceChildren("Rebuild map", unsaved ? el("span", { class: "badge" }, `${unsaved} new`) : "");
+  }
+
+  // ---- search ------------------------------------------------------------------------------------
+  $("#findform").addEventListener("submit", (e) => { e.preventDefault(); find(); });
+  $("#search").addEventListener("change", find);
+  function find() {
+    const q = $("#search").value.trim().toLowerCase();
+    $("#findform").querySelector(".miss")?.remove();
+    if (!q || !G) return;
+    const n = nodes.find((m) => m.name.toLowerCase() === q) || nodes.find((m) => m.name.toLowerCase().includes(q));
+    if (!n) { $("#findform").append(el("div", { class: "miss" }, `Nothing called “${$("#search").value}” on the map.`)); return; }
+    if (n !== selected) go(n);
+  }
+
+  // ---- build -------------------------------------------------------------------------------------
+  const STEPS = [
+    ["profile", "Reading what you always keep", /^Reading the profile|^Profile:/],
+    ["broad", "Asking eight broad questions", /broad searches|^  “/],
+    ["hop", "Following every name", /^One hop out/],
+    ["name", "Drawing people, places and things", /^Naming/],
+  ];
+  const stepsView = () => el("div", { class: "steps", id: "steps" }, ...STEPS.map(([k, t]) => el("div", { "data-k": k }, el("span", { class: "mk" }), el("span", {}, t), el("span", { class: "sub" }))));
+  function stepAt(text) {
+    const i = STEPS.findIndex(([, , re]) => re.test(text));
+    const box = $("#steps");
+    if (i < 0 || !box) return;
+    box.querySelectorAll(":scope > div").forEach((d, j) => { d.classList.toggle("done", j < i); d.classList.toggle("now", j === i); });
+    const sub = box.querySelector(`[data-k="${STEPS[i][0]}"] .sub`);
+    if (/^Profile:/.test(text)) sub.textContent = text.replace(/^Profile: /, "");
+    if (i === 2) sub.textContent = text.replace(/^One hop out: a search for each of (\d+) names found/, "$1 names");
+    if (i === 3) sub.textContent = text.replace(/^Naming entities and links in (\d+) passages/, "from $1 notes");
+  }
+  async function rebuild() {
+    if (building) return;
+    building = true;
+    const b = $("#rebuild");
+    b.disabled = true; b.classList.add("spin");
+    $("#log").textContent = "";
+    $("#progress").classList.remove("hidden");
+    let toast = null;
+    if (!G) {
+      $("#overlay").replaceChildren(el("div", { class: "art" }, mapArt()), el("h2", {}, `Mapping ${first()}’s notes`), el("p", {}, "About a minute. Everything on the map keeps the notes it came from."), stepsView());
+    } else {
+      toast = el("div", { class: "toast", id: "rebuilding" }, el("i", { class: "dot" }), el("span", {}, `Re-reading ${first()}’s notes…`));
+      $("#map").append(toast);
+    }
+    try {
+      await stream("/api/graph/rebuild", { user: USER }, (ev) => {
+        if (ev.type === "step") { $("#log").textContent += ev.text + "\n"; stepAt(ev.text); if (toast && /^Naming/.test(ev.text)) toast.lastChild.textContent = "Redrawing the map…"; }
+        else if (ev.type === "graph") { $("#log").textContent += `Done: ${ev.graph.nodes.length} entities, ${ev.graph.links.length} links.\n`; unsaved = 0; pending.length = 0; load(ev.graph); }
+      });
+    } catch (e) {
+      $("#log").textContent += "Failed: " + e.message + "\n";
+      const err = el("div", { class: "err", id: "builderror" }, `The map couldn’t be built: ${e.message}`);
+      if (!G) $("#overlay").replaceChildren(err, el("button", { class: "primary", style: "margin-top:14px", onclick: rebuild }, "Try again"));
+      else $("#detail").prepend(err);
+    } finally {
+      building = false;
+      toast?.remove();
+      $("#progress").classList.add("hidden");
+      b.disabled = false; b.classList.remove("spin");
+      markDue();
+    }
+  }
+  $("#rebuild").addEventListener("click", rebuild);
+  $("#howbtn").addEventListener("click", () => $("#how").showModal());
+
+  function mapArt() {
+    // a small constellation of the five kinds of thing, joined
+    const sv = s("svg", { width: 160, height: 96, viewBox: "-80 -48 160 96", fill: "none" });
+    const pts = [["person", -50, -12, "Lena V"], ["place", 0, -28], ["project", 48, -6], ["org", 8, 24], ["event", -30, 30]];
+    for (const [a, b] of [[0, 1], [1, 2], [0, 3], [3, 2], [0, 4]]) sv.append(s("line", { x1: pts[a][1], y1: pts[a][2], x2: pts[b][1], y2: pts[b][2], stroke: "rgba(200,196,185,.25)", "stroke-width": 1.2 }));
+    for (const [t, x, y, nm] of pts) { const g = glyph(t, 10, nm || ""); g.setAttribute("transform", `translate(${x},${y})`); sv.append(g); }
+    return sv;
+  }
+
+  // ---- start -------------------------------------------------------------------------------------
+  try {
+    const r = await api(`/api/graph?user=${encodeURIComponent(USER)}`);
+    owner = r.owner || owner;
+    $("#ownername").textContent = owner; $("#ownerfull").textContent = owner; $("#ownerav").textContent = initials(owner);
+    document.title = `Kith · ${first()}’s map`;
+    $("#rebuild").disabled = false;
+    await document.fonts.ready.catch(() => {});
+    if (r.graph) load(r.graph);
+    else {
+      todayCard();
+      $("#ownersub").textContent = "No map yet";
+      $("#overlay").replaceChildren(el("div", { class: "art" }, mapArt()), el("h2", {}, `${first()}’s people and places`),
+        el("p", {}, "Kith reads your notes and draws who and what is in them, and how they connect. Every person, place and project keeps the notes it came from."),
+        el("button", { class: "primary", id: "build", type: "button", onclick: rebuild }, "Build the map"));
+    }
+  } catch (e) {
+    $("#overlay").replaceChildren(el("div", { class: "err" }, e.message));
+  }
+  window.addEventListener("resize", () => G && fit(false));
+</script>
+</body>
+</html>

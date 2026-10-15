@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Browser Memory</title>
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <div id="companion" class="notice" hidden></div>
+
+  <!-- the page in the tab you are on -->
+  <section class="here" id="page">
+    <img class="fav" id="page-fav" alt="">
+    <div class="here-text">
+      <div id="page-title" class="title">Reading the page…</div>
+      <div class="sub"><span id="page-url" class="url"></span><span id="page-meta"></span></div>
+    </div>
+    <button id="remember" class="tonal" type="button" title="Remember this page">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v16l7-4 7 4v-9"/><path d="M19 2v6M16 5h6"/></svg>
+      <span class="lbl">Remember</span>
+    </button>
+  </section>
+  <div id="remember-out" class="toast" aria-live="polite"></div>
+  <div id="page-error" class="err" hidden></div>
+  <button id="grant" class="text-btn" type="button" hidden>Let Browser Memory read pages</button>
+
+  <!-- ask -->
+  <form class="ask" id="ask-form">
+    <textarea id="question" rows="1" placeholder="Ask about this page and what you’ve saved"></textarea>
+    <button id="ask" class="send" type="submit" title="Ask">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4l17.45-7.48a1 1 0 0 0 0-1.84L3.4 3.6a.99.99 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z"/></svg>
+    </button>
+  </form>
+
+  <!-- the answer -->
+  <section id="answer-card" class="answer-card" hidden>
+    <div id="asked" class="asked"></div>
+    <div id="answer" class="answer"></div>
+    <div id="answer-status" class="status-line"></div>
+  </section>
+
+  <section id="mems-card" class="mems" hidden>
+    <h2>From your memory</h2>
+    <div id="mems"></div>
+  </section>
+
+  <!-- what you have remembered -->
+  <section class="saved" id="saved">
+    <div class="saved-h"><h2>Remembered pages</h2><span class="count" id="saved-count"></span></div>
+    <div id="pages"><div class="quiet">Loading…</div></div>
+  </section>
+
+  <footer class="foot"><span id="badge" class="badge">connecting</span><span>Your key stays on this computer, with the companion.</span></footer>
+  <script type="module" src="panel.js"></script>
+</body>
+</html>
