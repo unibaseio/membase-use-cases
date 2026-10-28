@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Video memory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #f6f6f3; --sheet: #ffffff; --ink: #1c1c1a; --ink-2: #66665f; --ink-3: #9b9b93;
+    --line: #e3e3dd; --line-2: #efefea;
+    --accent: #5b5bd6; --accent-2: #ececfb;
+    --seen: #5b5bd6; --said: #0f8f7e; --hit: #f2a20c;
+    --ui: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif; --mono: "Geist Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--ink); font: 16px/1.45 var(--ui); -webkit-font-smoothing: antialiased; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  [hidden] { display: none !important; }
+  .page { max-width: 1360px; margin: 0 auto; padding: 18px 24px 16px; display: flex; flex-direction: column; gap: 14px; min-height: 100vh; }
+
+  header { display: flex; align-items: flex-start; gap: 20px; }
+  header h1 { margin: 0; font-size: 30px; font-weight: 600; letter-spacing: -.02em; }
+  header p { margin: 4px 0 0; color: var(--ink-2); font-size: 17px; max-width: 760px; }
+  .badge { margin-left: auto; font-size: 12px; padding: 3px 10px; border-radius: 99px; background: #ececE7; color: var(--ink-2); white-space: nowrap; }
+  .err { background: #fdecea; color: #b42318; border-radius: 8px; padding: 8px 12px; font-size: 13px; }
+
+  /* the four steps */
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--sheet); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .step { padding: 14px 20px 15px; border-right: 1px solid var(--line); position: relative; min-width: 0; }
+  .step:last-child { border-right: 0; }
+  .step .n { font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .step .h { font-weight: 600; font-size: 19px; margin-top: 2px; white-space: nowrap; overflow: hidden; display: flex; align-items: center; gap: 8px; }
+  .step.on { background: var(--accent-2); }
+  .step.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--accent); }
+  .step.on .n, .step.on .h { color: var(--accent); }
+  .spin { width: 13px; height: 13px; border-radius: 50%; border: 2px solid #cfd0f3; border-top-color: var(--accent); animation: spin .8s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 410px; gap: 14px; min-height: 0; }
+  .panel { background: var(--sheet); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; min-width: 0; }
+  .panel h2 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+
+  /* find */
+  .bar { display: flex; gap: 8px; }
+  .bar input { flex: 1; min-width: 0; height: 54px; border: 1px solid var(--line); border-radius: 12px; padding: 0 18px; font-size: 20px; outline: none; background: #fff; }
+  .bar input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-2); }
+  .pbtn { height: 54px; padding: 0 28px; border: 0; border-radius: 12px; font-size: 18px; background: var(--accent); color: #fff; font-weight: 600; }
+  .pbtn:disabled { opacity: .6; cursor: progress; }
+  .chip { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 5px 10px; font-size: 14px; color: var(--ink-2); }
+  
+  .result { margin-top: 16px; }
+  .asked { color: var(--ink-2); font-size: 15px; margin-bottom: 10px; }
+  .hero { display: grid; grid-template-columns: 480px minmax(0, 1fr); gap: 20px; }
+  .screen { aspect-ratio: 16 / 9; background: #000; border-radius: 10px; overflow: hidden; position: relative; }
+  .screen video { width: 100%; height: 100%; display: block; }
+  .screen .tc { position: absolute; left: 10px; bottom: 10px; font: 500 14px var(--mono); color: #fff; background: rgba(0, 0, 0, .6); padding: 2px 8px; border-radius: 5px; }
+  .moment .where { font-size: 15px; color: var(--ink-2); }
+  .moment .where b { color: var(--ink); font-weight: 600; font-size: 18px; }
+  .moment .where .t { font-family: var(--mono); color: var(--hit); font-weight: 500; }
+  .tag { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; vertical-align: 2px; margin-right: 6px; }
+  .tag.seen { background: #ececfb; color: var(--seen); }
+  .tag.said { background: #e0f4f1; color: var(--said); }
+  .moment .text { font-size: 19px; line-height: 1.4; margin-top: 8px; letter-spacing: -.005em; }
+  .moment .who { margin-top: 10px; font-size: 15.5px; display: flex; align-items: baseline; gap: 7px; color: var(--ink-2); }
+  .moment .who i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+  .moment .who b { color: var(--ink); font-weight: 500; }
+  .others { margin-top: 10px; border-top: 1px solid var(--line-2); padding-top: 10px; }
+  .others h3 { margin: 0 0 6px; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .other { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; align-items: center; width: 100%; text-align: left; border: 0; background: none; padding: 5px 6px; border-radius: 8px; }
+  .other:hover { background: var(--line-2); }
+  .other .th { width: 64px; height: 36px; border-radius: 4px; background: #000 center / cover; }
+  .other .l1 { font-size: 14px; color: var(--ink-2); }
+  .other .l1 .t { font-family: var(--mono); }
+
+  /* the video as memory holds it */
+  .tracks { margin-top: 12px; border-top: 1px solid var(--line-2); padding-top: 10px; }
+  .tracks .head { display: flex; align-items: baseline; gap: 10px; font-size: 15px; color: var(--ink-2); margin-bottom: 24px; white-space: nowrap; }
+  .tracks .head b { color: var(--ink); font-weight: 600; }
+  .lanes { display: grid; grid-template-columns: 60px minmax(0, 1fr); row-gap: 6px; align-items: center; }
+  .lanes .lab { font-size: 12.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  .lanes .lab.seen { color: var(--seen); }
+  .lanes .lab.said { color: var(--said); }
+  .lane { position: relative; height: 48px; background: #f0f0ec; border-radius: 6px; overflow: hidden; }
+  .lane.said { height: 26px; }
+  .seg { position: absolute; top: 0; bottom: 0; background: #2b2b33 center / cover; border-right: 1px solid #fff; opacity: .72; cursor: pointer; }
+  .lane.said .seg { top: 4px; bottom: 4px; border-radius: 3px; border-right: 0; opacity: .85; }
+  .seg:hover { opacity: 1; }
+  .seg.hit { opacity: 1; box-shadow: inset 0 0 0 3px var(--hit); z-index: 2; }
+  .lane.said .seg.hit { top: 0; bottom: 0; box-shadow: inset 0 0 0 2px var(--hit); }
+  .seg.also { opacity: 1; box-shadow: inset 0 0 0 2px rgba(242, 162, 12, .55); }
+  .ruler { position: relative; height: 18px; font: 12.5px var(--mono); color: var(--ink-3); }
+  .ruler span { position: absolute; top: 2px; transform: translateX(-50%); }
+  .ruler span:first-child { transform: none; }
+  .ruler span:last-child { transform: translateX(-100%); }
+  .lane-wrap { position: relative; }
+  .playhead { position: absolute; top: -4px; height: 88px; width: 2px; background: var(--hit); z-index: 3; pointer-events: none; }
+  .pin { position: absolute; top: -22px; transform: translateX(-50%); font: 600 13px var(--mono); color: #fff; background: var(--hit); padding: 1px 7px; border-radius: 4px; white-space: nowrap; z-index: 4; }
+
+  .empty { color: var(--ink-2); padding: 10px 0; }
+
+  /* in memory */
+  .side { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .list { overflow-y: auto; min-height: 0; flex: 1; margin: 0 -8px; padding: 0 8px; }
+  .vid { padding: 10px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; transition: box-shadow .3s, border-color .3s; }
+  .vid.matched { border-color: var(--hit); box-shadow: 0 0 0 2px rgba(242, 162, 12, .35); }
+  .vid.new { animation: arrive 2.4s cubic-bezier(.2, .8, .2, 1); }
+  @keyframes arrive { 0% { opacity: 0; transform: translateY(-6px); box-shadow: 0 0 0 3px var(--accent-2); border-color: var(--accent); } 25% { opacity: 1; transform: none; box-shadow: 0 0 0 3px var(--accent-2); border-color: var(--accent); } }
+  .vid .top { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 10px; align-items: center; }
+  .vid .poster { width: 104px; height: 58px; border-radius: 6px; background: #000 center / cover; }
+  .vid .t { font-weight: 600; font-size: 16.5px; display: flex; gap: 6px; align-items: baseline; }
+  .vid .t span { font: 13.5px var(--mono); color: var(--ink-3); font-weight: 400; }
+  .vid .m { font-size: 14.5px; color: var(--ink-2); }
+  .vid .m .seen { color: var(--seen); }
+  .vid .m .said { color: var(--said); }
+  .mini { margin-top: 8px; display: grid; gap: 3px; }
+  .mini .row { position: relative; height: 8px; background: #f0f0ec; border-radius: 2px; overflow: hidden; }
+  .mini .row i { position: absolute; top: 0; bottom: 0; }
+  .mini .row.seen i { background: var(--seen); opacity: .55; border-right: 1px solid #fff; }
+  .mini .row.said i { top: 1px; bottom: 1px; border-radius: 1px; }
+  .mini .row i.hit { background: var(--hit) !important; opacity: 1; }
+  .job { padding: 12px; border: 1px dashed var(--accent); border-radius: 10px; margin-bottom: 8px; background: #fafaff; }
+  .job .t { font-weight: 600; display: flex; justify-content: space-between; }
+  .job .t span { font: 14px var(--mono); color: var(--accent); }
+  .job .w { display: flex; align-items: center; gap: 8px; font-size: 14.5px; color: var(--ink-2); margin-top: 6px; }
+  .job.error { border-color: #d92d20; background: #fff6f5; }
+  .job .why { color: #b42318; font-size: 14px; margin-top: 4px; }
+  .waiting { border-top: 1px solid var(--line-2); padding-top: 10px; margin-top: 4px; }
+  .waiting h3 { margin: 0 0 4px; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .wait { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 15.5px; }
+  .wait span { flex: 1; }
+  .wait small { color: var(--ink-3); }
+  .sbtn { height: 36px; padding: 0 16px; border-radius: 9px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-weight: 600; font-size: 15px; }
+  .sbtn:disabled { opacity: .6; }
+  .own { margin-top: 10px; font-size: 15px; color: var(--ink-2); }
+  .own label { color: var(--accent); cursor: pointer; }
+  .drop-on { outline: 2px dashed var(--accent); outline-offset: 4px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div>
+      <h1>Video memory</h1>
+      <p>Recall any scene or line.</p>
+    </div>
+  </header>
+  <div class="err" id="err" hidden></div>
+
+  <section class="steps" id="steps">
+    <div class="step" id="st1"><div class="n">1 · Add</div><div class="h"><span id="st1s">…</span></div></div>
+    <div class="step" id="st2"><div class="n">2 · Scenes</div><div class="h"><span id="st2s">…</span></div></div>
+    <div class="step" id="st3"><div class="n">3 · Lines</div><div class="h"><span id="st3s">…</span></div></div>
+    <div class="step" id="st4"><div class="n">4 · Recall</div><div class="h"><span id="st4s">the moment</span></div></div>
+  </section>
+
+  <main>
+    <section class="panel" id="findpane">
+      <h2>Find a moment</h2>
+      <div class="bar">
+        <input id="q" placeholder="A scene or a line" autocomplete="off">
+        <button class="pbtn" id="go">Find</button>
+      </div>
+      <div class="result" id="result"></div>
+    </section>
+
+    <aside class="panel side" id="memory">
+      <h2>In memory</h2>
+      <div class="list" id="list"></div>
+    </aside>
+  </main>
+</div>
+
+<script type="module">
+import { $, el, api } from "/kit/kit.js";
+
+const PALETTE = ["#0f8f7e", "#d4572a", "#2a6fdb", "#a8458f", "#7a8b12", "#8a5a2b"];
+const state = { videos: [], known: null, fresh: new Set(), current: null, hit: null, matched: new Set(), finds: 0 };
+let player = null;
+
+const pad = (n) => String(n).padStart(2, "0");
+const tc = (s) => `${Math.floor((s || 0) / 60)}:${pad(Math.floor((s || 0) % 60))}`;
+const bg = (url) => (url ? `background-image:url("${url}")` : "");
+const minutes = (s) => (s >= 90 ? `${Math.round(s / 60)} min` : `${Math.round(s)} s`);
+const offscreen = (s) => /narrator|off-screen/i.test(s || "");
+
+function fail(e) {
+  $("#err").textContent = e instanceof Error ? e.message : String(e);
+  $("#err").hidden = false;
+}
+const clearErr = () => ($("#err").hidden = true);
+
+function speakerColor(video, speaker) {
+  if (!speaker || offscreen(speaker)) return "#9b9b93";
+  const i = video.speakers.filter((s) => !offscreen(s)).indexOf(speaker);
+  return PALETTE[Math.max(0, i) % PALETTE.length];
+}
+
+// ---- memory ------------------------------------------------------------------------------
+
+let polling = null;
+async function refresh() {
+  const m = await api("/api/memory");
+  if (state.known) m.videos.filter((v) => !state.known.has(v.id)).forEach((v) => state.fresh.add(v.id));
+  state.known = new Set(m.videos.map((v) => v.id));
+  state.videos = m.videos;
+  render(m);
+  const busy = m.jobs.some((j) => j.status === "adding");
+  if (busy && !polling) polling = setInterval(() => refresh().catch(fail), 1500);
+  if (!busy && polling) { clearInterval(polling); polling = null; }
+}
+
+function render(m) {
+  const t = m.totals;
+  const adding = m.jobs.filter((j) => j.status === "adding");
+  const total = m.videos.reduce((a, v) => a + (v.duration || 0), 0);
+  $("#st1s").textContent = `${t.videos} ${t.videos === 1 ? "video" : "videos"} · ${minutes(total)}`;
+  const steps = [
+    [2, "watching", `${t.shots} scenes`],
+    [3, "listening", `${t.lines} lines · ${t.voices} voices`],
+  ];
+  for (const [n, verb, text] of steps) {
+    const h = $(`#st${n} .h`);
+    h.querySelector(".spin")?.remove();
+    if (adding.length) {
+      $(`#st${n}s`).textContent = `${verb}…`;
+      h.prepend(el("span", { class: "spin" }));
+    } else $(`#st${n}s`).textContent = text;
+    $(`#st${n}`).classList.toggle("on", adding.length > 0);
+  }
+  if (adding.length) $("#st4").classList.remove("on");
+
+  $("#list").replaceChildren(
+    ...m.jobs.map((j) =>
+      el("div", { class: `job ${j.status}`, "data-key": j.key },
+        el("div", { class: "t" }, j.title, el("span", {}, j.status === "error" ? "failed" : `${Math.round(Date.now() / 1000 - j.started)} s`)),
+        ...(j.status === "error"
+          ? [el("div", { class: "why" }, j.error), el("button", { class: "chip", onclick: () => dismiss(j.id) }, "Dismiss")]
+          : [
+              el("div", { class: "w" }, el("span", { class: "spin" }), "watching · listening"),
+            ])
+      )
+    ),
+    ...m.videos.map(videoCard),
+    ...(m.waiting.length
+      ? [el("div", { class: "waiting" },
+          el("h3", {}, "Not added"),
+          m.waiting.map((w) =>
+            el("div", { class: "wait" },
+              el("span", {}, w.title, " ", el("small", {}, String(w.year))),
+              el("button", { class: "sbtn add", "data-key": w.key, onclick: (e) => addSample(w.key, e.target) }, "Add")
+            )
+          ))]
+      : []),
+    el("div", { class: "own" }, el("label", { for: "pick" }, "+ your own video"),
+      el("input", { type: "file", id: "pick", accept: "video/*", hidden: true, onchange: (e) => e.target.files[0] && upload(e.target.files[0]) }))
+  );
+}
+
+function span(v, m) {
+  const d = v.duration || 1;
+  const end = m.end ?? m.t + 1;
+  return `left:${(m.t / d) * 100}%;width:${Math.max(0.35, ((end - m.t) / d) * 100)}%`;
+}
+const same = (a, b) => a && b && a.kind === b.kind && Math.abs(a.t - b.t) < 0.01;
+
+function videoCard(v) {
+  const hit = state.hit && state.hit.video === v.id ? state.hit.m : null;
+  return el("div", {
+      class: `vid${state.fresh.has(v.id) ? " new" : ""}${state.matched.has(v.id) ? " matched" : ""}`,
+      "data-id": v.id, "data-key": v.key,
+    },
+    el("div", { class: "top" },
+      el("div", { class: "poster", style: bg(v.poster) }),
+      el("div", {},
+        el("div", { class: "t" }, v.title, el("span", {}, tc(v.duration))),
+        el("div", { class: "m" },
+          el("span", { class: "seen" }, `${v.shots.length} scenes`), " · ",
+          el("span", { class: "said" }, `${v.lines.length} lines`),
+        )
+      )
+    ),
+    el("div", { class: "mini" },
+      el("div", { class: "row seen" }, v.shots.map((s) => el("i", { class: same(s, hit) ? "hit" : "", style: span(v, s) }))),
+      el("div", { class: "row said" }, v.lines.map((s) => el("i", { class: same(s, hit) ? "hit" : "", style: `${span(v, s)};background:${speakerColor(v, s.speaker)}` })))
+    )
+  );
+}
+
+function renderCards() {
+  for (const v of state.videos) $(`#list .vid[data-id="${v.id}"]`)?.replaceWith(videoCard(v));
+}
+
+async function addSample(key, button) {
+  clearErr();
+  button.disabled = true;
+  try {
+    await api(`/api/samples/${key}`, {});
+  } catch (e) {
+    button.disabled = false;
+    return fail(e);
+  }
+  await refresh();
+}
+
+async function upload(file) {
+  clearErr();
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    await api("/api/upload", fd);
+  } catch (e) {
+    return fail(e);
+  }
+  await refresh();
+}
+
+async function dismiss(id) {
+  await api(`/api/jobs/${id}`, undefined, { method: "DELETE" }).catch(fail);
+  await refresh();
+}
+
+document.addEventListener("dragover", (e) => { e.preventDefault(); $("#memory").classList.add("drop-on"); });
+document.addEventListener("dragleave", (e) => { if (!e.relatedTarget) $("#memory").classList.remove("drop-on"); });
+document.addEventListener("drop", (e) => {
+  e.preventDefault();
+  $("#memory").classList.remove("drop-on");
+  if (e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]);
+});
+
+// ---- find --------------------------------------------------------------------------------
+
+async function find(q) {
+  q = (q ?? $("#q").value).trim();
+  if (!q) return;
+  $("#q").value = q;
+  clearErr();
+  $("#go").disabled = true;
+  $("#st4").classList.add("on");
+  $("#st4s").textContent = "searching…";
+  try {
+    const out = await api("/api/find", { q });
+    const all = out.results.flatMap((r) => r.moments.map((m) => ({ video: r.id, title: r.title, m })));
+    state.matched = new Set(out.results.map((r) => r.id));
+    if (!all.length) {
+      state.hit = null;
+      $("#st4s").textContent = "nothing matched";
+      $("#result").replaceChildren(el("div", { class: "empty" }, "Nothing matches that."));
+      renderCards();
+    } else {
+      showResult(all, out.seconds);
+    }
+    document.body.dataset.found = String(++state.finds);
+  } catch (e) {
+    $("#st4s").textContent = "the moment";
+    fail(e);
+  } finally {
+    $("#go").disabled = false;
+  }
+}
+$("#go").addEventListener("click", () => find());
+$("#q").addEventListener("keydown", (e) => e.key === "Enter" && find());
+
+function showResult(all, seconds) {
+  $("#result").replaceChildren(
+    el("div", { class: "asked" }, `${all.length} ${all.length === 1 ? "moment" : "moments"} · ${seconds} s`),
+    el("div", { class: "hero" },
+      el("div", { class: "screen" }, el("video", { id: "player", playsinline: true, preload: "auto" }), el("span", { class: "tc", id: "tc" }, "0:00")),
+      el("div", {},
+        el("div", { class: "moment", id: "moment" }),
+        ...(all.length > 1
+          ? [el("div", { class: "others" },
+              el("h3", {}, "Also"),
+              all.slice(1, 4).map((a) =>
+                el("button", { class: "other", onclick: () => open(a, all) },
+                  el("div", { class: "th", style: bg(a.m.thumb) }),
+                  el("div", { class: "l1" }, el("span", { class: `tag ${a.m.kind}` }, a.m.kind), `${a.title} · `, el("span", { class: "t" }, tc(a.m.t)))
+                ))
+            )]
+          : [])
+      )
+    ),
+    el("div", { class: "tracks", id: "tracks" })
+  );
+  player = $("#player");
+  player.addEventListener("timeupdate", tick);
+  open(all[0], all);
+}
+
+function open(a, all) {
+  const v = state.videos.find((x) => x.id === a.video);
+  if (!v) return;
+  state.hit = a;
+  state.current = { v, a };
+  const m = a.m;
+  $("#moment").replaceChildren(
+    el("div", { class: "where" }, el("b", {}, v.title), "  ·  ", el("span", { class: "t" }, `${tc(m.t)}–${tc(m.end ?? m.t)}`)),
+    el("div", { class: "text" }, el("span", { class: `tag ${m.kind}` }, m.kind), m.kind === "said" ? `“${m.text}”` : m.text),
+    ...(m.speaker
+      ? [el("div", { class: "who" }, el("i", { style: `background:${speakerColor(v, m.speaker)}` }), el("b", {}, m.speaker))]
+      : [])
+  );
+  $("#st4s").textContent = `${v.title} · ${tc(m.t)}`;
+  drawTracks(v, a, all);
+  renderCards();
+  play(v, m);
+}
+
+function drawTracks(v, a, all) {
+  const also = all.filter((x) => x.video === v.id && x !== a).map((x) => x.m);
+  const cls = (m) => (same(m, a.m) ? "seg hit" : also.some((o) => same(o, m)) ? "seg also" : "seg");
+  const pick = (m) => () => open({ video: v.id, title: v.title, m }, all);
+  const d = v.duration || 1;
+  $("#tracks").replaceChildren(
+    el("div", { class: "head" },
+      el("b", {}, v.title),
+      `${v.shots.length} scenes · ${v.lines.length} lines`
+    ),
+    el("div", { class: "lane-wrap" },
+      el("div", { class: "lanes" },
+        el("div", { class: "lab seen" }, "Seen"),
+        el("div", { class: "lane seen" }, v.shots.map((s) =>
+          el("div", { class: cls(s), style: `${span(v, s)};${bg(s.thumb)}`, title: `${tc(s.t)} ${s.text}`, onclick: pick(s) }))),
+        el("div", { class: "lab said" }, "Said"),
+        el("div", { class: "lane said" }, v.lines.map((s) =>
+          el("div", { class: cls(s), style: `${span(v, s)};background:${speakerColor(v, s.speaker)}`, title: `${tc(s.t)} ${s.speaker || ""}: ${s.text}`, onclick: pick(s) }))),
+        el("div", {}),
+        el("div", { class: "ruler" }, [0, 0.25, 0.5, 0.75, 1].map((f) => el("span", { style: `left:${f * 100}%` }, tc(f * d))))
+      ),
+      el("div", { class: "playhead", id: "playhead", hidden: true }),
+      el("div", { class: "pin", id: "pin" }, tc(a.m.t))
+    )
+  );
+  const x = at(a.m.t);
+  if (x !== null) $("#pin").style.left = `${x}px`;
+}
+
+// the pin and the playhead sit over the lanes, which start after the labels
+function at(t) {
+  const lane = $("#tracks .lane"), wrap = $("#tracks .lane-wrap");
+  if (!lane || !wrap || !state.current) return null;
+  const lb = lane.getBoundingClientRect(), wb = wrap.getBoundingClientRect();
+  return lb.left - wb.left + (t / (state.current.v.duration || 1)) * lb.width;
+}
+
+function play(v, m) {
+  const start = Math.max(0, m.t - (m.kind === "said" ? 0.3 : 0));
+  // a shot ends where the next starts, often on a cut to black: stop just before it
+  const out = m.end != null ? m.end + (m.kind === "said" ? 0.4 : -0.2) : m.t + 3;
+  // a turn can run on for a while; the moment is its opening seconds
+  state.window = { start, end: Math.min(Math.max(out, m.t + 1.5), start + 7) };
+  const go = () => {
+    player.currentTime = start;
+    player.play().catch(() => {});
+  };
+  if (player.getAttribute("src") !== v.url) {
+    player.setAttribute("src", v.url);
+    player.addEventListener("loadedmetadata", go, { once: true });
+  } else go();
+}
+
+function tick() {
+  const t = player.currentTime;
+  $("#tc").textContent = tc(t);
+  const x = at(t);
+  if (x !== null) {
+    $("#playhead").hidden = false;
+    $("#playhead").style.left = `${x}px`;
+  }
+  const w = state.window;
+  // timeupdate comes every quarter second or so: step back to the out point, so the picture
+  // holds on the moment's last frame and not on whatever came after it
+  if (w && t >= w.end && !player.paused) {
+    player.pause();
+    player.currentTime = w.end;
+    document.body.dataset.played = String(+(document.body.dataset.played || 0) + 1);
+  }
+}
+
+window.addEventListener("resize", () => state.current && drawTracks(state.current.v, state.current.a, []));
+
+(async () => {
+  try {
+    await refresh();
+  } catch (e) {
+    fail(e);
+  }
+})();
+</script>
+</body>
+</html>

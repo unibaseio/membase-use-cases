@@ -233,7 +233,7 @@ async def render_video(rec_dir: Path, meta: dict, out_mp4: Path) -> list[float]:
         "pitch": meta["pitch"],
         "line": meta.get("line"),  # one short line; the intro shows the pitch when there is none
         "kick": f"Membase use cases · {meta['n']:02d}",
-        "base": BASES[base],
+        "base": meta.get("base_label", BASES[base]),
         "corner": f"use cases · {meta['n']:02d} {meta['title']}",
     }
 
@@ -425,6 +425,7 @@ async def render_banner(meta: dict, shot: Path, url: str, out_png: Path) -> None
         page = await browser.new_page(
             viewport={"width": 1300, "height": 553}, device_scale_factor=1
         )
+        label = meta.get("base_label", BASES[meta["base"]])
         await page.goto((HERE / "compose.html").as_uri())
         await page.evaluate("document.fonts.ready")
         await page.evaluate(
@@ -432,7 +433,7 @@ async def render_banner(meta: dict, shot: Path, url: str, out_png: Path) -> None
             {
                 "mode": "banner",
                 "panel": PANELS[meta["base"]],
-                "tag": f"Membase use cases · {meta['n']:02d} · {BASES[meta['base']]}",
+                "tag": " · ".join(filter(None, [f"Membase use cases · {meta['n']:02d}", label])),
                 "title": meta["title_html"],
                 "pitch": meta["pitch"],
                 "url": f"<b>{url}</b>",

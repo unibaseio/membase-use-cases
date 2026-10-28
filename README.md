@@ -1,6 +1,6 @@
 # Membase use cases
 
-Seventeen things that long-term memory makes possible, each built as a small app you can run.
+Nineteen things that long-term memory makes possible, each built as a small app you can run.
 Every app calls the real Membase API and a real model; nothing is mocked. Each one has a video
 of about a minute.
 
@@ -47,6 +47,8 @@ under **Connect › Developer keys**, and put the key in `.env`.
 | 15 | [Reunite](15-reunite/) | Matching two people's memories of the same past | local | [▶ 59 s](#15-reunite) |
 | 16 | [Wearable diary](16-wearable-diary/) | A day of audio becomes conversation memory | local | [▶ 66 s](#16-wearable-diary) |
 | 17 | [Run coach HUD](17-run-coach-hud/) | Glasses-style coach that remembers past runs | local | [▶ 56 s](#17-run-coach-hud) |
+| 18 | [Video memory](18-video-memory/) | Recall any scene or line in a video | local | [▶ 62 s](#18-video-memory) |
+| 19 | [Photo memory](19-photo-memory/) | Recall a photo by describing it | local | [▶ 51 s](#19-photo-memory) |
 
 All the data in these demos is synthetic or public domain.
 
@@ -176,6 +178,20 @@ https://github.com/user-attachments/assets/3d542882-39dd-4b0a-8d37-8774f3a3ee3d
 A cue at km 6.5 from the 5 runs that faded.
 
 https://github.com/user-attachments/assets/98269966-c9dc-474b-ac32-776173327b30
+
+<a name="18-video-memory"></a>
+### 18 · [Video memory](18-video-memory/) · 62 s
+
+The dragon at 0:33, and the line at 0:57 with who said it.
+
+https://github.com/user-attachments/assets/557b1808-7558-4b5b-83b3-248e254bef16
+
+<a name="19-photo-memory"></a>
+### 19 · [Photo memory](19-photo-memory/) · 51 s
+
+Orange gates finds Fushimi Inari; something sweet finds a tart and a cake.
+
+https://github.com/user-attachments/assets/dfc0ccb1-e478-4549-abd8-12e83bc55bf2
 
 ## Layout
 

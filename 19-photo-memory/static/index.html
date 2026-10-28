@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Photo memory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #f6f6f3; --sheet: #ffffff; --ink: #1c1c1a; --ink-2: #66665f; --ink-3: #9b9b93;
+    --line: #e3e3dd; --line-2: #efefea;
+    --accent: #5b5bd6; --accent-2: #ececfb; --hit: #f2a20c;
+    --ui: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif; --mono: "Geist Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--ink); font: 16px/1.45 var(--ui); -webkit-font-smoothing: antialiased; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  [hidden] { display: none !important; }
+  .page { max-width: 1360px; margin: 0 auto; padding: 18px 24px 16px; display: flex; flex-direction: column; gap: 14px; min-height: 100vh; }
+
+  header { display: flex; align-items: flex-start; gap: 20px; }
+  header h1 { margin: 0; font-size: 30px; font-weight: 600; letter-spacing: -.02em; }
+  header p { margin: 4px 0 0; color: var(--ink-2); font-size: 17px; }
+  .badge { margin-left: auto; font-size: 12px; padding: 3px 10px; border-radius: 99px; background: #ececE7; color: var(--ink-2); white-space: nowrap; }
+  .err { background: #fdecea; color: #b42318; border-radius: 8px; padding: 8px 12px; font-size: 13px; }
+
+  /* the three steps */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--sheet); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .step { padding: 14px 20px 15px; border-right: 1px solid var(--line); position: relative; min-width: 0; }
+  .step:last-child { border-right: 0; }
+  .step .n { font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .step .h { font-weight: 600; font-size: 19px; margin-top: 2px; display: flex; align-items: center; gap: 8px; white-space: nowrap; overflow: hidden; }
+  .step.on { background: var(--accent-2); }
+  .step.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--accent); }
+  .step.on .n, .step.on .h { color: var(--accent); }
+  .spin { width: 13px; height: 13px; border-radius: 50%; border: 2px solid #cfd0f3; border-top-color: var(--accent); animation: spin .8s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 14px; min-height: 0; }
+  .panel { background: var(--sheet); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; min-width: 0; }
+  .panel h2 { margin: 0 0 12px; font-size: 13.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+
+  /* find */
+  .bar { display: flex; gap: 8px; }
+  .bar input { flex: 1; min-width: 0; height: 54px; border: 1px solid var(--line); border-radius: 12px; padding: 0 18px; font-size: 20px; outline: none; background: #fff; }
+  .bar input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-2); }
+  .pbtn { height: 54px; padding: 0 28px; border: 0; border-radius: 12px; font-size: 18px; background: var(--accent); color: #fff; font-weight: 600; }
+  .pbtn:disabled { opacity: .6; cursor: progress; }
+    .asked { color: var(--ink-2); font-size: 15px; margin-top: 10px; min-height: 22px; }
+  .asked a { color: var(--accent); cursor: pointer; margin-left: 8px; }
+
+  /* the library */
+  .album { margin-top: 14px; }
+  .album h3 { margin: 0 0 8px; font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: baseline; }
+  .album h3 span { font-weight: 400; color: var(--ink-3); font-size: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+  .tile { position: relative; aspect-ratio: 4 / 3; border-radius: 8px; background: #ddd center / cover; border: 0; padding: 0; transition: opacity .35s, box-shadow .3s, transform .3s; }
+  .tile:hover { transform: translateY(-1px); }
+  .tile.sel { box-shadow: 0 0 0 2px var(--accent); }
+  body[data-searching="1"] .tile, .searched .tile { opacity: .28; }
+  .searched .tile.hit { opacity: 1; box-shadow: 0 0 0 3px var(--hit); }
+  .tile .rank { position: absolute; top: 5px; left: 5px; min-width: 26px; height: 26px; padding: 0 6px; border-radius: 7px; background: var(--hit); color: #fff; font: 600 15px/26px var(--mono); text-align: center; }
+  .tile.new { animation: arrive 2.4s cubic-bezier(.2, .8, .2, 1); }
+  @keyframes arrive { 0% { opacity: 0; transform: scale(.94); box-shadow: 0 0 0 3px var(--accent); } 30% { opacity: 1; transform: none; box-shadow: 0 0 0 3px var(--accent); } }
+  .slot { aspect-ratio: 4 / 3; border-radius: 8px; border: 1px dashed #cfd0f3; background: #fafaff; display: grid; place-items: center; }
+  .album.waiting h3 { color: var(--ink-2); }
+  .sbtn { height: 36px; padding: 0 16px; border-radius: 9px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-weight: 600; font-size: 15px; margin-left: auto; }
+  .sbtn:disabled { opacity: .6; }
+  .own { margin-top: 14px; font-size: 15px; }
+  .own label { color: var(--accent); cursor: pointer; }
+  .job { color: #b42318; font-size: 12.5px; margin-top: 6px; }
+  .drop-on { outline: 2px dashed var(--accent); outline-offset: 4px; }
+
+  /* what memory holds */
+  .side { display: flex; flex-direction: column; min-height: 0; }
+  .big { width: 100%; aspect-ratio: 4 / 3; border-radius: 10px; background: #111 center / contain no-repeat; }
+  .holds .t { margin-top: 12px; font-weight: 600; font-size: 19px; display: flex; gap: 8px; align-items: baseline; }
+  .holds .t span { font-weight: 400; font-size: 15px; color: var(--ink-3); }
+  .holds .lab, .also .lab { margin-top: 12px; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .holds .d { margin-top: 4px; font-size: 19px; line-height: 1.45; }
+  .also { margin-top: 16px; border-top: 1px solid var(--line-2); padding-top: 10px; }
+  .also .row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 6px; }
+  .also .tile { opacity: 1 !important; }
+  .empty { color: var(--ink-2); padding: 30px 6px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div>
+      <h1>Photo memory</h1>
+      <p>Recall a photo by describing it.</p>
+    </div>
+  </header>
+  <div class="err" id="err" hidden></div>
+
+  <section class="steps" id="steps">
+    <div class="step" id="st1"><div class="n">1 · Add</div><div class="h"><span id="st1s">…</span></div></div>
+    <div class="step" id="st2"><div class="n">2 · Remember</div><div class="h"><span id="st2s">…</span></div></div>
+    <div class="step" id="st3"><div class="n">3 · Recall</div><div class="h"><span id="st3s">the photo</span></div></div>
+  </section>
+
+  <main>
+    <section class="panel" id="findpane">
+      <h2>Find a photo</h2>
+      <div class="bar">
+        <input id="q" placeholder="Describe a photo" autocomplete="off">
+        <button class="pbtn" id="go">Find</button>
+      </div>
+      <div class="asked" id="asked"></div>
+      <div id="library"></div>
+    </section>
+
+    <aside class="panel side" id="side">
+      <h2 id="sidehead">In memory</h2>
+      <div id="holds"></div>
+    </aside>
+  </main>
+</div>
+
+<script type="module">
+import { $, el, api } from "/kit/kit.js";
+
+const state = { photos: [], known: null, fresh: new Set(), selected: null, hits: null, finds: 0 };
+
+function fail(e) {
+  $("#err").textContent = e instanceof Error ? e.message : String(e);
+  $("#err").hidden = false;
+}
+const clearErr = () => ($("#err").hidden = true);
+const bg = (url) => (url ? `background-image:url("${url}")` : "");
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+// ---- memory ------------------------------------------------------------------------------
+
+let polling = null;
+async function refresh() {
+  const m = await api("/api/memory");
+  if (state.known) m.photos.filter((p) => !state.known.has(p.id)).forEach((p) => state.fresh.add(p.id));
+  state.known = new Set(m.photos.map((p) => p.id));
+  state.photos = m.photos;
+  state.memory = m;
+  render();
+  const busy = m.jobs.some((j) => j.status === "adding");
+  if (busy && !polling) polling = setInterval(() => refresh().catch(fail), 1200);
+  if (!busy && polling) { clearInterval(polling); polling = null; }
+}
+
+function render() {
+  const m = state.memory;
+  const adding = m.jobs.filter((j) => j.status === "adding");
+  const n = state.photos.length;
+  $("#st1s").textContent = plural(n, "photo", "photos");
+  const h = $("#st2 .h");
+  h.querySelector(".spin")?.remove();
+  if (adding.length) {
+    const j = adding[0];
+    $("#st2s").textContent = `remembering ${j.title} · ${j.done} of ${j.total}`;
+    h.prepend(el("span", { class: "spin" }));
+  } else $("#st2s").textContent = `${plural(n, "photo", "photos")} remembered`;
+  $("#st2").classList.toggle("on", adding.length > 0);
+  if (adding.length) $("#st3").classList.remove("on");
+
+  const albums = [...Object.keys(m.albums), "yours"];
+  const sections = albums.map((album) => {
+    const photos = state.photos.filter((p) => p.album === album);
+    const job = m.jobs.find((j) => j.album === album && j.status === "adding");
+    const failed = m.jobs.filter((j) => j.album === album && j.status === "error");
+    const wait = m.waiting.find((w) => w.album === album);
+    if (!photos.length && !job && !wait && !failed.length) return null;
+    const name = m.albums[album] || "Your photos";
+    const slots = job ? job.total - job.done : wait ? wait.count : 0;
+    return el("div", { class: `album${!photos.length && wait ? " waiting" : ""}`, "data-album": album },
+      el("h3", {}, name,
+        el("span", {}, photos.length ? plural(photos.length, "photo", "photos") : wait ? "not in memory yet" : ""),
+        ...(wait && !job ? [el("button", { class: "sbtn add", "data-album": album, onclick: (e) => addAlbum(album, e.target) }, `Add ${plural(wait.count, "photo", "photos")}`)] : [])),
+      el("div", { class: "grid" },
+        photos.map(tile),
+        Array.from({ length: slots }, (_, i) => el("div", { class: "slot" }, job && i === 0 ? el("span", { class: "spin" }) : null))),
+      ...failed.map((j) => el("div", { class: "job" }, `${j.title}: ${j.error} `, el("a", { onclick: () => dismiss(j.id) }, "dismiss")))
+    );
+  });
+  $("#library").replaceChildren(
+    ...sections.filter(Boolean),
+    el("div", { class: "own" }, el("label", { for: "pick" }, "+ add your own photo"),
+      el("input", { type: "file", id: "pick", accept: "image/*", hidden: true, onchange: (e) => e.target.files[0] && upload(e.target.files[0]) }))
+  );
+  $("#library").classList.toggle("searched", !!state.hits);
+  // a photo just added, or else the newest, shows what memory holds for it
+  const latest = state.photos.filter((p) => state.fresh.has(p.id)).pop();
+  if (!state.hits && (latest || !state.selected) && state.photos.length) show(latest || state.photos[state.photos.length - 1]);
+  state.fresh.clear();
+}
+
+function tile(p) {
+  const rank = state.hits ? state.hits.findIndex((h) => h.id === p.id) : -1;
+  return el("button", {
+      class: `tile${rank >= 0 ? " hit" : ""}${state.fresh.has(p.id) ? " new" : ""}${state.selected === p.id ? " sel" : ""}`,
+      style: bg(p.url), "data-id": p.id, "data-key": p.key, title: p.description,
+      onclick: () => show(p, rank >= 0 ? state.hits[rank] : null),
+    },
+    rank >= 0 ? el("span", { class: "rank" }, String(rank + 1)) : null);
+}
+
+// the side panel: a photo, and the one sentence memory holds for it
+function show(p, hit = null) {
+  state.selected = p.id;
+  document.querySelectorAll(".tile.sel").forEach((t) => t.classList.remove("sel"));
+  document.querySelector(`.tile[data-id="${p.id}"]`)?.classList.add("sel");
+  $("#sidehead").textContent = hit ? (state.hits[0].id === p.id ? "Best match" : "Also matched") : "In memory";
+  $("#holds").replaceChildren(
+    el("div", { class: "holds", id: "shown", "data-key": p.key },
+      el("div", { class: "big", style: bg(p.url) }),
+      el("div", { class: "t" }, p.title, el("span", {}, state.memory.albums[p.album] || "Your photos")),
+      el("div", { class: "lab" }, "What memory holds"),
+      el("div", { class: "d" }, p.description)),
+    ...(hit && state.hits.length > 1
+      ? [el("div", { class: "also" },
+          el("div", { class: "lab" }, "Also matched"),
+          el("div", { class: "row" }, state.hits.filter((h) => h.id !== p.id).slice(0, 4).map((h) =>
+            el("button", { class: "tile", style: bg(h.url), title: h.description, onclick: () => show(h, h) },
+              el("span", { class: "rank" }, String(state.hits.indexOf(h) + 1))))))]
+      : [])
+  );
+}
+
+async function addAlbum(album, button) {
+  clearErr();
+  button.disabled = true;
+  try {
+    await api(`/api/albums/${album}`, {});
+  } catch (e) {
+    button.disabled = false;
+    return fail(e);
+  }
+  await refresh();
+}
+
+async function upload(file) {
+  clearErr();
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    await api("/api/upload", fd);
+  } catch (e) {
+    return fail(e);
+  }
+  await refresh();
+}
+
+async function dismiss(id) {
+  await api(`/api/jobs/${id}`, undefined, { method: "DELETE" }).catch(fail);
+  await refresh();
+}
+
+document.addEventListener("dragover", (e) => { e.preventDefault(); $("#findpane").classList.add("drop-on"); });
+document.addEventListener("dragleave", (e) => { if (!e.relatedTarget) $("#findpane").classList.remove("drop-on"); });
+document.addEventListener("drop", (e) => {
+  e.preventDefault();
+  $("#findpane").classList.remove("drop-on");
+  if (e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]);
+});
+
+// ---- find --------------------------------------------------------------------------------
+
+async function find(q) {
+  q = (q ?? $("#q").value).trim();
+  if (!q) return;
+  $("#q").value = q;
+  clearErr();
+  $("#go").disabled = true;
+  $("#st3").classList.add("on");
+  $("#st3s").textContent = "searching…";
+  document.body.dataset.searching = "1";
+  try {
+    const out = await api("/api/find", { q });
+    state.hits = out.results;
+    $("#asked").replaceChildren(
+      out.results.length ? `${plural(out.results.length, "photo", "photos")} · ${out.seconds} s` : "Nothing matches that.",
+      el("a", { onclick: clearSearch }, "show all"));
+    $("#st3s").textContent = out.results.length ? out.results[0].title : "nothing matched";
+    render();
+    if (out.results.length) show(state.photos.find((p) => p.id === out.results[0].id) || out.results[0], out.results[0]);
+    document.body.dataset.found = String(++state.finds);
+  } catch (e) {
+    $("#st3s").textContent = "the photo";
+    fail(e);
+  } finally {
+    delete document.body.dataset.searching;
+    $("#go").disabled = false;
+  }
+}
+function clearSearch() {
+  state.hits = null;
+  $("#asked").replaceChildren();
+  $("#st3").classList.remove("on");
+  $("#st3s").textContent = "the photo";
+  render();
+}
+$("#go").addEventListener("click", () => find());
+$("#q").addEventListener("keydown", (e) => e.key === "Enter" && find());
+
+(async () => {
+  try {
+    await refresh();
+  } catch (e) {
+    fail(e);
+  }
+})();
+</script>
+</body>
+</html>
