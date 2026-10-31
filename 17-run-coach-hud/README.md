@@ -66,7 +66,7 @@ smoke test checks every "N of M" the brief states against seed.py.
 ## How Membase serves it
 
 - **Local engine.** `Membase(local=data/17-run-coach-hud/jamie)` answers in the app's own
-  process with `membase-core`. Each directory is one runner's memory, which is how an app on
+  process with `unibaseio-membase-core`. Each directory is one runner's memory, which is how an app on
   the local engine keeps its users apart.
 - **Dated memories.** A run summary goes in as a one-turn conversation session with its own
   `session_date`, so a run seeded "14 days ago" is remembered on that day, not on the day the

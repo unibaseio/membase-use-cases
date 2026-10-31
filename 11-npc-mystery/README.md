@@ -77,7 +77,7 @@ exchange, whether the character passes it on at once.
 ## How Membase serves it
 
 - **One directory per player.** `Memory("11-npc-mystery", user=<player>)` opens
-  `Membase(local=data/11-npc-mystery/<player>)`, which runs `membase-core` inside the app's own
+  `Membase(local=data/11-npc-mystery/<player>)`, which runs `unibaseio-membase-core` inside the app's own
   process. A new game is a new directory, so nobody remembers you.
 - **One container per character.** `Mara`, `Elsie` and `Tobias` are containers in that directory.
   The engine creates each one on its first write. A search names one container and sees nothing

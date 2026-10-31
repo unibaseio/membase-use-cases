@@ -38,7 +38,7 @@ https://github.com/user-attachments/assets/2ab8a549-70e8-4db2-9ace-9867701130f6
 ```mermaid
 flowchart LR
   P["Page<br/>(static/index.html)"] <--> A["app.py<br/>(FastAPI)"]
-  A -- "recall · profile · write" --> E["Membase local engine<br/>(membase-core, in process)"]
+  A -- "recall · profile · write" --> E["Membase local engine<br/>(unibaseio-membase-core, in process)"]
   E --> DM[("data/08-companion/maya/<br/>Conversations · Follow-ups<br/>profile facts")]
   E --> DT[("data/08-companion/theo/<br/>a separate store")]
   A -- "reply as Wren · pick out facts · list follow-ups" --> L["Model<br/>(gpt-4.1-mini)"]
@@ -72,7 +72,7 @@ no romantic roleplay, and she never makes up a memory. The page says she is an A
 
 ## How Membase serves it
 
-- **The local engine runs in the app.** `membase-core` answers the SDK calls in the app's own
+- **The local engine runs in the app.** `unibaseio-membase-core` answers the SDK calls in the app's own
   process. Nothing leaves the machine except the model calls the engine makes with your
   `OPENAI_API_KEY` (to extract and embed).
 - **One directory per person.** Each directory holds its own SQLite and FAISS files. The engine

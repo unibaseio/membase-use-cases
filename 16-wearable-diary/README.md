@@ -71,7 +71,7 @@ returning it.
 
 ## How Membase serves it
 
-- **Local engine.** `Membase(local=data/16-wearable-diary/me)` runs `membase-core` in the app's
+- **Local engine.** `Membase(local=data/16-wearable-diary/me)` runs `unibaseio-membase-core` in the app's
   process. One directory is one wearer's memory; an app for many wearers gives each their own.
 - **Dated conversations.** A clip goes in as a conversation session with `session_date` set to
   when it was recorded, not when it was processed. The engine turns it into an episode that

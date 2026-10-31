@@ -79,7 +79,7 @@ It is not in the video.
 ## How Membase serves it
 
 - **The local engine runs in the app's process.** `Membase(local=data/13-screen-memory/me)` is
-  `membase-core`. One directory is one person's memory, which is how an app on the local engine
+  `unibaseio-membase-core`. One directory is one person's memory, which is how an app on the local engine
   keeps its users apart (`me` here).
 - **A screenshot is a dated session.** The app writes the reading as a one-turn session whose
   `session_date` is the capture time, the same thing `memories.add` does but with the date given

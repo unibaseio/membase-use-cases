@@ -64,7 +64,7 @@ tablet says so instead.
 ## How Membase serves it
 
 - **The local engine runs in the app's process.** `Membase(local=data/14-care-companion/margaret)`
-  is `membase-core`. One directory is one person's memory, so a care app on the local engine
+  is `unibaseio-membase-core`. One directory is one person's memory, so a care app on the local engine
   keeps each person apart by giving each a directory.
 - **A note is a dated session.** The app writes it as a one-turn session whose `session_date` is
   when it happened, the same thing `memories.add` does but with the date given. The engine turns

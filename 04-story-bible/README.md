@@ -94,7 +94,7 @@ flowchart LR
   binder shows "learning…" and waits. Each write waits for the previous learning run to finish.
 - **Every search is a recall turn** in that VM. It returns passages that cite the page they came
   from. A warm search takes 5–16 s.
-- **On the local engine** the same calls are answered in-process by `membase-core`. The bible
+- **On the local engine** the same calls are answered in-process by `unibaseio-membase-core`. The bible
   becomes a topic tree in SQLite and FAISS, a scene can be searched as soon as it is written,
   and no other AI can reach it, unless you run `membase --local mcp` on the same machine.
 

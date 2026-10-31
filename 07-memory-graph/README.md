@@ -72,7 +72,7 @@ labels.
 ## How Membase serves it
 
 - **Local engine.** `Membase(local=data/07-memory-graph/<user>)` answers the SDK calls in the
-  app's process with `membase-core`. Each directory is one person's memory, which is how an app
+  app's process with `unibaseio-membase-core`. Each directory is one person's memory, which is how an app
   on the local engine keeps its users apart.
 - **Dated notes.** `seed.py` writes each note as a session dated by the day it happened (through
   `demokit.dated`, the same engine call `memories.add` makes with the date given instead of now).
