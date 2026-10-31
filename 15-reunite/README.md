@@ -64,7 +64,7 @@ person decides.
 
 ## How Membase serves it
 
-- **Local engine.** `Membase(local=data/15-reunite/operator)` runs `membase-core` in the app's
+- **Local engine.** `Membase(local=data/15-reunite/operator)` runs `unibaseio-membase-core` in the app's
   process. The operator's directory holds two containers, `Families` and `Seekers`.
 - **Documents.** Each record is written with `add_document` and its id as `custom_id`
   (`reunite:F-01`). The engine reads it into a topic tree (SQLite and FAISS), about 8 s per

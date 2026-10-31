@@ -68,7 +68,7 @@ plot, the run log, the sign-off), the SOP binder on the right. The five steps:
 ## How Membase serves it
 
 - **In process, one directory per lab.** `Memory("12-data-technician", user=<lab>)` opens
-  `Membase(local=data/12-data-technician/<lab>)`, which runs `membase-core` inside the app. All
+  `Membase(local=data/12-data-technician/<lab>)`, which runs `unibaseio-membase-core` inside the app. All
   agent memory goes into one container, `Lab`, under agent id `technician`. The agent verbs are
   not in the public SDK yet, so `demokit.Memory` reaches the local backend for them (the same
   object the `membase agent` command uses).

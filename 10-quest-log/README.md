@@ -59,7 +59,7 @@ Hover a date stamp in the tally to light that day in the chronicle.
 ## How Membase serves it
 
 - **One directory per person.** `Membase(local=data/10-quest-log/rin)` answers the SDK calls in
-  process with `membase-core`. Another player gets another directory. `quests.json` sits beside it.
+  process with `unibaseio-membase-core`. Another player gets another directory. `quests.json` sits beside it.
 - **A day becomes an episode with its date.** The engine reads each day's log into an episode in
   SQLite and FAISS, in its own words ("On Monday 2026-10-05 at 21:00 UTC, the user reviewed their
   quest log… They skipped the morning gym session…"). The app writes through the engine's

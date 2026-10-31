@@ -61,7 +61,7 @@ against "floral, fruit" across the map. A dot's size is its rating.
 ## How Membase serves it
 
 - **One directory per person.** `Membase(local=data/09-taste-journal/sam)` answers the SDK calls
-  in process with `membase-core`. Another taster gets another directory, and nothing is shared
+  in process with `unibaseio-membase-core`. Another taster gets another directory, and nothing is shared
   between them. `tastings.json` sits in the same directory.
 - **A tasting becomes an episode.** The engine reads each written tasting into an episode in
   SQLite and FAISS, in its own words ("On Sunday 2026-06-14 at 19:00 UTC, the user tasted…"),
