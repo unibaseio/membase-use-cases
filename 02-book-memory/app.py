@@ -144,10 +144,13 @@ def locate(hit: str, story_hint: str, question: str) -> dict | None:
 
 
 def story_of(hit: Hit) -> str:
-    """Which story a note came from. Local: the document's title. Hosted: the learned fact
-    cites the wiki page it came from (`[[drumorty-the-corp]]`), named by the learning run."""
-    if hit.source.startswith("document:") and hit.title:
-        return hit.title.split(" > ")[0].split(" / ")[0]
+    """Which story a note came from: a document's passage by its title (or file), a learned fact
+    by the page it cites (`[[drumorty-the-corp]]`)."""
+    if hit.type == "document" and hit.title:
+        # Local: the document's title and topic path. Hosted: the file the document landed
+        # in, which its custom_id names.
+        head = hit.title.split(" > ")[0].split(" / ")[0]
+        return _TITLES.get(slug(head), head)
     for c in _CITE.findall(hit.content):
         for key, title in _TITLES.items():
             if key in slug(c):
@@ -210,9 +213,8 @@ def book() -> dict:
         learned, run_state = True, None  # the local engine reads a document in as it is added
         if mem.mode == "hosted":
             # The hosted list does not carry learning state; each document's own record does.
-            got = mem.client.documents.get(d["id"])
-            learned = bool(got.get("learned"))
-            run_state = (got.get("learning_run") or {}).get("status")
+            got = mem.document(d["id"])
+            learned, run_state = got["learned"], got["learning_status"]
         c = by_title.get(d.get("title") or "")
         if c is None:  # something else in the memory (load.py --file): listed after the book
             c = {"title": d.get("title") or "", "printed": None, "paras": [], "in_memory": True}
