@@ -150,7 +150,7 @@ async def ask_claude() -> dict:
             "--mcp-config",
             str(work / "mcp.json"),
             "--strict-mcp-config",
-            "--allowedTools=mcp__membase__search_memories,mcp__membase__list_containers",
+            "--allowedTools=mcp__membase__search_memories,mcp__membase__get_capabilities",
         ],
     )
 

@@ -18,12 +18,14 @@ NN-name/
 - **Port:** `87NN`, where NN is the demo's number.
 - **Memory:** use `demokit.Memory(demo_dir_name, user=..., default_mode="local"|"hosted")`.
   Local mode keeps one directory per `user`, which is how an app keeps its end users apart.
-  Hosted mode needs containers that already exist in the account; `scripts/bootstrap_hosted.py`
-  makes a test account with them.
+  Hosted mode needs Memories that already exist in the account, and — because no request names
+  a Memory — a key per Memory the demo writes to or reads alone (`MEMBASE_KEY_FOR_<NAME>`);
+  `scripts/bootstrap_hosted.py` makes a test account with both.
 - **Writes off the request path:** use `demokit.writes.BackgroundWriter` on the local engine
   (one person's writes run in order; `pending`, `error` and `flush()` are there for the page).
-  On hosted, use `demokit.writes.HostedQueue`. It waits for each learning run to finish before
-  starting the next write (see that module for why).
+  On hosted, use `demokit.writes.HostedQueue`: writes in order off the request path, and the page
+  can say which are still waiting and which failed. A write during a learning run is `pending`;
+  the run starts the next one when it ends.
 - **Dated memories:** use `demokit.dated` (`remember_sessions`, `recall`) when a memory needs the
   time the thing happened rather than the time of the write. This works on the local engine only.
 - **Model:** use `demokit.llm` (`chat`, `stream`, `json_reply`, `vision`, `transcribe`). The

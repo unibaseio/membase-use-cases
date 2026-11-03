@@ -61,9 +61,9 @@ the middle, and Wren's notebook page for the caller on the right.
 
 | Step | What happens | Membase call | Model's job |
 |---|---|---|---|
-| **1. Call in** | Before each reply, the message is searched in the person's memory and the profile is read; both go into Wren's prompt. After the reply, the lasting facts in the exchange go to the profile, in the background. | `search`, `profile`, then `memories.add(static=True)` | reply as Wren; pick out standing facts |
-| **2. Sign off** | The phone goes off air and the call is written once. The model lists the open loops, with relative dates made absolute ("Thursday" becomes "Thursday 2026-10-15"), and each one is written as its own follow-up memory. The notebook shows them under *ask next time*, with a pencil while the writes run; *In her notebook* means they are written and searchable. | `memories.add` into `Conversations`, then into `Follow-ups` | list the open loops |
-| **3. Tune in again** | The app waits for any writes still running, then recalls follow-ups and the last conversation, and reads the profile. Wren speaks first with one follow-up, checked against today's date: ask how it went, or wish luck if it is still ahead. A slip *from her notebook* under the opener shows the follow-up she recalled, as she wrote it, with the day she wrote it. | `search` on `Follow-ups` and `Conversations`, `profile` | write the opener |
+| **1. Call in** | Before each reply, the message is searched in the person's memory and the profile is read; both go into Wren's prompt. After the reply, the lasting facts in the exchange go to the profile, in the background. | `search`, `profile_facts.list`, then `profile_facts.add` | reply as Wren; pick out standing facts |
+| **2. Sign off** | The phone goes off air and the call is written once. The model lists the open loops, with relative dates made absolute ("Thursday" becomes "Thursday 2026-10-15"), and each one is written as its own follow-up memory. The notebook shows them under *ask next time*, with a pencil while the writes run; *In her notebook* means they are written and searchable. | `memories.add` into `Conversations`, then each follow-up into `Follow-ups` | list the open loops |
+| **3. Tune in again** | The app waits for any writes still running, then recalls follow-ups and the last conversation, and reads the profile. Wren speaks first with one follow-up, checked against today's date: ask how it went, or wish luck if it is still ahead. A slip *from her notebook* under the opener shows the follow-up she recalled, as she wrote it, with the day she wrote it. | `search` on `Follow-ups` and `Conversations`, `profile_facts.list` | write the opener |
 | **4. Another line** | Click Theo under *On the line tonight*. The notebook turns to his page, which is blank: his directory is empty, so recall returns nothing and Wren introduces herself. | the same calls, on Theo's directory | — |
 
 Wren's voice and boundaries are part of her prompt. Replies stay at two or three short
@@ -76,15 +76,18 @@ no romantic roleplay, and she never makes up a memory. The page says she is an A
   process. Nothing leaves the machine except the model calls the engine makes with your
   `OPENAI_API_KEY` (to extract and embed).
 - **One directory per person.** Each directory holds its own SQLite and FAISS files. The engine
-  turns a written conversation or follow-up into timestamped episodes, and `static=True` facts
-  into the profile.
+  turns a written conversation or follow-up into timestamped episodes; standing facts
+  (`profile_facts.add`) go to the person's profile, which belongs to the person, not to a
+  Memory.
 - **A write is searchable in seconds.** A local write takes 5–8 s, and its episodes can be
   searched as soon as it returns; there is no learning run. The app runs writes in the
   background, one person at a time and in order (`demokit.writes.BackgroundWriter`). The notebook
   shows a pencil while writes run, and a new call waits for them before it recalls.
-- **The slip shows Wren's own line.** The write returns the ids of the memories it became, and
-  the app records them with the line Wren wrote (`notebook.json`). A recalled hit carries its
-  id, so the slip under her opener shows that line.
+- **The slip shows Wren's own line.** A follow-up is written as a session dated now (the
+  engine call `memories.add` makes, through `demokit.dated.remember_sessions`), which returns the
+  `mem_` ids of the memories it became, and the app records them with the line Wren wrote
+  (`notebook.json`). A recalled hit carries its `mem_` id, so the slip under her opener shows
+  that line. (`memories.add` answers with the note it was written as, not those ids.)
 - **Search** is hybrid keyword and vector retrieval over the person's episodes. Recall takes
   1–3 s once the engine is loaded.
 
@@ -115,7 +118,7 @@ Then, on the page:
 | Endpoint | Does |
 |---|---|
 | `GET /api/users` | The two people, each with their directory and writes in flight, and Wren's persona. |
-| `GET /api/memory?user=` | A person's profile facts, their containers, and writes in flight (for the notebook). |
+| `GET /api/memory?user=` | A person's profile facts, the Memories in their directory, and writes in flight (for the notebook). |
 | `POST /api/chat` | Takes `{user, message, history}`. Streams what was recalled, then Wren's reply. |
 | `POST /api/end` | Takes `{user, history}`. Writes the conversation and returns the follow-ups it wrote. |
 | `POST /api/open` | Takes `{user}`. Waits for writes, recalls follow-ups, and streams Wren's opener. |

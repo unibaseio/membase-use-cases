@@ -249,7 +249,7 @@ def grounded(system: str, queries: list[str], ask: str):
         yield {"type": "waiting", "pending": writer.pending}
     writer.flush()
     hits = recalled(queries)
-    facts = list(mem.profile().get("static") or [])
+    facts = mem.profile_facts()
     yield {"type": "memories", "hits": hits, "facts": facts}
     if not hits:
         yield {

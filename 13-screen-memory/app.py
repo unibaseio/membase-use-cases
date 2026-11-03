@@ -3,8 +3,8 @@ taken, and recalled later to answer questions, citing the screenshot each answer
 
 A screenshot goes in (upload, drag or paste). The vision model says which app it is, what the
 person was doing and the values on screen, and that becomes one memory in the `Screens`
-container, dated when the screenshot was taken (not when it was added). A question is a recall
-over that container. Each recalled memory maps back to its screenshot through the memory id the
+Memory, dated when the screenshot was taken (not when it was added). A question is a recall
+over that Memory. Each recalled memory maps back to its screenshot through the memory id the
 write returned, so the page can show the image beside the answer.
 """
 

@@ -1,11 +1,10 @@
 """Memory graph: what memory holds, drawn as people, places, projects, events and the links
 between them.
 
-There is no call that lists every memory, so the graph is built from what memory gives back:
-the profile (standing facts and the latest memories), a set of broad searches, and one more
-search per entity found (one hop out). A model then names the entities in those passages and
-the links between them, each with the passages it came from. The result is cached per user;
-Rebuild runs it again."""
+The graph is built from what memory gives back: the profile's standing facts, the latest
+memories, a set of broad searches, and one more search per entity found (one hop out). A model
+then names the entities in those passages and the links between them, each with the passages it
+came from. The result is cached per user; Rebuild runs it again."""
 
 from __future__ import annotations
 
@@ -17,6 +16,7 @@ import sys
 import threading
 import time
 import unicodedata
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,10 +25,10 @@ from pydantic import BaseModel
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from membase.errors import MembaseError  # noqa: E402
+from membase.local.backend import LocalBackend  # noqa: E402
 from seed import keep_notes, own_notes  # noqa: E402
 
-from demokit import Memory, config, llm  # noqa: E402
+from demokit import Memory, config, dated, llm  # noqa: E402
 from demokit.memory import is_narration  # noqa: E402
 from demokit.web import create_app, run, sse  # noqa: E402
 
@@ -49,6 +49,8 @@ BROAD = [
     "what happened recently",
 ]
 MAX_EXPAND = 24
+#: How many of the latest memories a build starts from, beside the profile's standing facts.
+RECENT = 10
 
 _default = Memory(DEMO, default_mode="local")
 app = create_app("Memory graph", HERE, mode=_default.mode)
@@ -136,24 +138,23 @@ def _date(value: str, text: str) -> str:
 
 def _search(mem: Memory, query: str, limit: int) -> list[dict]:
     """Passages for `query`, each with the day it is about. The local engine's search carries
-    each episode's session date, which `Memory.recall` leaves out, so local calls it directly.
-    A hosted search that found nothing can answer with prose about it: that is dropped."""
+    each memory's date, which `Memory.recall` leaves out, so local reads it with
+    `demokit.dated.recall`. A hosted search that found nothing can answer with prose about it:
+    that is dropped."""
     if mem.mode == "hosted":
-        hits = [h.content for h in mem.recall(query, limit=limit, wait=60).hits]
-        return [{"content": _clean(t), "date": _date("", t)} for t in hits if not is_narration(t)]
-    try:
-        rows = mem.client.search(query, limit=limit)["results"]
-    except MembaseError as e:
-        if e.status == 403:  # nothing written yet
-            return []
-        raise
+        hits = mem.recall(query, limit=limit, wait=60).hits
+        return [
+            {"content": _clean(h.content), "date": _date("", h.content), "memory_id": h.source}
+            for h in hits
+            if not is_narration(h.content)
+        ]
     return [
         {
-            "content": _clean(r.get("content") or ""),
-            "date": _date(r.get("session_date"), ""),
-            "memory_id": str(r.get("source") or "").removeprefix("episode:"),
+            "content": _clean(r["content"]),
+            "date": _date(r["date"], ""),
+            "memory_id": r["memory_id"],
         }
-        for r in rows
+        for r in dated.recall(mem, query, container=CONTAINER, limit=limit)
     ]
 
 
@@ -236,21 +237,21 @@ def build(mem: Memory, user: str):
 
     yield {"type": "step", "text": "Reading the profile"}
     with _lock(user, mem):
-        profile = mem.profile()
-    for fact in profile.get("static") or []:
-        passages.add(str(fact), "profile: standing fact")
-    for item in profile.get("dynamic") or []:
+        facts = mem.profile_facts()
+        recent = mem.client.memories.list(limit=RECENT)["items"]
+    for fact in facts:
+        passages.add(fact, "profile: standing fact")
+    for item in recent:
         text = str(item.get("content") or "")
         passages.add(
             text,
             "profile: recent memory",
-            _date(item.get("session_date") or "", text),
+            _date(item.get("source_time") or "", text),
             str(item.get("id") or ""),
         )
     yield {
         "type": "step",
-        "text": f"Profile: {len(profile.get('static') or [])} standing facts, "
-        f"{len(profile.get('dynamic') or [])} recent memories",
+        "text": f"Profile: {len(facts)} standing facts, {len(recent)} recent memories",
     }
 
     yield {"type": "step", "text": f"{len(BROAD)} broad searches"}
@@ -369,10 +370,7 @@ def build(mem: Memory, user: str):
         "passages": _with_own(mem, passages.rows),
         "queries": BROAD,
         "expanded": names,
-        "profile": {
-            "static": len(profile.get("static") or []),
-            "dynamic": len(profile.get("dynamic") or []),
-        },
+        "profile": {"facts": len(facts), "recent": len(recent)},
         "mode": mem.mode,
         "user": user,
         "built_at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
@@ -445,13 +443,30 @@ def remember(body: Note) -> dict:
     mem = memory(user)
     started = time.monotonic()
     with _lock(user, mem):
-        out = mem.remember(text, container=CONTAINER, title=text[:60])
-        day = datetime.now(UTC).strftime("%Y-%m-%d")
-        keep_notes(
-            mem, {m: {"title": "", "day": day, "text": text} for m in out.get("memory_ids") or []}
-        )
+        if mem.mode == "hosted":
+            status = mem.remember(text, container=CONTAINER, title=text[:60]).get("status")
+        else:
+            # A write's receipt names the note, not the memories it became, so the local note
+            # goes in as a session dated now (the call `memories.add` makes), which answers with
+            # its memory ids: the map shows the note in Lena's words.
+            now = datetime.now(UTC)
+            sid = f"note-{uuid.uuid4().hex[:12]}"
+            ids = dated.remember_sessions(
+                mem,
+                [
+                    {
+                        "session_id": sid,
+                        "session_date": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "turns": LocalBackend._turns(text, text[:60]),  # noqa: SLF001
+                    }
+                ],
+                container=CONTAINER,
+            )
+            day = now.strftime("%Y-%m-%d")
+            keep_notes(mem, {m: {"title": "", "day": day, "text": text} for m in ids[sid]})
+            status = "succeeded"
     return {
-        "status": out.get("status"),
+        "status": status,
         "seconds": round(time.monotonic() - started, 1),
         "learning": mem.mode == "hosted",
     }

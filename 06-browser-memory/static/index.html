@@ -59,16 +59,15 @@
   import { $, el, api, showError, modeBadge } from "/kit/kit.js";
   modeBadge($("#badge"));
 
-  // learned / learning (a run is queued or running) / waiting (the write waits behind the
-// container's current run) / failed / not learned (a run ended
-  // without counting this one: more arrived while it ran).
+  // learned / learning (a run is reading it) / waiting (the write is queued here, or waits for
+  // the next run: the one in flight starts it) / failed / not learned yet
   const state = (d) => d.learned ? ["learned", "learned"]
-    : ["queued", "running"].includes(d.learning) ? ["learning", "learning"]
-    : d.learning === "waiting" ? ["learning", "waiting for the last run"]
+    : d.learning === "processing" ? ["learning", "learning"]
+    : d.learning === "waiting" || d.learning === "pending" ? ["learning", "waiting for the next run"]
     : d.learning === "write failed" ? ["failed", `write failed: ${d.error}`]
-    : d.learning === "failed" ? ["failed", `learning failed (${d.run_id})`]
+    : d.learning === "failed" ? ["failed", "learning failed"]
     : ["learning", "not learned yet"];
-  const pending = (d) => !d.learned && ["queued", "running", "waiting"].includes(d.learning);
+  const pending = (d) => !d.learned && ["processing", "pending", "waiting"].includes(d.learning);
 
   let poll;
   async function load() {
@@ -83,7 +82,7 @@
       for (const p of pages) {
         box.append(el("div", { class: "page-row" },
           el("div", {}, el("div", {}, p.title), el("a", { class: "url", href: p.url, target: "_blank" }, p.url)),
-          el("span", { class: `state ${state(p)[0]}`, title: p.run_id || "" }, state(p)[1])));
+          el("span", { class: `state ${state(p)[0]}`, title: p.error || "" }, state(p)[1])));
       }
       if (pages.some(pending)) poll = setTimeout(load, 10000);
     } catch (e) {

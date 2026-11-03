@@ -12,6 +12,7 @@ The videos are the Blender Foundation's open movies (CC BY)."""
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import sys
@@ -21,8 +22,9 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from fastapi import File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import File, HTTPException, Request, UploadFile
+from fastapi.responses import Response
+from membase.errors import MembaseError
 from pydantic import BaseModel
 
 HERE = Path(__file__).resolve().parent
@@ -36,6 +38,8 @@ from demokit.web import create_app, run  # noqa: E402
 DEMO = "18-video-memory"
 CONTAINER = "Videos"
 VIDEO_TYPES = {".mp4", ".mov", ".m4v", ".webm", ".mkv"}
+# No request names a Memory: a media write lands in the local engine's write target.
+os.environ.setdefault("MEMBASE_WRITE_TARGET", CONTAINER)
 
 mem = Memory(DEMO, user="me", default_mode="local")
 app = create_app("Video memory", HERE, mode=mem.mode)
@@ -52,11 +56,11 @@ _FRAMING = re.compile(
 )
 
 
-def media_url(path: str | None) -> str | None:
-    """A file media memory keeps, as a URL under /files."""
-    if not path:
+def media_url(url: str | None) -> str | None:
+    """A file media memory serves (`file_url`, a moment's `thumb_url`), as a URL under /files."""
+    if not url:
         return None
-    return "/files/" + Path(path).resolve().relative_to(mem.path.resolve()).as_posix()
+    return "/files/" + url.removeprefix("/v1/media/")
 
 
 def shot_text(caption: str) -> str:
@@ -74,7 +78,7 @@ def moment_json(m: dict) -> dict:
         "text": m["text"] if said else shot_text(m["text"]),
         "speaker": m.get("speaker"),
         "sure": m.get("speaker_confidence"),
-        "thumb": media_url(m.get("thumb")),
+        "thumb": media_url(m.get("thumb_url")),
     }
 
 
@@ -89,7 +93,7 @@ def video_json(row: dict) -> dict:
         "title": row["filename"],
         "duration": row["duration"],
         "summary": row["summary"],
-        "url": media_url(row["path"]),
+        "url": media_url(row["file_url"]),
         "poster": shots[len(shots) // 2]["thumb"] if shots else None,
         "shots": shots,
         "lines": lines,
@@ -98,19 +102,17 @@ def video_json(row: dict) -> dict:
 
 
 def in_memory() -> list[dict]:
-    if not any(c["name"] == CONTAINER for c in mem.containers()):
-        return []
-    rows = mem.client.media.list(container=CONTAINER)["media"]
+    rows = [r for r in mem.client.media.list(limit=1000)["items"] if r["kind"] == "video"]
     return [video_json(mem.client.media.get(r["id"])) for r in reversed(rows)]
 
 
 def add(job_id: str, path: Path, title: str, key: str) -> None:
     started = time.monotonic()
     try:
-        out = mem.client.media.add(path, container=CONTAINER, title=title, custom_id=key)
+        out = mem.client.media.add(path, title=title, custom_id=key)
         with jobs_lock:
             jobs[job_id].update(
-                status="done", media_id=out["media_id"], seconds=round(time.monotonic() - started)
+                status="done", media_id=out["id"], seconds=round(time.monotonic() - started)
             )
     except Exception as e:
         with jobs_lock:
@@ -214,7 +216,7 @@ def find(body: Find) -> dict:
     if not q:
         raise HTTPException(400, "describe what you saw or quote what was said")
     started = time.monotonic()
-    out = mem.client.media.search(q, container=CONTAINER, kind="video", limit=6)
+    out = mem.client.media.search(q, kind="video", limit=6)
     return {
         "q": q,
         "seconds": round(time.monotonic() - started, 1),
@@ -222,20 +224,30 @@ def find(body: Find) -> dict:
             {
                 "id": r["id"],
                 "title": r["filename"],
-                "found_by": r["channels"],
                 "moments": [moment_json(m) for m in r["moments"]],
             }
-            for r in out["results"]
+            for r in out["items"]
         ],
     }
 
 
+_SERVED = re.compile(r"(med_[A-Za-z0-9_-]+)/(?:file|thumbs/([^?#]+))")
+
+
 @app.get("/files/{path:path}")
-def files(path: str) -> FileResponse:
-    target = (mem.path / path).resolve()
-    if not target.is_relative_to(mem.path.resolve()) or not target.is_file():
+def files(path: str, request: Request) -> Response:
+    """A video or a thumbnail, from media memory's own file routes; a range for the player."""
+    found = _SERVED.fullmatch(path)
+    if not found:
         raise HTTPException(404, "no such file")
-    return FileResponse(target)
+    try:
+        f = mem.client.media.file(
+            found[1], thumb=found[2], range=request.headers.get("range") or None
+        )
+    except MembaseError as e:
+        raise HTTPException(404 if (e.status or 500) < 500 else 502, "no such file") from e
+    headers = {"content-range": f.content_range} if f.content_range else {}
+    return Response(f.content, f.status, media_type=f.content_type, headers=headers)
 
 
 if __name__ == "__main__":

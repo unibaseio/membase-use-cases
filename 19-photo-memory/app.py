@@ -9,6 +9,8 @@ The photos are from Wikimedia Commons (CC0, CC BY and CC BY-SA); photos.py lists
 
 from __future__ import annotations
 
+import os
+import re
 import shutil
 import sys
 import threading
@@ -17,8 +19,9 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from fastapi import File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import File, HTTPException, Request, UploadFile
+from fastapi.responses import Response
+from membase.errors import MembaseError
 from pydantic import BaseModel
 
 HERE = Path(__file__).resolve().parent
@@ -32,6 +35,8 @@ from demokit.web import create_app, run  # noqa: E402
 DEMO = "19-photo-memory"
 CONTAINER = "Photos"
 PHOTO_TYPES = {".jpg", ".jpeg", ".png", ".webp"}
+# No request names a Memory: a media write lands in the local engine's write target.
+os.environ.setdefault("MEMBASE_WRITE_TARGET", CONTAINER)
 
 mem = Memory(DEMO, user="me", default_mode="local")
 app = create_app("Photo memory", HERE, mode=mem.mode)
@@ -42,11 +47,11 @@ jobs: dict[str, dict] = {}
 jobs_lock = threading.Lock()
 
 
-def media_url(path: str | None) -> str | None:
-    """A file media memory keeps, as a URL under /files."""
-    if not path:
+def media_url(url: str | None) -> str | None:
+    """A file media memory serves (`file_url`), as a URL under /files."""
+    if not url:
         return None
-    return "/files/" + Path(path).resolve().relative_to(mem.path.resolve()).as_posix()
+    return "/files/" + url.removeprefix("/v1/media/")
 
 
 def description(summary: str) -> str:
@@ -64,16 +69,14 @@ def photo_json(row: dict) -> dict:
         "key": key,
         "album": PHOTOS[key]["album"] if key in PHOTOS else "yours",
         "title": row["filename"],
-        "url": media_url(row["path"]),
+        "url": media_url(row["file_url"]),
         "description": description(row["summary"]),
     }
 
 
 def in_memory() -> list[dict]:
     """The photos in memory, oldest first."""
-    if not any(c["name"] == CONTAINER for c in mem.containers()):
-        return []
-    rows = mem.client.media.list(container=CONTAINER)["media"]
+    rows = [r for r in mem.client.media.list(limit=1000)["items"] if r["kind"] == "image"]
     return [photo_json(r) for r in reversed(rows)]
 
 
@@ -82,7 +85,7 @@ def add(job_id: str, items: list[tuple[Path, str, str]]) -> None:
     started = time.monotonic()
     try:
         for path, title, key in items:
-            mem.client.media.add(path, container=CONTAINER, title=title, custom_id=key)
+            mem.client.media.add(path, title=title, custom_id=key)
             with jobs_lock:
                 jobs[job_id]["done"] += 1
         with jobs_lock:
@@ -202,20 +205,31 @@ def find(body: Find) -> dict:
     if not q:
         raise HTTPException(400, "describe the photo")
     started = time.monotonic()
-    out = mem.client.media.search(q, container=CONTAINER, kind="image", limit=6)
+    out = mem.client.media.search(q, kind="image", limit=6)
     return {
         "q": q,
         "seconds": round(time.monotonic() - started, 1),
-        "results": [{**photo_json(r), "found_by": r["channels"]} for r in out["results"]],
+        "results": [photo_json(r) for r in out["items"]],
     }
 
 
+_SERVED = re.compile(r"(med_[A-Za-z0-9_-]+)/(?:file|thumbs/([^?#]+))")
+
+
 @app.get("/files/{path:path}")
-def files(path: str) -> FileResponse:
-    target = (mem.path / path).resolve()
-    if not target.is_relative_to(mem.path.resolve()) or not target.is_file():
+def files(path: str, request: Request) -> Response:
+    """A photo, from media memory's own file route."""
+    found = _SERVED.fullmatch(path)
+    if not found:
         raise HTTPException(404, "no such file")
-    return FileResponse(target)
+    try:
+        f = mem.client.media.file(
+            found[1], thumb=found[2], range=request.headers.get("range") or None
+        )
+    except MembaseError as e:
+        raise HTTPException(404 if (e.status or 500) < 500 else 502, "no such file") from e
+    headers = {"content-range": f.content_range} if f.content_range else {}
+    return Response(f.content, f.status, media_type=f.content_type, headers=headers)
 
 
 if __name__ == "__main__":

@@ -182,27 +182,25 @@ def check(body: Draft):
 
 def _learned(doc: dict) -> dict:
     """The list endpoint does not say whether a document is learned; the single read does."""
-    one = mem.client.documents.get(doc["id"])
-    run = one.get("learning_run") or {}
+    one = mem.document(doc["id"])
     return {
         "id": doc["id"],
         "title": doc.get("title") or "",
         "custom_id": doc.get("custom_id") or "",
-        "learned": bool(one.get("learned")),
-        # The container's latest learning run: queued, running, succeeded or failed. A run can
-        # end without the document counting as learned (failed, or more arrived mid-run).
-        "learning": run.get("status"),
-        "run_id": run.get("id"),
+        "learned": one["learned"],
+        # The document's own learning: pending (waiting for the next run), processing,
+        # succeeded or failed.
+        "learning": one["learning_status"],
         "created_at": doc.get("created_at"),
     }
 
 
 @app.get("/api/canon")
 def canon() -> dict:
-    """Everything in the Story Bible container, with whether it has been learned yet."""
+    """Everything in the Story Bible Memory, with whether it has been learned yet."""
     try:
         docs = mem.documents(CONTAINER)
-    except ConfigError as e:  # hosted, and the container does not exist yet
+    except ConfigError as e:  # hosted, and the Memory does not exist yet
         return {"documents": [], "error": str(e)}
     with ThreadPoolExecutor(8) as pool:
         rows = list(pool.map(_learned, docs))
@@ -211,9 +209,10 @@ def canon() -> dict:
 
 @app.post("/api/accept")
 def accept(body: Accept) -> dict:
-    """The scene into canon: one hosted write, which starts one learning run. The same text
-    accepted twice is the same document (a custom_id from its hash), not a second write.
-    Writes wait their turn behind the container's current learning run (see demokit/writes.py)."""
+    """The scene into canon: one hosted write, which one learning run reads (a write during a
+    run is `pending`, and that run starts the next). The same text accepted twice is the same
+    document (a custom_id from its hash), not a second write. Writes go out in order, off the
+    request path (see demokit/writes.py)."""
     text = _draft(body.text)
     custom_id = "scene:" + hashlib.sha256(text.encode()).hexdigest()[:16]
     for doc in mem.documents(CONTAINER):

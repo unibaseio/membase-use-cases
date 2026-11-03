@@ -43,7 +43,7 @@ https://github.com/user-attachments/assets/557b1808-7558-4b5b-83b3-248e254bef16
 ```mermaid
 flowchart LR
   P["Page<br/>steps · find · in memory"] <--> A["app.py<br/>(FastAPI)"]
-  A -- "media.add · media.search · media.get · media.delete" --> M[("Membase media memory<br/>Videos container:<br/>videos, shots, spoken lines")]
+  A -- "media.add · media.search · media.get · media.delete" --> M[("Membase media memory<br/>Videos Memory:<br/>videos, shots, spoken lines")]
   M -- "describe shots · transcribe · match speakers · grade matches" --> L["Model<br/>(gpt-4o-mini, gpt-4o-transcribe-diarize, gpt-4.1)"]
 ```
 
@@ -55,7 +55,9 @@ flowchart LR
 | **4 · Recall** | The words are matched against every shot and line, by meaning and by keyword; a model grades the candidates and only relevant moments come back, grouped by video. The best one plays; the others are listed. | `media.search` |
 
 Everything about a video, its shots, lines, speakers and times, comes from media memory. The app
-draws it and plays it; it keeps nothing of its own.
+draws it and plays it; it keeps nothing of its own. No call names a Memory: `media.add` lands in
+the local engine's write target, which the app sets to `Videos` (`MEMBASE_WRITE_TARGET`, unless
+you set it yourself), and list and search read every Memory in the store.
 
 ## Use it
 
@@ -87,7 +89,7 @@ Then, on the page:
 | `POST /api/upload` | Multipart `file`: adds your own video, in the background. |
 | `DELETE /api/videos/{id}` | Forgets a video: its shots, lines and file leave media memory. |
 | `POST /api/find` | Takes `{q}`. The matching moments, best first, grouped by video: time, end, `seen` or `said`, text, speaker, thumbnail. |
-| `GET /files/...` | The videos (with range requests, for seeking) and thumbnails. |
+| `GET /files/...` | The videos (with range requests, for seeking) and thumbnails, passed on from media memory's file routes (`file_url`, `thumb_url`). |
 
 `smoke.py` adds the two films with `seed.py` and the trailer through `POST /api/samples`, then
 finds a shot in each film and the old man's line. It checks the video, the time and, for the

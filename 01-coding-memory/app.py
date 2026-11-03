@@ -94,7 +94,7 @@ def session() -> dict:
 @app.post("/api/save")
 def save() -> dict:
     """End the sample session: the SessionEnd hook queues it and returns; a detached process
-    saves it (one memories.add, which starts one learning run)."""
+    saves it (one memories.add, into the one Memory the key reaches)."""
     sid = str(uuid.uuid4())
     transcript = WORK / f"{sid}.jsonl"
     PROJECT.mkdir(parents=True, exist_ok=True)
@@ -146,13 +146,12 @@ def sessions() -> dict:
     docs = mem.documents(CONTAINER)[:8]
     out = []
     for d in docs:
-        full = mem.client.documents.get(d["id"])  # the list does not carry `learned`
-        run_info = full.get("learning_run") or {}
+        full = mem.document(d["id"])  # the list does not say whether it is learned
         out.append(
             {
                 "title": d.get("title"),
-                "learned": bool(full.get("learned")),
-                "run": run_info.get("status"),
+                "learned": full["learned"],
+                "run": full["learning_status"],
                 "created_at": d.get("created_at"),
             }
         )

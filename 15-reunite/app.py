@@ -14,6 +14,7 @@ Synthetic records only. This is a demo, not a tracing or reunification service.
 from __future__ import annotations
 
 import json
+import re
 import sys
 import threading
 import time
@@ -147,7 +148,7 @@ def save_record(rec: dict) -> dict:
     except Exception as e:
         _set_record(rec["id"], status="error", error=f"{type(e).__name__}: {e}")
         raise
-    return _set_record(rec["id"], status="saved", doc_id=out["document_id"])
+    return _set_record(rec["id"], status="saved", doc_id=out["id"])
 
 
 def _set_record(rid: str, **changes) -> dict:
@@ -194,12 +195,15 @@ Reply with JSON:
                 "real": true if these cannot both be true, false if they could}]}"""
 
 
-def _doc_to_family(data: dict) -> dict[str, str]:
-    return {
-        r["doc_id"]: r["id"]
-        for r in data["records"].values()
-        if r["kind"] == "family" and r["doc_id"]
-    }
+# A passage's title is the document it came from: locally the record's title and its topic path
+# ("Family F-01: Daniel (Ruth Marsh) > Toys"), hosted the file its custom_id names.
+_FAMILY_ID = re.compile(r"\bF-\d+\b")
+
+
+def _family_of(hit_title: str, families: set[str]) -> str:
+    """The family record a recalled passage came from, or "" when it names none."""
+    found = _FAMILY_ID.search(hit_title)
+    return found.group(0) if found and found.group(0) in families else ""
 
 
 def recall_families(seeker: dict) -> list[dict]:
@@ -208,15 +212,18 @@ def recall_families(seeker: dict) -> list[dict]:
     f = seeker["fields"]
     queries = [("whole account", " ".join(f.get(k, "") for k in PROBES + ("story",)).strip())]
     queries += [(k, f[k]) for k in PROBES if f.get(k)]
-    families = _doc_to_family(store.read())
+    families = {
+        r["id"]
+        for r in store.read()["records"].values()
+        if r["kind"] == "family" and r["status"] == "saved"
+    }
     fused: dict[str, dict] = {}
     for label, q in queries:
         recall = mem.recall(q, container=CONTAINERS["family"], limit=8)
         seen: set[str] = set()
         hits = [h for h in recall.hits if not is_narration(h.content)]
         for rank, hit in enumerate(hits):
-            doc_id = hit.source.removeprefix("document:").split("#", 1)[0]
-            fid = families.get(doc_id)
+            fid = _family_of(hit.title, families)
             if not fid or fid in seen:
                 continue
             seen.add(fid)

@@ -78,7 +78,7 @@ class Lab:
             with self.engine_lock:
                 return self.mem.agent_skills(agent_id=AGENT, container=CONTAINER)
         except LocalError as e:
-            if e.status == 403:  # nothing ingested into the container yet
+            if e.status == 403:  # nothing ingested into the Memory yet
                 return []
             raise
 

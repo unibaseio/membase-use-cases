@@ -1,6 +1,6 @@
 """Give the memory a life to map: four months of one person's notes and chats (synthetic).
 
-    uv run 07-memory-graph/seed.py            # every note into the `Life` container
+    uv run 07-memory-graph/seed.py            # every note into the `Life` Memory
     uv run 07-memory-graph/seed.py --notes 5  # the first five (faster to try)
 
 Lena Varga is a made-up product designer in Lisbon; every person, company and event below is
@@ -162,7 +162,7 @@ def record_fact(mem: Memory, text: str) -> str:
         deadline = time.monotonic() + 90
         while time.monotonic() < deadline:
             time.sleep(10)
-            if text in (mem.profile().get("static") or []):
+            if text in mem.profile_facts():
                 return "recorded (the write reported 422, then the fact appeared in the profile)"
         raise
 
@@ -196,9 +196,11 @@ def keep_notes(mem: Memory, written: dict[str, dict]) -> None:
     (mem.path / OWN_NOTES).write_text(json.dumps(notes, ensure_ascii=False, indent=1), "utf-8")
 
 
-def _running(mem: Memory, document_id: str) -> bool:
-    run = mem.client.documents.get(document_id).get("learning_run") or {}
-    return run.get("status") in ("queued", "running")
+def _wait_learning(mem: Memory, document_id: str) -> str:
+    """Until the account has learned `document_id` (or failed to); its learning status."""
+    while (status := mem.document(document_id)["learning_status"]) in ("processing", "pending"):
+        time.sleep(10)
+    return status
 
 
 def main() -> None:
@@ -241,12 +243,9 @@ def main() -> None:
     for title, _day, text in notes if mem.mode == "hosted" else []:
         started = time.monotonic()
         out = mem.remember(text, container=CONTAINER, title=title)
-        if out.get("document_id"):
-            # A write while the Memory is still learning starts a second run, which fails
-            # ("Another learning run is active"). So hosted writes go one learning run at a time.
-            while _running(mem, out["document_id"]):
-                time.sleep(10)
-        print(f"  {title:<24} {out.get('status'):<8} {time.monotonic() - started:5.1f}s")
+        # Each note is learned before the next is written, so each is dated in order.
+        status = _wait_learning(mem, out["id"]) if out.get("id") else out.get("status") or ""
+        print(f"  {title:<24} {status:<10} {time.monotonic() - started:5.1f}s")
     for fact in FACTS:
         print(f"  fact: {fact:<44} {record_fact(mem, fact)}")
     if mem.mode == "hosted":

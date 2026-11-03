@@ -39,7 +39,7 @@ flowchart LR
 |---|---|---|
 | **Side panel** (`extension/`, Chrome MV3) | nothing: no key, no `chrome.storage` | reads the open tab's title, URL, selection and text; calls only the companion |
 | **Companion** (`app.py`, on 127.0.0.1) | the Membase developer key | answers only the extension, only on loopback; searches and writes Membase; asks the model |
-| **Membase · `Browsing` memory** | every remembered page, learned into facts | recall, with each fact citing the page it came from |
+| **Membase · `Browsing` memory** | every remembered page, one document each, its URL as the `custom_id` | recall, with each passage traced to the page it came from |
 
 The panel is drawn like Chrome's own side panels: the page you are on with a **Remember**
 button, an ask box, the answer with its citations, and the pages you have remembered with their
@@ -47,7 +47,7 @@ learning state.
 
 | Button | Companion endpoint | Membase call | Model's job |
 |---|---|---|---|
-| **Remember** | `POST /api/remember` | `add_document` with the page's text, URL, title and favicon URL (the same URL twice is one document) | none |
+| **Remember** | `POST /api/remember` | `add_document` with the page's text and title, and its URL as the `custom_id` (the same URL twice is one document) | none |
 | **Ask** (the ask box) | `POST /api/ask` | `search` with the question, the page title and any selection, but not the page text | answer from the page plus the numbered memories, citing each one used |
 
 ## How Membase serves it
@@ -61,15 +61,23 @@ learning state.
   companion's own page gets `403`. A `Host` that is not loopback also gets `403`, which stops
   DNS-rebinding pages. Local command-line tools send no `Origin` and are let through, like any
   process that could read `.env` anyway.
-- **A remembered page is recalled only after learning.** `add_document` puts the page in the
-  Memory's folder and returns at once. A learning run in the account's agent VM then reads it
-  into facts. The panel shows *learning*, then *learned* (about a minute per page). Pages are
-  written one at a time, so the next page shows *waiting* until it can go.
-- **Search is a recall turn**, and only the question goes into it: memory is searched for what
+- **No request names a Memory.** A search covers every Memory the key reaches, and a write
+  lands in the one Memory its key reaches. So the companion writes with a key that reaches only
+  `Browsing` (`MEMBASE_KEY_FOR_BROWSING`, or `MEMBASE_API_KEY` when that key reaches it alone).
+- **A remembered page is learned in the background.** `add_document` puts the page in the
+  Memory's folder and returns at once. A learning run in the account's agent VM then reads it.
+  The panel shows *learning*, then *learned* (about a minute). A page remembered while a run is
+  going shows *waiting*: it is `pending`, and that run starts the next one when it ends.
+- **Search is retrieval**, and only the question goes into it: memory is searched for what
   you asked, and the page you are on goes only to the model.
-- **Every fact says which page it came from.** Hosted hits carry no document id, only a
-  `[[link]]` the learning run named. The companion matches the link to the remembered page by its
-  `custom_id` or title, and shows "from *page title*".
+- **Every passage says which page it came from.** Hits carry no document id. A document passage
+  is titled by the file the page landed in, which its `custom_id` names, and a learned fact may
+  end with a `[[link]]` the learning run named. The companion matches either to the remembered
+  page and shows "from *page title*".
+- **The URL is the page's `custom_id`.** Membase keeps no metadata on a document, so the
+  companion uses `page:<URL>` as the `custom_id` (a URL too long for its 200 characters is
+  hashed, and that page is listed without its link). The favicon is not stored; the panel
+  shows Chrome's own favicon for the URL.
 
 ## Use it
 
@@ -79,8 +87,10 @@ uv run 06-browser-memory/app.py                          # http://127.0.0.1:8706
 python -m http.server 18706 -d 06-browser-memory/pages   # the three fictional pages
 ```
 
-In the Membase app, create a Memory named `Browsing` and a developer key that can write, and put
-the key in `.env` as `MEMBASE_API_KEY`.
+In the Membase app, create a Memory named `Browsing` and a developer key that can write and
+reaches only `Browsing` (a write lands in the one Memory its key reaches), and put the key in
+`.env` as `MEMBASE_API_KEY`. `scripts/bootstrap_hosted.py --containers Browsing` makes both on a
+throwaway account.
 
 Then load the extension:
 

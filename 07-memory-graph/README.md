@@ -34,11 +34,12 @@ https://github.com/user-attachments/assets/1833086a-2144-49d7-8f58-6ff9603a7554
 
 ## How it works
 
-There is no call that lists every memory, so the map is built from what memory returns.
+The map is built from what memory returns: the profile's standing facts, the latest memories,
+and searches.
 
 ```mermaid
 flowchart LR
-  M[("Membase: Life memory<br/>notes and chats as dated episodes<br/>profile: standing facts")] -- "profile · 8 broad searches · 1 search per name" --> A["app.py<br/>(FastAPI)"]
+  M[("Membase: Life memory<br/>notes and chats as dated episodes<br/>profile: standing facts")] -- "profile facts · latest memories · 8 broad searches · 1 search per name" --> A["app.py<br/>(FastAPI)"]
   A -- "name people, places and links, each with its notes" --> L["Model<br/>(gpt-4.1-mini)"]
   A -- "map cache (rebuildable)" --> C[("data/07-memory-graph/&lt;user&gt;/graph.json")]
   A <--> P["Kith page<br/>SVG map · cards"]
@@ -58,9 +59,9 @@ The page has three parts: on the left whose notes these are, what kinds of thing
 
 | Step | What happens on the page | Membase call | Model's job |
 |---|---|---|---|
-| **1. Build** | *Build the map* (later *Rebuild map*). The empty map shows four steps as they run: what you always keep, eight broad questions, following every name, drawing. | `profile`, then `search` 8 times, then once per name found (up to 24) | find the names worth searching; then name people, places, projects, events and organisations and the links between them, each with the numbers of the notes that state it |
+| **1. Build** | *Build the map* (later *Rebuild map*). The empty map shows four steps as they run: what you always keep, eight broad questions, following every name, drawing. | `profile_facts.list` and `memories.list`, then `search` 8 times, then once per name found (up to 24) | find the names worth searching; then name people, places, projects, events and organisations and the links between them, each with the numbers of the notes that state it |
 | **2. Open a card** | Search a name or click a node. Its links light up and the rest dims. The card shows the node's role, its connections and *From Lena's notes*: every note it was built from, dated, in Lena's own words, starting at the sentence that names it, with the name marked. Hover a note to see the passage memory returned for it. Above them, a live search says whether memory holds anything newer on that name. | `search` on the name | none |
-| **3. Write a note** | Back on *Today*, write a note and press **Save note**. It is listed under the box as *not on the map yet*, and **Rebuild map** shows *1 new*. | `memories.add` | none |
+| **3. Write a note** | Back on *Today*, write a note and press **Save note**. It is listed under the box as *not on the map yet*, and **Rebuild map** shows *1 new*. | a write dated now (`demokit.dated.remember_sessions`; hosted, `memories.add`) | none |
 | **4. Rebuild** | The map is built again. A node or link that cites a note the last build did not have glows, and *New since last build* lists them. The new note leads the cards it touched, marked *new since last build*. | as step 1 | as step 1 |
 
 Anything without a note behind it is dropped: an entity or link the model names without citing
@@ -77,19 +78,18 @@ labels.
 - **Dated notes.** `seed.py` writes each note as a session dated by the day it happened (through
   `demokit.dated`, the same engine call `memories.add` makes with the date given instead of now).
   The engine turns each into episodes, and a search returns each episode with its session date.
-  That date is what a card shows. A note saved on the page goes through `memories.add`, so it is dated
-  today.
-- **Notes in her own words.** Every write returns the ids of the memories it became, and the
-  app records them with the note as Lena wrote it (`notes.json`). A search hit carries its id
-  (`source`), so the page shows the note she wrote for each passage recalled. The map is built
-  from the passages.
-- **Search and profile.** A search is hybrid keyword and vector retrieval over the episodes. The
-  profile returns the standing facts plus the most recent episodes. A new note can be searched as
-  soon as the write returns (about 5 s), so a rebuild can follow right away.
+  That date is what a card shows. A note saved on the page goes in the same way, dated now.
+- **Notes in her own words.** Every dated write returns the `mem_` ids of the memories it became
+  (`memories.add` answers with the note it was written as, not those ids), and the app records
+  them with the note as Lena wrote it (`notes.json`). A search hit carries its `mem_` id, so the
+  page shows the note she wrote for each passage recalled. The map is built from the passages.
+- **Search and profile.** A search is hybrid keyword and vector retrieval over the episodes.
+  `profile_facts.list` returns the standing facts (the profile is the person's, not a Memory's)
+  and `memories.list` the latest memories, each with the day it is about. A new note can be
+  searched as soon as the write returns (about 5 s), so a rebuild can follow right away.
 - **Hosted.** The same calls go to the account's `Life` Memory. A write is learned by a learning
   run before search can find it (about a minute), and a search is a recall turn in the account's
-  agent VM; prose about what it did not find is dropped. The hosted profile has no "recent
-  memories" list, so the map comes from the searches alone, and a card dates a note only when
+  agent VM; prose about what it did not find is dropped. A card dates a searched note only when
   the recalled fact starts with its date.
 - **What the map cannot show.** Anything memory never returns for these searches is missing.
   *How this map was made*, at the bottom left, lists every search that ran.

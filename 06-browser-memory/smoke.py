@@ -131,7 +131,7 @@ def main() -> None:
     while True:
         rows = c.get("/api/pages", headers=ext).raise_for_status().json()["pages"]
         if len(rows) >= 2 and all(
-            p["learned"] or p["learning"] not in ("queued", "running", "waiting") for p in rows
+            p["learned"] or p["learning"] not in ("pending", "processing", "waiting") for p in rows
         ):
             stuck = [p for p in rows if not p["learned"]]
             if stuck:
@@ -175,8 +175,8 @@ def main() -> None:
     print("cited pages:", sorted(sources))
     assert "corvid" in cited or "rain cover" in cited, f"no cited memory is from the review: {used}"
     if not {trail["title"], review["title"]} <= sources:
-        # Search results carry no document id; the page is read off the memory's wiki link,
-        # which the learning run names (see with_pages in app.py).
+        # Search results carry no document id; the page is read off the passage's file name or
+        # the memory's wiki link (see with_pages in app.py).
         print("WARNING: not every cited memory could be traced to its page:", sorted(sources))
     print("OK")
 

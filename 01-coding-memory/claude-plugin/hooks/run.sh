@@ -14,6 +14,6 @@ if [ -n "$MEMBASE_HOOK_PYTHON" ]; then
   exec "$MEMBASE_HOOK_PYTHON" "$HOOK" "$@"
 fi
 if command -v uv >/dev/null 2>&1; then
-  exec uv run --quiet --no-project --with 'unibaseio-membase>=0.3.2' python "$HOOK" "$@"
+  exec uv run --quiet --no-project --with 'unibaseio-membase>=0.4.0' python "$HOOK" "$@"
 fi
 exec python3 "$HOOK" "$@"

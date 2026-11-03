@@ -40,7 +40,7 @@ The fade count is computed from each run's splits, not by the model.
 ```mermaid
 flowchart LR
   P["Page<br/>glasses view + phone"] <--> A["app.py<br/>(FastAPI)"]
-  A -- "3 searches · profile · write today's run (dated)" --> M[("Membase: Runs memory<br/>one conversation memory per run<br/>profile: goals")]
+  A -- "3 searches · profile facts · write today's run (dated)" --> M[("Membase: Runs memory<br/>one conversation memory per run<br/>profile: goals")]
   A -- "count the fades from the splits" --> R[("runs.json<br/>each run's numbers + memory ids")]
   A -- "headline, cues, target pace" --> L["Model<br/>(gpt-4.1-mini)"]
 ```
@@ -55,10 +55,10 @@ The steps:
 
 | Step | What happens | Membase call | Model's job |
 |---|---|---|---|
-| **1 · Brief** | Three searches bring back the recent runs; the goals come from the profile. Code maps each recalled memory to its run's splits and counts the runs over 7 km that faded after km 7 (km 8 on at least 15 s/km slower than km 3–7). The phone shows the count and each counted run's splits. | `search` ×3, `profile` | write a one-line headline, two short cues that cite runs by number, and the target pace. It is given the count and told not to count itself. |
+| **1 · Brief** | Three searches bring back the recent runs; the goals come from the profile. Code maps each recalled memory to its run's splits and counts the runs over 7 km that faded after km 7 (km 8 on at least 15 s/km slower than km 3–7). The phone shows the count and each counted run's splits. | `search` ×3, `profile_facts.list` | write a one-line headline, two short cues that cite runs by number, and the target pace. It is given the count and told not to count itself. |
 | **2 · The run** | A simulated run streams into the HUD at the lens edges, and the drawn path moves at the runner's pace. The cue at km 6.5 is built from the count and shows every run it counted, as a split chart with its date. Other cues (start, a heart rate limit) come from the model. The simulation waits 3 s after a cue at a km, so the cue is read near that km. | none | none |
 | **3 · Remember** | The finished run's summary is written to memory, dated now. The phone shows the run and its splits, then *Saved to your runs*. | the local engine's dated session write | none |
-| **4 · Next brief** | The same searches now return today's run too. The count becomes 5 of 6, the latest held, and today's run tops the list. The headline compares today's run with the ones before it. | `search` ×3, `profile` | as in step 1 |
+| **4 · Next brief** | The same searches now return today's run too. The count becomes 5 of 6, the latest held, and today's run tops the list. The headline compares today's run with the ones before it. | `search` ×3, `profile_facts.list` | as in step 1 |
 
 The count is code, not model arithmetic. The model sees it as a line in its input, and the
 smoke test checks every "N of M" the brief states against seed.py.
@@ -75,8 +75,8 @@ smoke test checks every "N of M" the brief states against seed.py.
 - **Search** is hybrid keyword and vector retrieval over the episodes. Each hit keeps its date
   and memory id. The brief sorts the hits by date, newest first, and the memory id links each
   hit to the run's numbers.
-- **Profile.** The goals are standing facts (`memories.add(static=True)`), read with
-  `profile()`.
+- **Profile.** The goals are profile facts, the user's standing statements (`profile_facts.add`),
+  read with `profile_facts.list`. They are the store's, not the `Runs` Memory's.
 
 ## Use it
 

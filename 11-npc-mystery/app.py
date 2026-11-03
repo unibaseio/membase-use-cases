@@ -1,10 +1,10 @@
 """NPC mystery: three characters who remember what you told them, and gossip.
 
 Each player gets a directory of their own on the local engine, and inside it each character has
-its own memory container. A character answers from its own container only: what you said to it,
+its own Memory. A character answers from its own Memory only: what you said to it,
 and what others passed on to it ("Mara told me..."). When time passes, a character who heard
 something from you tells its confidant (Mara tells Elsie): that is one write into the
-confidant's container. The culprit recalls its own past statements so its story stays straight.
+confidant's Memory. The culprit recalls its own past statements so its story stays straight.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ _PLAYER = re.compile(r"^[a-z0-9-]{4,40}$")
 
 
 def container_of(npc: str) -> str:
-    """Each character's memory container, under the player's own directory."""
+    """Each character's Memory, under the player's own directory."""
     return story.NPCS[npc]["name"].split()[0]
 
 
@@ -70,7 +70,7 @@ class Game:
             self.state_path.write_text(json.dumps(self.state, indent=1), encoding="utf-8")
 
     def write(self, npc: str, text: str, title: str) -> Future:
-        """Queue one memory write into `npc`'s container; recall on that container waits for it."""
+        """Queue one memory write into `npc`'s Memory; recall on that Memory waits for it."""
         started = time.monotonic()
 
         def job() -> float:
@@ -82,7 +82,7 @@ class Game:
         return fut
 
     def settle(self, npc: str) -> None:
-        """Wait out the writes still landing in `npc`'s container, so recall sees them."""
+        """Wait out the writes still landing in `npc`'s Memory, so recall sees them."""
         for fut in list(self.pending[npc]):
             fut.result()
         self.pending[npc] = [f for f in self.pending[npc] if not f.done()]
@@ -180,7 +180,7 @@ def public_state(g: Game) -> dict:
 
 
 def memory_count(g: Game, npc: str) -> dict:
-    """What the app has written into `npc`'s container: exchanges with you, gossip heard."""
+    """What the app has written into `npc`'s Memory: exchanges with you, gossip heard."""
     return {
         "talks": sum(1 for m in g.state["chats"][npc] if m["role"] == "user"),
         "gossip": sum(1 for e in g.state["gossip"] if e["to"] == npc),

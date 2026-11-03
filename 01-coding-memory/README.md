@@ -47,7 +47,10 @@ video_capture.py, video.py     the video: two real `claude -p` runs, captured, t
 ## Install
 
 You need a developer key (`mbk_…`) from the Membase app, under **Connect › Developer keys**. A
-*Read & write* or *Full access* key saves sessions; a *Read* key only recalls.
+*Read & write* or *Full access* key saves sessions; a *Read* key only recalls. No request names a
+Memory: recall searches every Memory the key reaches, and a session is saved to the one Memory
+the key reaches, so for saving, give the key exactly one Memory (for example one named `Coding`;
+see [Which Memory](#which-memory)).
 
 ```bash
 python3 01-coding-memory/install.py claude --key mbk_…   # Claude Code
@@ -61,9 +64,9 @@ shares one settings file, `~/.membase/config.env` (mode 600), and the hooks read
 there. The key is never written into a CLI's own config. Before changing a config file, the
 installer backs it up as `<file>.membase-backup`.
 
-The hooks need the Membase Python SDK. `run.sh` uses `uv` when it is installed: the first hook
+The hooks need the Membase Python SDK, 0.4.0 or newer (the memory API). `run.sh` uses `uv` when it is installed: the first hook
 takes a few seconds to build a cached environment, and later hooks start immediately. Without uv,
-run `pip install unibaseio-membase`, or set `MEMBASE_HOOK_PYTHON=/path/to/python` in
+run `pip install 'unibaseio-membase>=0.4.0'`, or set `MEMBASE_HOOK_PYTHON=/path/to/python` in
 `config.env`. The hooks need macOS or Linux; Windows is not supported.
 
 The MCP server reads `MEMBASE_API_KEY` from the environment the CLI starts in (Claude Code
@@ -109,32 +112,30 @@ current Codex docs, and 0.125 ignores entries it does not know. The installer re
   go with this prompt. If not, it keeps going, and what it finds is added to the next prompt,
   marked as late. A slow memory costs one prompt of delay; the answer is not lost, and the
   search is never repeated. At session start this search also wakes the account.
-- **One save per session.** Each hosted write starts a learning run, so the session is written
-  once with `memories.add`, when it ends. Only user and assistant text is kept: no tool calls,
+- **One save per session.** Each hosted write is read in by a learning run in your account, so
+  the session is written once with `memories.add`, when it ends. Only user and assistant text is kept: no tool calls,
   tool output, thinking, slash commands or `<system-reminder>` text. Each message is cut at
   1,500 characters and the session at 12,000; the first request and the latest turns are kept.
   The page at port 8701 shows what is kept and what is dropped. A resumed session saves only
   what is new.
 - **The save runs detached.** Claude Code gives `SessionEnd` hooks about 1.5 s, Codex gives
   1–3 s, and Gemini does not wait at all. The hook writes the session to `~/.membase/state/pending/`
-  and starts a separate process that saves it. If the save fails (no network, no container),
-  the file stays and is retried at the next session start.
+  and starts a separate process that saves it. If the save fails (no network, a key with no
+  single Memory to write to), the file stays and is retried at the next session start.
 - **No `PreCompact` hook.** Compacting does not remove lines from the transcript file, so
   `SessionEnd` still sees the whole session. Saving before compaction too would cost a second
   write and a second learning run.
 
-### Which Memory (container)
+### Which Memory
 
-1. `MEMBASE_CONTAINER` (a name or an id), if set. A name the key cannot reach is an error, and
-   the error is logged.
-2. Otherwise, a Memory named like the project, meaning its git folder name, matched without
-   regard to case.
-3. Otherwise, a Memory named `Coding`.
-4. Otherwise, the only Memory the key reaches.
+The key decides; no request names a Memory. Recall searches every Memory the key reaches. A
+session is saved to the one Memory the key reaches; a key that reaches several is refused
+(`write_target_required`), nothing is saved, the log says why and the session stays queued. Pick
+the Memories a key reaches when you mint it, or change them later under **Connect › Developer
+keys**.
 
-If none of these matches, recall searches every Memory the key reaches and sessions are not
-saved; the log says why. To give each repository its own Memory, create one with the
-repository's name, or set `MEMBASE_CONTAINER` in that project's environment.
+To give each repository its own Memory, mint a key per Memory and set `MEMBASE_API_KEY` in that
+project's environment; it wins over `config.env`.
 
 ### Settings (`~/.membase/config.env` or the environment)
 
@@ -142,7 +143,6 @@ repository's name, or set `MEMBASE_CONTAINER` in that project's environment.
 |---|---|
 | `MEMBASE_API_KEY` | the developer key (required) |
 | `MEMBASE_BASE_URL` | default `https://api.app.membase.ai` |
-| `MEMBASE_CONTAINER` | the Memory to use (see above) |
 | `MEMBASE_RECALL_BUDGET` | seconds a prompt waits for memory (default 10) |
 | `MEMBASE_AUTOSAVE` | `0` turns off saving; recall still works |
 | `MEMBASE_HOOK_PYTHON` | a Python with `unibaseio-membase`, instead of uv |
@@ -151,7 +151,7 @@ repository's name, or set `MEMBASE_CONTAINER` in that project's environment.
 ## Try it
 
 ```bash
-uv run 01-coding-memory/smoke.py      # MEMBASE_API_KEY in .env, with a Memory named Coding
+uv run 01-coding-memory/smoke.py      # MEMBASE_API_KEY in .env: a key that reaches only a Memory named Coding
 uv run 01-coding-memory/app.py        # http://127.0.0.1:8701
 ```
 

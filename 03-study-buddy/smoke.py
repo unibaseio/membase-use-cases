@@ -72,7 +72,7 @@ def one(evs: list[dict], kind: str) -> dict:
 
 
 def wait_learned(client: TestClient, saved: dict, info: dict) -> dict:
-    """Hosted: wait for the quiz memory's learning run. A failed run commits nothing and is not
+    """Hosted: wait until the quiz memory is learned. Failed learning commits nothing and is not
     retried by the service, so the page offers "Write it again"; this does the same, once."""
     if info["mode"] != "hosted":
         return {"learned": True}
@@ -86,7 +86,7 @@ def wait_learned(client: TestClient, saved: dict, info: dict) -> dict:
             time.sleep(15)
         if state["learned"]:
             return state
-        print(f"WARNING: learning run {state['run_id']} ended {state['run']} (attempt {attempt})")
+        print(f"WARNING: learning ended {state['run']} (attempt {attempt})")
         if attempt == 1:
             evs = events(client, "/api/rewrite", {"text": saved["text"], "topic": saved["topic"]})
             saved = one(evs, "saved")
@@ -207,11 +207,7 @@ def main() -> None:
             break
         assert time.monotonic() < deadline, (
             f"weak spots were not marked fixed: {after['weak_spots']}"
-            + (
-                ""
-                if state["learned"]
-                else f" (the review memory's learning run {state['run_id']} ended {state['run']})"
-            )
+            + ("" if state["learned"] else f" (learning the review memory ended {state['run']})")
         )
         time.sleep(20)
     print(

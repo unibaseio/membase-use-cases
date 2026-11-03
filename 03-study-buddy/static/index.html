@@ -443,7 +443,6 @@
     try {
       await stream("/api/finish", body, (ev) => {
         if (ev.type === "saving") text.textContent = ev.text;
-        else if (ev.type === "waiting") state.replaceChildren(el("span", { class: "busy" }), "Waiting for the last note to settle…");
         else if (ev.type === "saved") {
           if (ev.learning && ev.document_id) {
             state.replaceChildren(el("span", { class: "busy" }), "Membase is learning it…");
@@ -460,14 +459,14 @@
   }
   async function waitLearned(id, saved, state, tries = 0) {
     try {
-      const { learned: ok, done, run_id } = await api(`/api/learning/${encodeURIComponent(id)}`);
+      const { learned: ok, done } = await api(`/api/learning/${encodeURIComponent(id)}`);
       if (done && ok) return learned(state);
       if (done && !saved.retried) {
-        // The service does not retry a failed learning run; write it once more.
-        state.replaceChildren(el("span", { class: "busy" }), `Learning run ${run_id} failed; writing it again…`);
+        // The service does not retry failed learning; write it once more.
+        state.replaceChildren(el("span", { class: "busy" }), "Learning failed; writing it again…");
         return rewrite({ ...saved, retried: true }, state);
       }
-      if (done) { state.textContent = `Learning run ${run_id} failed, so this session was not learned.`; return; }
+      if (done) { state.textContent = "Learning failed, so this session was not learned."; return; }
     } catch (e) { return failed(state, e); }
     if (tries > 40) { state.textContent = "Still learning after 10 minutes. Check the pile again later."; return; }
     setTimeout(() => waitLearned(id, saved, state, tries + 1), 15000);

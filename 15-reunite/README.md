@@ -38,15 +38,15 @@ https://github.com/user-attachments/assets/d81d8124-bd24-43de-804d-63c5abb89611
 ```mermaid
 flowchart LR
   P["Review desk<br/>seeker file · worksheet · family file"] <--> A["app.py<br/>(FastAPI)"]
-  A -- "add_document · search Families" --> M[("Membase: one operator's store<br/>Families container<br/>Seekers container")]
+  A -- "add_document · search Families" --> M[("Membase: one operator's store<br/>Families Memory<br/>Seekers Memory")]
   A -- "compare two records, detail by detail" --> L["Model<br/>(gpt-4.1-mini)"]
   A -- "form fields, suggestions, decisions" --> J[("reunite.json")]
 ```
 
 | What | Where it lives | Written by | Read by |
 |---|---|---|---|
-| A family's record: the child, how they lost touch, looks and marks, toys, people, places | `Families` container, one document per record | `seed.py`, the intake form | matching, through search |
-| A seeker's record: earliest memories, objects, people, places, marks | `Seekers` container, one document per record | `seed.py`, the intake form | the page (the seeker's own words) |
+| A family's record: the child, how they lost touch, looks and marks, toys, people, places | `Families` Memory, one document per record | `seed.py`, the intake form | matching, through search |
+| A seeker's record: earliest memories, objects, people, places, marks | `Seekers` Memory, one document per record | `seed.py`, the intake form | the page (the seeker's own words) |
 | Each record's form fields, the suggested matches, the reviewer's decisions | `reunite.json` beside the memory | the app | the page |
 
 The worksheet in the middle of the desk takes the reviewer through four steps, one at a time:
@@ -65,12 +65,13 @@ person decides.
 ## How Membase serves it
 
 - **Local engine.** `Membase(local=data/15-reunite/operator)` runs `unibaseio-membase-core` in the app's
-  process. The operator's directory holds two containers, `Families` and `Seekers`.
+  process. The operator's directory holds two Memories, `Families` and `Seekers`; each write
+  lands in the one its record belongs to, and matching searches `Families` alone.
 - **Documents.** Each record is written with `add_document` and its id as `custom_id`
   (`reunite:F-01`). The engine reads it into a topic tree (SQLite and FAISS), about 8 s per
   record, and it can be searched as soon as the call returns.
-- **Search** is hybrid keyword and vector retrieval. A hit names the document it came from, and
-  the app maps that to the family record. Searching once per kind of detail lets a family that
+- **Search** is hybrid keyword and vector retrieval. A hit carries the title of the document it
+  came from (the record's title, then the topic path), and the app maps that to the family record. Searching once per kind of detail lets a family that
   matches on one specific thing (the toy, the scar) rank even when the rest of the account
   reads differently. The slip clipped to the bottom of the family's file
   (*Pulled from memory by …*) shows the passages each search brought back.
