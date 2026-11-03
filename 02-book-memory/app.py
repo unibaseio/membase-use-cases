@@ -129,18 +129,29 @@ def locate(hit: str, story_hint: str, question: str) -> dict | None:
     )
     where = _stretch(hit) if long else None
     candidates = where or [(t, i) for t, ps in text().items() for i in range(len(ps))]
-    best, best_score = None, 0.0
+    best, best_score, beside = None, 0.0, None
     for title, i in candidates:
         para = text()[title][i]
-        for a, b in _sentences(para):
+        spans = list(_sentences(para))
+        shared = [len(want & _words(_norm(para[a:b]))) for a, b in spans]
+        for k, (a, b) in enumerate(spans):
             sent = _norm(para[a:b])
-            score = len(want & _words(sent)) + sum(4 + len(q.split()) for q in quotes if q in sent)
+            score = shared[k] + sum(4 + len(q.split()) for q in quotes if q in sent)
             if title == story_hint:
                 score += 0.5
             if score > best_score:
                 best, best_score = {"story": title, "para": i, "start": a, "end": b}, score
+                # A stretch of the story often answers across two sentences ("…the white gowan
+                # in his buttonhole. It is a signal that he means to propose"): the neighbour
+                # that shares the question's words too is marked with it.
+                near = [j for j in (k - 1, k + 1) if 0 <= j < len(spans) and shared[j]]
+                beside = spans[max(near, key=lambda j: shared[j])] if long and near else None
     need = 2 if long else max(3, 0.45 * len(want))
-    return best if best and best_score >= need else None
+    if not best or best_score < need:
+        return None
+    if beside:
+        best.update(start=min(best["start"], beside[0]), end=max(best["end"], beside[1]))
+    return best
 
 
 def story_of(hit: Hit) -> str:
