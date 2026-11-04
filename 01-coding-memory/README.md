@@ -80,7 +80,7 @@ profile so the agent can call the tools itself. The hooks work without either va
   `claude --plugin-dir ./01-coding-memory/claude-plugin`.
 - **Codex.** Copy `hooks/run.sh` and `hooks/membase_memory.py` to `~/.membase/hooks/`, add the
   four entries from `install.py` to `~/.codex/hooks.json`, then run
-  `codex mcp add membase --url https://api.app.membase.ai/mcp-http --bearer-token-env-var MEMBASE_API_KEY`.
+  `codex mcp add membase --url https://api.app.membase.com/mcp-http --bearer-token-env-var MEMBASE_API_KEY`.
 - **Gemini CLI.** The same, with the entries in the `hooks` block of `~/.gemini/settings.json`.
 
 ## What is automatic, per CLI
@@ -142,7 +142,7 @@ project's environment; it wins over `config.env`.
 | | |
 |---|---|
 | `MEMBASE_API_KEY` | the developer key (required) |
-| `MEMBASE_BASE_URL` | default `https://api.app.membase.ai` |
+| `MEMBASE_BASE_URL` | default `https://api.app.membase.com` |
 | `MEMBASE_RECALL_BUDGET` | seconds a prompt waits for memory (default 10) |
 | `MEMBASE_AUTOSAVE` | `0` turns off saving; recall still works |
 | `MEMBASE_HOOK_PYTHON` | a Python with `unibaseio-membase`, instead of uv |

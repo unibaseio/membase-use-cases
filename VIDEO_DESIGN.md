@@ -5,7 +5,7 @@ short **preview loop** for the demo's own README. The layout follows the EverOS 
 (a solid colour panel with the title on the left, the product in a browser window on a textured
 field on the right; real recordings with stage captions). The look is Membase's own: brand blue
 `#3E61FF` and ink `#0F172B`, Bricolage Grotesque for titles and Instrument Sans for text, and the
-hatched-line clouds and glow field from membase.ai instead of EverOS's oil-paint texture.
+hatched-line clouds and glow field from membase.com instead of EverOS's oil-paint texture.
 
 ## What EverOS does, and what we keep
 

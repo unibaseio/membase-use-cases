@@ -18,7 +18,7 @@ Settings come from the environment, then from ~/.membase/config.env (KEY=VALUE l
                            a Memory: a search covers every Memory the key reaches, and a session
                            is saved to the one Memory it reaches (a key that reaches several
                            saves nothing; the log says so)
-    MEMBASE_BASE_URL       default https://api.app.membase.ai
+    MEMBASE_BASE_URL       default https://api.app.membase.com
     MEMBASE_RECALL_BUDGET  seconds a prompt search may take before the hook gives up (default 10)
     MEMBASE_AUTOSAVE       0 to stop saving sessions (recall still works)
     MEMBASE_HOME           where config.env, the log and the state live (default ~/.membase)

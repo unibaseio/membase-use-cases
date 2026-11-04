@@ -279,7 +279,7 @@ def binder() -> dict:
 def connect() -> dict:
     """Where another AI reads this same Memory: the hosted MCP address, or the local server."""
     if mem.mode == "hosted":
-        base = (os.environ.get("MEMBASE_BASE_URL") or "https://api.app.membase.ai").rstrip("/")
+        base = (os.environ.get("MEMBASE_BASE_URL") or "https://api.app.membase.com").rstrip("/")
         return {"mcp_url": f"{base}/mcp-http"}
     return {"mcp_url": f"membase --store {mem.path.parent} mcp   (local)"}
 
