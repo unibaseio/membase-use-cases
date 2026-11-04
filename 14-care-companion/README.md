@@ -68,11 +68,11 @@ tablet says so instead.
   keeps each person apart by giving each a directory.
 - **A note is a dated session.** The app writes it as a one-turn session whose `session_date` is
   when it happened, the same thing `memories.add` does but with the date given. The engine turns
-  it into episodes with that date (SQLite and FAISS) and returns their ids
-  (`daily-log:12`). The note is searchable as soon as the write returns, about 3–8 s.
+  it into episodes with that date (SQLite and FAISS), and `remember_sessions` returns their
+  `mem_` ids, the ids the memory API gives them. The note is searchable as soon as the write returns, about 3–8 s.
 - **Search** is hybrid keyword and vector retrieval over the episodes. Each hit carries its
   memory id and `session_date`, which is where the relative label comes from.
-- **Forget** is `memories.forget(id, confirm=True)`: the episode is deleted, so search can no
+- **Forget** is `memories.forget(mem_id, confirm=True)`: the episode is deleted, so search can no
   longer return it. A correction writes the new note before it forgets the old one, so if the
   write fails, the old note stays as it was.
 - **Model calls** (answers, and the engine's own extraction and embeddings) use your

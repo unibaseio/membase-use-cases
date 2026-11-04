@@ -75,15 +75,18 @@ flowchart LR
 ```
 
 - **Keys are the permission boundary.** Each key belongs to the account, reaches the Memories it
-  was given (here `Team`), and has a level: read, read & write, or full. Membase checks it on
-  every call, not `team.py`. Revoke or narrow one agent's key in **Connect › Developer keys**,
+  was given (here `Team` alone), and has a level: read, read & write, or full. Membase checks it
+  on every call, not `team.py`. No request names a Memory: a key's search reads every Memory it
+  reaches and its write lands in its write target, the one Memory it reaches, so `team.py` only
+  checks (`capabilities`) that each key reaches `Team`. Revoke or narrow one agent's key in **Connect › Developer keys**,
   and that agent stops at its next call while the others carry on. The read key's write comes
   back as `{"code": "unauthorized", "message": "token missing required scope", "details":
   {"need": "write"}}`.
 - **A hand-off waits for learning.** `memories.add` puts the agent's memory in the Team folder and
-  returns at once. A learning run in the account's agent VM then turns it into facts, and only
-  after that can the next agent's search find it. So after each write the run polls the document
-  until its learning run ends (35–70 s), and the page shows that wait. Writes go one at a time.
+  returns at once with the note it was written as (`doc_…`). A learning run in the account's
+  agent VM then turns it into facts, and only after that can the next agent's search find it. So
+  after each write the run polls the document until its `learning` reads `succeeded` (or
+  `failed`), 35–70 s, and the page shows that wait. Writes go one at a time.
 - **Search is a recall turn** in the same VM. The Fixer's first call is a search, and the page
   shows what it recalled before the Fixer opens any file.
 - **Over MCP, a read key never sees a write tool.** The same keys work as MCP bearer tokens. A

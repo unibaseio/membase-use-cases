@@ -33,7 +33,7 @@ https://github.com/user-attachments/assets/dfc0ccb1-e478-4549-abd8-12e83bc55bf2
 ```mermaid
 flowchart LR
   P["Page<br/>steps · library · what memory holds"] <--> A["app.py<br/>(FastAPI)"]
-  A -- "media.add · media.search · media.list · media.delete" --> M[("Membase media memory<br/>Photos container:<br/>one description per photo")]
+  A -- "media.add · media.search · media.list · media.delete" --> M[("Membase media memory<br/>Photos Memory:<br/>one description per photo")]
   M -- "describe · grade matches" --> L["Model<br/>(gpt-4o-mini, gpt-4.1)"]
 ```
 
@@ -42,6 +42,10 @@ flowchart LR
 | **1 · Add** | A photo arrives: an album of samples (**Add**), or your own file. | `media.add` |
 | **2 · Remember** | A vision model describes the photo in one sentence: what is in it, what is happening, where. That sentence is what memory keeps. | inside `media.add` |
 | **3 · Recall** | Your words are matched against every description, by meaning and by keyword; a model grades the candidates and only relevant photos come back, best first. | `media.search` |
+
+No call names a Memory: `media.add` lands in the local engine's write target, which the app sets
+to `Photos` (`MEMBASE_WRITE_TARGET`, unless you set it yourself), and list and search read every
+Memory in the store.
 
 ## Use it
 
@@ -70,7 +74,7 @@ uv run 19-photo-memory/app.py                 # open http://127.0.0.1:8719
 | `POST /api/upload` | Multipart `file`: adds your own photo, in the background. |
 | `DELETE /api/photos/{id}` | Forgets a photo: its description and its file leave media memory. |
 | `POST /api/find` | Takes `{q}`. The matching photos, best first. |
-| `GET /files/...` | The photos. |
+| `GET /files/...` | The photos, passed on from media memory's file route (`file_url`). |
 
 `smoke.py` adds Lisbon and Home with `seed.py` and Kyoto through `POST /api/albums`, then checks
 that the gates, the two sweet things (and only them) and the sleeping cat (not the running dog)

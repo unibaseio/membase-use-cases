@@ -117,7 +117,7 @@ def show(ev: dict) -> None:
         print(f"  {ev['role']:<12} {ev['name']:<16} {ev['seconds']:>6}s  {status}")
     elif t == "wait" and (ev["learned"] or ev["seconds"] % 30 < 5):
         print(
-            f"  {'Membase':<12} waiting for {ev['role']}'s memory: {ev['seconds']}s learned={ev['learned']} run={ev['run_status']}"
+            f"  {'Membase':<12} waiting for {ev['role']}'s memory: {ev['seconds']}s learned={ev['learned']} learning={ev['learning']}"
         )
     elif t == "note":
         print(f"  note: {ev['text']}")

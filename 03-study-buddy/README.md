@@ -99,29 +99,32 @@ flowchart LR
   Memories it was given (here, `Study`), plus the profile if it was granted profile access. A
   Memory is a named part of that account, not a separate tenant. An app serving many students
   gives each student their own account and key.
-- **Writing is two stages.** `add_document` and `memories.add` put a raw file in the Memory's
-  folder and return straight away (`queued`). A **learning run** in the account's agent VM then
-  reads the new file and writes what it learned as facts and wiki pages. Only after that can
-  search find it. That is why the session note waits for "Learned", and why every write waits for the
-  previous learning run to finish.
-- **Search is a turn.** `search` runs a recall turn in the same VM over the learned facts and
-  wiki pages. It returns passages; each cites the page it came from (`[[bio110-03-…]]` for a
-  lecture, `[[memory-…]]` for a session note). The app uses that citation to tell course
-  material from your results. A warm search takes 5–16 s; the first one after the VM has been
-  idle takes longer.
+- **No request names a Memory.** A search covers every Memory the key reaches, and a write
+  lands in the one Memory the key reaches. So the key that writes must reach only `Study`
+  (`MEMBASE_KEY_FOR_STUDY`, or `MEMBASE_API_KEY` when that key reaches `Study` alone).
+- **Writing is two stages.** `documents.add` and `memories.add` put a raw file in the Memory's
+  folder and return straight away (`processing`, or `pending` while a learning run is going: that
+  run starts the next one when it ends). A **learning run** in the account's agent VM then reads
+  the new file. Only after that can search find it, which is why the session note waits for
+  "Learned". Nothing waits before writing.
+- **Search is retrieval.** `search` returns passages of two types: `document`, a section of a
+  lecture (its title is the lecture's file and section, `bio110-03-… > Glycolysis`), and
+  `memory`, a fact learned from a session note. The app uses the type to tell course material
+  from your results. A warm search takes a few seconds; the first one after the VM has been idle
+  takes longer.
 - **Model calls never leave Membase's control.** Learning and search call models through
   Membase's inference service. No model key goes into the VM. The app's own model calls (writing
   questions, grading) are separate and use the app's `OPENAI_API_KEY`.
 
 | On the page | SDK call | REST | Inside Membase | Searchable |
 |---|---|---|---|---|
-| Seed the course | `add(text, container="Study")` | `POST /v1/documents` | Each lecture lands as a file in Study's folder, and a learning run reads it into facts | When `documents.get(id).learned` is true (30–80 s) |
-| A deck: recall the lecture | `search(q, container=…)` | `POST /v1/search` | A recall turn over the learned facts; the hits cite the lecture | — |
-| Finish a session | `memories.add(text, container=…)` | `POST /v1/memories` | The session note lands as a file, and a learning run reads it | After its learning run (30–70 s) |
-| Review pile, review deck | `search(…)` | `POST /v1/search` | A recall turn; the hits cite `memory-…` pages | — |
-| Wait for "Learned" | `documents.get(id)` | `GET /v1/documents/{id}` | Reads the Memory's latest learning run | — |
-| Save a preference | `memories.add(text, static=True)` | `POST /v1/memories` | The assistant writes it to the profile's standing facts | When `profile()` lists it |
-| Load preferences | `profile()` | `GET /v1/profile` | Reads the profile | — |
+| Seed the course | `documents.add(text, title=…, custom_id=…)` | `POST /v1/documents/add` | Each lecture lands as a file in Study's folder, and a learning run reads it | When every entry of its `learning` is `succeeded` (about 70 s for all five) |
+| A deck: recall the lecture | `search(q)` | `POST /v1/search` | Retrieval over the lectures; `document` passages, titled by lecture file and section | — |
+| Finish a session | `memories.add(text, title=…)` | `POST /v1/memories/add` | The session note lands as a file, and a learning run reads it into facts | Once it is learned (20–70 s) |
+| Review pile, review deck | `search(…)` | `POST /v1/search` | Retrieval; the session notes come back as `memory` facts | — |
+| Wait for "Learned" | `documents.get(id)` | `GET /v1/documents/{id}` | That document's own `learning` status | — |
+| Save a preference | `profile_facts.add(text)` | `POST /v1/profile-facts/add` | A standing statement in the profile (the account's, not the Memory's) | At once |
+| Load preferences | `profile_facts.list()` | `GET /v1/profile-facts` | Reads the profile | — |
 
 ### Local engine
 
@@ -140,9 +143,9 @@ flowchart LR
 - `add` reads a lecture into a topic tree right away (about 10 s per lecture).
 - `memories.add` turns a session note into episodes right away (about 4 s). The episodes are
   searchable as soon as the call returns, so there is no learning run to wait for.
-- `search` runs hybrid keyword and vector retrieval over both stores. Hits are marked
-  `document:` or `episode:`, and the app uses that marker to tell course material from your
-  results.
+- `search` runs hybrid keyword and vector retrieval over both stores. Hits are of type
+  `document` or `memory` (an episode), and the app uses the type to tell course material from
+  your results.
 - Each directory under `data/03-study-buddy/` is one person's memory, which is how an app on
   the local engine keeps its users apart.
 
@@ -155,9 +158,11 @@ uv run 03-study-buddy/seed.py             # put the five lectures in memory
 uv run 03-study-buddy/app.py              # open http://127.0.0.1:8703
 ```
 
-**Hosted.** In the Membase app, create a Memory named `Study` and a developer key that can write,
-and put the key in `.env`. Seeding writes one lecture at a time and waits for Membase to learn
-each one, about 30–80 s per lecture.
+**Hosted.** In the Membase app, create a Memory named `Study` and a developer key that can write
+and reaches only `Study` (writes land in the one Memory a key reaches), and put the key in
+`.env` (`MEMBASE_API_KEY`, or `MEMBASE_KEY_FOR_STUDY` next to a key that reaches more).
+`scripts/bootstrap_hosted.py --containers Study` makes both on a throwaway account. Seeding
+writes all five lectures at once and waits until Membase has learned them, about 70 s.
 
 **Local.** Add `MEMBASE_DEMO_MODE=local` to `.env`. The memory then lives in `data/03-study-buddy/`.
 Seeding takes about 10 s per lecture, and a session note can be recalled as soon as it is written.
@@ -194,7 +199,8 @@ Then, on the page:
 
 ## Notes
 
-- **Hosted writes go one at a time.** Each write waits for the previous learning run to finish.
+- **Hosted writes never wait to be made.** A write during a learning run is `pending`, and that
+  run starts the next one when it ends.
 - **The course is synthetic.** It is introductory cell biology written for this demo, and every
   answer comes from those notes, not from the model's own knowledge.
 

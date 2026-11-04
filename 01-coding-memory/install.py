@@ -6,8 +6,9 @@
     python3 install.py gemini  --key mbk_...      # Gemini CLI: hooks + MCP + a GEMINI.md block
     python3 install.py codex --uninstall          # take it out again (config.env stays)
 
-Options: --container NAME (the Memory to use; see README), --base-url (another Membase API),
---home DIR (the CLI's config folder, default ~/.codex or ~/.gemini).
+Options: --base-url (another Membase API), --home DIR (the CLI's config folder, default ~/.codex
+or ~/.gemini). The key decides the Memory: sessions are saved to the one Memory it reaches, and
+recall searches every Memory it reaches.
 
 Every CLI shares one settings file, ~/.membase/config.env (mode 600), which the hooks read: the
 key is never written into a CLI's own config. Standard library only; run it with any Python 3.9+.
@@ -60,7 +61,6 @@ def write_config(a: argparse.Namespace) -> Path:
     updates = {
         "MEMBASE_API_KEY": a.key or "",
         "MEMBASE_BASE_URL": a.base_url or "",
-        "MEMBASE_CONTAINER": a.container or "",
     }
     updates = {k: v for k, v in updates.items() if v}
     out = []
@@ -304,7 +304,6 @@ def main() -> None:
     p.add_argument(
         "--base-url", default=os.environ.get("MEMBASE_BASE_URL", ""), help=f"default {PROD}"
     )
-    p.add_argument("--container", default="", help="the Memory to save to and search")
     p.add_argument("--home", default="", help="the CLI's config folder (Codex, Gemini)")
     p.add_argument("--uninstall", action="store_true")
     a = p.parse_args()

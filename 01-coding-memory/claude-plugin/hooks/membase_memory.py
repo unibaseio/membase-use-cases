@@ -14,9 +14,11 @@ One rule above all: a hook never blocks the user. Every failure is logged to
 ~/.membase/hooks.log and the hook exits 0 with no output.
 
 Settings come from the environment, then from ~/.membase/config.env (KEY=VALUE lines):
-    MEMBASE_API_KEY        a developer key (Connect > Developer keys); required
+    MEMBASE_API_KEY        a developer key (Connect > Developer keys); required. No request names
+                           a Memory: a search covers every Memory the key reaches, and a session
+                           is saved to the one Memory it reaches (a key that reaches several
+                           saves nothing; the log says so)
     MEMBASE_BASE_URL       default https://api.app.membase.ai
-    MEMBASE_CONTAINER      the Memory to save to and search (name or id); see resolve_container()
     MEMBASE_RECALL_BUDGET  seconds a prompt search may take before the hook gives up (default 10)
     MEMBASE_AUTOSAVE       0 to stop saving sessions (recall still works)
     MEMBASE_HOME           where config.env, the log and the state live (default ~/.membase)
@@ -87,7 +89,7 @@ def membase():
     )
 
 
-# ---- which project, which container -----------------------------------------------------
+# ---- which project -----------------------------------------------------------------------
 
 
 def project_of(cwd: str) -> tuple[str, str]:
@@ -107,53 +109,7 @@ def project_of(cwd: str) -> tuple[str, str]:
     return Path(root).name or root, root
 
 
-def resolve_container(client, project: str) -> tuple[str | None, str]:
-    """(id, name) of the Memory this project's sessions go to and are searched in.
-
-    1. MEMBASE_CONTAINER, by id or by name (a name that does not exist is an error);
-    2. a Memory named like the project (its git folder name), ignoring case;
-    3. a Memory named "Coding";
-    4. the only Memory the key reaches.
-    Otherwise (None, ""): search everything in reach, save nothing, and say so in the log.
-    """
-    containers = client.containers.list()["containers"]
-    wanted = os.environ.get("MEMBASE_CONTAINER", "").strip()
-    if wanted:
-        for c in containers:
-            if wanted in (c["id"], c["name"]) or c["name"].lower() == wanted.lower():
-                return c["id"], c["name"]
-        names = ", ".join(c["name"] for c in containers) or "none"
-        raise RuntimeError(
-            f"MEMBASE_CONTAINER={wanted!r} is not a Memory this key reaches ({names})"
-        )
-    for target in (project.lower(), "coding"):
-        for c in containers:
-            if c["name"].lower() == target:
-                return c["id"], c["name"]
-    if len(containers) == 1:
-        return containers[0]["id"], containers[0]["name"]
-    return None, ""
-
-
 # ---- reading memory, inside a time budget ------------------------------------------------
-
-
-def within(seconds: float, fn, *args):
-    """fn(*args) on a daemon thread; (result, None) or (None, error-or-'timeout')."""
-    box: dict = {}
-
-    def run() -> None:
-        try:
-            box["out"] = fn(*args)
-        except Exception as e:  # noqa: BLE001 - reported to the caller
-            box["err"] = e
-
-    t = threading.Thread(target=run, daemon=True)
-    t.start()
-    t.join(seconds)
-    if t.is_alive():
-        return None, "timeout"
-    return box.get("out"), box.get("err")
 
 
 _WIKILINK = re.compile(r"\s*\[\[[^\]]+\]\]")
@@ -161,11 +117,12 @@ _WIKILINK = re.compile(r"\s*\[\[[^\]]+\]\]")
 
 def hits_of(result: dict | None, limit: int) -> list[str]:
     out = []
-    for r in (result or {}).get("results", [])[:limit]:
+    for r in (result or {}).get("items", [])[:limit]:
         text = _WIKILINK.sub("", str(r.get("content") or ""))
         text = re.sub(r"\s+", " ", text).strip()
-        if text:
-            out.append(text[:600] + ("…" if len(text) > 600 else ""))
+        text = text[:600] + ("…" if len(text) > 600 else "")
+        if text and text not in out:  # a Memory can hold one fact twice; inject it once
+            out.append(text)
     return out
 
 
@@ -182,30 +139,26 @@ def on_session_start(cli: str, data: dict) -> None:
     budget = float(os.environ.get("MEMBASE_RECALL_BUDGET") or 10)
     started = time.monotonic()
     client = membase()
-    resolved, err = within(budget, resolve_cached, client, project)
-    if err:
-        raise err if isinstance(err, Exception) else RuntimeError(f"container lookup: {err}")
-    cid, cname = resolved
     query = f"{project}: decisions, conventions, open work and the user's preferences"
-    profile_box: dict = {}
+    about: dict = {}
 
-    def profile() -> None:
+    def what_it_knows() -> None:
+        """The Memories the key reaches, and who the user is when the key may read the profile."""
         try:
-            profile_box["out"] = client.profile()
-        except Exception as e:  # noqa: BLE001 - a key without profile access is normal
-            profile_box["err"] = e
+            caps = client.capabilities()
+            about["memories"] = [m["name"] for m in caps.get("memories") or []]
+            if "profile_facts.list" in (caps.get("actions") or []):
+                about["facts"] = client.profile_facts.list(limit=8)["items"]
+        except Exception as e:  # noqa: BLE001 - logged; the search goes on without it
+            about["err"] = e
 
-    p = threading.Thread(target=profile, daemon=True)
+    p = threading.Thread(target=what_it_knows, daemon=True)
     p.start()
-    left = max(1.0, budget - (time.monotonic() - started))
-    hits, answered = recall(cli, data.get("session_id") or "", query, project, left)
+    hits, answered = recall(cli, data.get("session_id") or "", query, budget)
     p.join(max(0.5, budget - (time.monotonic() - started)))
 
     lines = []
-    prof = profile_box.get("out") or {}
-    facts = [_fact(f) for f in (prof.get("static") or [])[:8]] + [
-        _fact(f) for f in (prof.get("dynamic") or [])[:4]
-    ]
+    facts = [_fact(f) for f in about.get("facts") or []]
     if facts:
         lines.append("About the user:")
         lines += [f"- {f}" for f in facts]
@@ -215,7 +168,13 @@ def on_session_start(cli: str, data: dict) -> None:
     # Not answered in time: the account's memory is waking or busy. The search keeps going
     # (it wakes the memory) and its result arrives with the first prompt.
     cold = not answered
-    where = f'the "{cname}" Memory' if cname else "every Memory this key reaches"
+    names = about.get("memories") or []
+    if len(names) == 1:
+        where = f'the "{names[0]}" Memory'
+    elif names:
+        where = "the Memories " + ", ".join(f'"{n}"' for n in names)
+    else:
+        where = "every Memory this key reaches"
     if lines:
         context = (
             f"<membase-memory>\nLong-term memory (Membase, {where}) for this project. "
@@ -235,8 +194,9 @@ def on_session_start(cli: str, data: dict) -> None:
     log(
         cli,
         "session-start",
-        f"project={project} memory={cname or '-'} facts={len(facts)} "
-        f"hits={len(hits)} cold={cold} {time.monotonic() - started:.1f}s",
+        f"project={project} memory={','.join(names) or '-'} facts={len(facts)} "
+        f"hits={len(hits)} cold={cold} {time.monotonic() - started:.1f}s"
+        + (f" ({type(about['err']).__name__}: {about['err']})" if "err" in about else ""),
     )
     if cli != "claude":
         sweep_idle(cli, current=data.get("session_id", ""))
@@ -253,9 +213,8 @@ def on_prompt(cli: str, data: dict) -> None:
         return
     budget = float(os.environ.get("MEMBASE_RECALL_BUDGET") or 10)
     started = time.monotonic()
-    project, _ = project_of(data.get("cwd", ""))
     late = take_late(cli, sid)
-    hits, waited = recall(cli, sid, prompt[:1000], project, budget)
+    hits, waited = recall(cli, sid, prompt[:1000], budget)
     seconds = time.monotonic() - started
     blocks = []
     if hits:
@@ -286,7 +245,7 @@ def on_prompt(cli: str, data: dict) -> None:
     )
 
 
-def recall(cli: str, sid: str, query: str, project: str, budget: float) -> tuple[list[str], bool]:
+def recall(cli: str, sid: str, query: str, budget: float) -> tuple[list[str], bool]:
     """Search memory in a process of its own and wait for it up to `budget` seconds.
 
     (hits, True) when it answered in time. Otherwise (`[]`, False): the search keeps going,
@@ -295,7 +254,7 @@ def recall(cli: str, sid: str, query: str, project: str, budget: float) -> tuple
     folder = STATE / "recall"
     out = folder / f"{cli}-{_safe(sid)}-{time.time_ns()}.json"
     folder.mkdir(parents=True, exist_ok=True)
-    spawn(cli, "search", {"query": query, "project": project, "out": str(out)})
+    spawn(cli, "search", {"query": query, "out": str(out)})
     deadline = time.monotonic() + budget
     while time.monotonic() < deadline:
         if out.is_file():
@@ -311,10 +270,14 @@ def run_search(cli: str, payload: dict) -> None:
     started = time.monotonic()
     client = membase()
     client._http.timeout = 120  # noqa: SLF001 - off the user's path, so it may take its time
-    cid, _ = resolve_cached(client, payload["project"])
-    found = client.search(payload["query"], container=cid, limit=5)
+    found = client.search(payload["query"], limit=5)  # every Memory the key reaches
     hits = hits_of(found, 5)
-    unheard = [c.get("error") for c in found.get("containers", []) if c.get("error")]
+    # Memories that could not answer (still waking, say); "truncated" only means the limit cut.
+    unheard = [
+        f"{p.get('memory_name')}: {p.get('reason')}"
+        for p in found.get("partial", [])
+        if p.get("reason") != "truncated"
+    ]
     _write(
         Path(payload["out"]),
         {
@@ -347,24 +310,6 @@ def _fact(f) -> str:
 
 def _safe(text: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]", "_", text)
-
-
-def resolve_cached(client, project: str) -> tuple[str | None, str]:
-    """resolve_container(), remembered for ten minutes so a prompt search costs one request."""
-    cache = STATE / "containers.json"
-    key = f"{os.environ.get('MEMBASE_BASE_URL', '')}|{os.environ.get('MEMBASE_CONTAINER', '')}|{project}"
-    try:
-        saved = json.loads(cache.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        saved = {}
-    hit = saved.get(key)
-    if hit and time.time() - hit["at"] < 600:
-        return hit["id"], hit["name"]
-    cid, name = resolve_container(client, project)
-    saved[key] = {"id": cid, "name": name, "at": time.time()}
-    STATE.mkdir(parents=True, exist_ok=True)
-    cache.write_text(json.dumps(saved), encoding="utf-8")
-    return cid, name
 
 
 # ---- what a session said ----------------------------------------------------------------
@@ -612,26 +557,29 @@ def run_flush(cli: str, payload: dict) -> None:
         return
     started = time.monotonic()
     client = membase()
-    cid, cname = resolve_cached(client, job["project"])
-    if not cid:
-        n = len(client.containers.list()["containers"])
+    from membase import WriteTargetRequiredError  # noqa: PLC0415 - membase() imported the SDK
+
+    try:
+        # No request names a Memory: the session lands in the one Memory the key reaches.
+        out = client.memories.add(job["text"], title=job["title"][:200])
+    except WriteTargetRequiredError as e:
         raise RuntimeError(
-            f"not saved: this key reaches {n} Memories and none is named {job['project']!r} or "
-            "'Coding'; set MEMBASE_CONTAINER (the session stays queued in "
-            f"{path.parent} and is retried at the next session start)"
-        )
-    out = client.memories.add(job["text"], container=cid, title=job["title"][:200])
+            "not saved: this key reaches several Memories, so a write has nowhere to go; use a "
+            "key that reaches only the Memory for your sessions (the session stays queued in "
+            f"{path.parent} and is retried at the next session start) [{e.code}]"
+        ) from e
     path.unlink(missing_ok=True)
+    where = ",".join(x.get("memory_name") or "" for x in out.get("learning") or []) or "-"
     log(
         cli,
         "saved",
-        f"session {job['session'][:8]} -> {cname} document={out.get('document_id')} "
+        f"session {job['session'][:8]} -> {where} document={out.get('id')} "
         f"status={out.get('status')} {time.monotonic() - started:.1f}s",
     )
 
 
 def flush_stale_pending(cli: str) -> None:
-    """Retry saves that did not go through (offline, no container yet), and drop search
+    """Retry saves that did not go through (offline, no Memory to write to yet), and drop search
     results no prompt came back for."""
     recalls = STATE / "recall"
     for path in recalls.glob("*.json") if recalls.is_dir() else []:

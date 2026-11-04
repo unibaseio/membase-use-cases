@@ -11,6 +11,7 @@ The Sintel trailer is left for the page to add.
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import sys
 import time
@@ -25,6 +26,8 @@ from demokit import Memory  # noqa: E402
 
 DEMO = "18-video-memory"
 CONTAINER = "Videos"
+# No request names a Memory: a media write lands in the local engine's write target.
+os.environ.setdefault("MEMBASE_WRITE_TARGET", CONTAINER)
 ADDED = ["elephants-dream", "tears-of-steel"]
 
 
@@ -51,17 +54,17 @@ def main() -> None:
         mem.close()
         shutil.rmtree(mem.path)
         mem = Memory(DEMO, user="me", default_mode="local")
+    have = {m.get("custom_id") for m in mem.client.media.list(limit=1000)["items"]}
     for key in ADDED:
         r = VIDEOS[key]
-        started = time.monotonic()
-        out = mem.client.media.add(
-            VIDEOS_DIR / r["file"], container=CONTAINER, title=r["title"], custom_id=key
-        )
-        if out["status"] == "exists":
+        if key in have:
             print(f"  {r['title']}: in memory already")
             continue
+        started = time.monotonic()
+        out = mem.client.media.add(VIDEOS_DIR / r["file"], title=r["title"], custom_id=key)
         print(
-            f"  {r['title']}: {out['moments']} shots and lines in {time.monotonic() - started:.0f}s"
+            f"  {r['title']}: {len(out['moments'])} shots and lines "
+            f"in {time.monotonic() - started:.0f}s"
         )
     mem.close()
 

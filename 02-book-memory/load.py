@@ -129,26 +129,15 @@ def drumorty() -> list[tuple[str, str]]:
     return stories
 
 
-# ---- hosted: one learning run at a time ------------------------------------------------
+# ---- hosted: learning in the background ------------------------------------------------
 
 
-def _latest_run(mem: Memory) -> dict:
-    """The Book memory's latest learning run (every document reports the container's latest)."""
-    docs = mem.documents(CONTAINER)
-    if not docs:
-        return {}
-    newest = max(docs, key=lambda d: str(d.get("created_at") or ""))
-    return mem.client.documents.get(newest["id"]).get("learning_run") or {}
-
-
-def _wait_learning(mem: Memory) -> dict:
-    """Until the latest learning run is no longer queued or running. Waits on the container,
-    not on the returned document: a write can come back with `document_id: null` when the
-    folder sync is slow, and writing the next story then would start a second run that fails."""
-    time.sleep(3)
-    while (run := _latest_run(mem)).get("status") in ("queued", "running"):
+def _wait_learning(mem: Memory, document_id: str) -> dict:
+    """Until the account has learned `document_id` (or failed to): a write answers at once and the
+    learning runs after it. A write during a run is `pending`; that run starts the next one."""
+    while (doc := mem.document(document_id))["learning_status"] in ("processing", "pending"):
         time.sleep(10)
-    return run
+    return doc
 
 
 def verify(mem: Memory, titles: list[str], *, recall: bool = True) -> None:
@@ -160,11 +149,8 @@ def verify(mem: Memory, titles: list[str], *, recall: bool = True) -> None:
         d = have.get(title)
         if d is None:
             problems.append(f"{title!r} is missing (or lost its title)")
-        elif mem.mode == "hosted" and not mem.client.documents.get(d["id"]).get("learned"):
-            run = _latest_run(mem)
-            problems.append(
-                f"{title!r} is not learned (latest run {run.get('id')} {run.get('status')})"
-            )
+        elif mem.mode == "hosted" and not (doc := mem.document(d["id"]))["learned"]:
+            problems.append(f"{title!r} is not learned ({doc['learning_status']})")
     if not problems and recall and QUESTIONS[0]["story"] in titles:
         # A run can end `succeeded` with nothing recallable: ask for real.
         q = QUESTIONS[0]
@@ -203,14 +189,10 @@ def main() -> None:
     for title, text in docs:
         started = time.monotonic()
         out = mem.add_document(text, container=CONTAINER, title=title, custom_id=custom_id(title))
-        run = {}
-        if mem.mode == "hosted" and out.get("status") != "exists":
-            # A write while the Memory is still learning starts a second run, which fails
-            # ("Another learning run is active") and leaves the document unlearned. So hosted
-            # writes go one learning run at a time.
-            run = _wait_learning(mem)
-        note = f"run {run.get('id')} {run.get('status')}" if run else ""
-        print(f"  {title:<32} {out.get('status'):<8} {time.monotonic() - started:5.1f}s {note}")
+        if mem.mode == "hosted" and out.get("id"):
+            out = _wait_learning(mem, out["id"])
+        status = out.get("learning_status") or out.get("status") or ""
+        print(f"  {title:<32} {status:<10} {time.monotonic() - started:5.1f}s")
     verify(mem, [t for t, _ in docs], recall=not a.file)
 
 

@@ -42,7 +42,7 @@ flowchart LR
   G -- "reasoning" --> L["Model<br/>(gpt-4.1-mini)"]
   A -- "agent_ingest: a corrected run" --> M
   A -- "agent_search: before every window" --> M
-  subgraph M["Membase local engine: data/12-data-technician/&lt;lab&gt;/ · container Lab"]
+  subgraph M["Membase local engine: data/12-data-technician/&lt;lab&gt;/ · Memory Lab"]
     C[("cases")] --> S[("skills")]
   end
 ```
@@ -69,7 +69,7 @@ plot, the run log, the sign-off), the SOP binder on the right. The five steps:
 
 - **In process, one directory per lab.** `Memory("12-data-technician", user=<lab>)` opens
   `Membase(local=data/12-data-technician/<lab>)`, which runs `unibaseio-membase-core` inside the app. All
-  agent memory goes into one container, `Lab`, under agent id `technician`. The agent verbs are
+  agent memory goes into one Memory, `Lab`, under agent id `technician`. The agent verbs are
   not in the public SDK yet, so `demokit.Memory` reaches the local backend for them (the same
   object the `membase agent` command uses).
 - **`agent_ingest(messages, agent_id, session_id)`** takes the run as OpenAI-style messages with

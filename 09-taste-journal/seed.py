@@ -2,7 +2,7 @@
 
     uv run 09-taste-journal/seed.py
 
-Each tasting is one memory in the `Tastings` container, dated by the day it was tasted (written
+Each tasting is one memory in the `Tastings` Memory, dated by the day it was tasted (written
 side by side, about 15 s on the local engine), plus its flavor scores in the journal file the star
 map reads. Re-running skips tastings already in memory. The taster leans bright, floral and
 fruity, and keeps rating smoky, roasty and tannic things low; the palate and recommendation
@@ -287,7 +287,7 @@ def main() -> None:
     started = time.monotonic()
     for t in demo.remember(todo) if todo else []:
         print(f"  {t['date']}  {t['name']:<36} {t['rating']}/5  {len(t['memory_ids'])} memory")
-    known = set(demo.mem.profile().get("static") or [])
+    known = set(demo.mem.profile_facts())
     for fact in PROFILE:
         if fact not in known:
             demo.mem.remember_fact(fact)

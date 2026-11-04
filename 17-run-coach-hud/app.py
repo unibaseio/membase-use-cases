@@ -253,7 +253,7 @@ def brief(distance_km: float = 10, kind: str = "steady run") -> dict:
         for h in recall(mem, q, container=CONTAINER, limit=10):
             hits.setdefault(h["memory_id"], h)
     ordered = sorted(hits.values(), key=lambda h: h["date"], reverse=True)
-    goals = mem.profile().get("static", [])
+    goals = mem.profile_facts()
     found = pattern(ordered)
     lines = [f"Goal: {g}" for g in goals]
     for i, h in enumerate(ordered, 1):
@@ -507,7 +507,7 @@ def start_run(body: RunIn):
 def history() -> dict:
     return {
         "runs": sorted(runs.all(), key=lambda r: r["when"], reverse=True),
-        "goals": mem.profile().get("static", []),
+        "goals": mem.profile_facts(),
     }
 
 

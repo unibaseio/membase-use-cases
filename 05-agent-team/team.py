@@ -1,4 +1,4 @@
-"""The agent team: four LLM tool-calling agents sharing one Membase container ("Team").
+"""The agent team: four LLM tool-calling agents sharing one Membase Memory ("Team").
 
     Investigator  finds the cause of ISSUE.md and records it in shared memory
     Fixer         searches shared memory first, patches the code, records the decision
@@ -35,6 +35,7 @@ from membase.errors import MembaseError
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 from demokit import config, llm  # noqa: E402
+from demokit.memory import with_learning  # noqa: E402
 
 FIXTURE = HERE / "fixture"
 CONTAINER = "Team"
@@ -185,9 +186,10 @@ def client_for(key: str) -> Membase:
 
 
 def team_container(client: Membase) -> str:
-    for c in client.containers.list()["containers"]:
-        if c["name"] == CONTAINER or c["id"] == CONTAINER:
-            return c["id"]
+    """The Team Memory's name, once this key is known to reach it. No request names a Memory:
+    the key's reach is what makes its search read Team and its write land there."""
+    if any(m.get("name") == CONTAINER for m in client.capabilities().get("memories") or []):
+        return CONTAINER
     raise config.ConfigError(
         f"no Memory named {CONTAINER!r} reaches this key: create it in the app, or run "
         f"scripts/bootstrap_hosted.py --name 05-agent-team --containers {CONTAINER} --read-key"
@@ -336,38 +338,34 @@ def call_tool(role: str, client: Membase, r: Run, name: str, args: dict) -> Iter
 def wait_learned(role: str, client: Membase, write: dict) -> Iterator[dict]:
     """Poll the document until Membase has learned it, reporting the wait as it goes.
 
-    A learning run that ends without learning (`failed`) is reported and the team goes on:
-    the stored text is still there for search to read, and the next agent's search shows
-    honestly whether it was found."""
+    Learning that ends without learning (`failed`) is reported and the team goes on: the
+    stored text is still there for search to read, and the next agent's search shows honestly
+    whether it was found."""
     started = time.monotonic()
     doc_id = write["document_id"]
     while True:
-        doc = client.documents.get(doc_id)
+        doc = with_learning(client.documents.get(doc_id))
         elapsed = round(time.monotonic() - started)
-        learned = bool(doc.get("learned"))
-        run_info = doc.get("learning_run") or {}
-        status = run_info.get("status")
+        status = doc["learning_status"]
         yield {
             "type": "wait",
             "role": role,
             "document_id": doc_id,
             "seconds": elapsed,
-            "learned": learned,
-            "run_status": status,
-            "run_id": run_info.get("id"),
+            "learned": doc["learned"],
+            "learning": status,
         }
-        if learned:
+        if doc["learned"]:
             write["learned_after"] = elapsed
             return
-        if status and status not in ("queued", "running"):
-            write["learning_run"] = run_info
+        if status not in ("processing", "pending"):
+            write["learning"] = doc.get("learning")
             yield {
                 "type": "note",
                 "role": role,
                 "warn": True,
-                "text": f"Membase's learning run {run_info.get('id')} ended '{status}' without "
-                f"learning {doc_id} (after {elapsed}s). Going on: search can still read "
-                "the stored text.",
+                "text": f"Membase's learning ended '{status}' without learning {doc_id} "
+                f"(after {elapsed}s). Going on: search can still read the stored text.",
             }
             return
         if elapsed > LEARN_TIMEOUT:
@@ -446,12 +444,16 @@ def t_search_memories(role, client, r: Run, query: str):
     if count > MAX_SEARCHES:
         raise ValueError(f"search limit reached ({MAX_SEARCHES} per agent in this demo)")
     r.searches[role] = count
-    out = client.search(query, container=r.container, limit=6)
+    out = client.search(query, limit=6)  # every Memory the key reaches: here, Team
     hits = [
         {"content": WIKILINK.sub("", h.get("content") or "").strip(), "score": h.get("score")}
-        for h in out.get("results", [])
+        for h in out.get("items", [])
     ]
-    unheard = [c.get("error") for c in out.get("containers", []) if c.get("error")]
+    unheard = [
+        f"{p.get('memory_name')}: {p.get('reason')}"
+        for p in out.get("partial", [])
+        if p.get("reason") != "truncated"
+    ]
     text = "\n".join(f"- {h['content']}" for h in hits) or "(nothing in memory matches)"
     if unheard:
         text += "\n(memory did not answer: " + "; ".join(unheard) + ")"
@@ -467,14 +469,15 @@ def t_add_memory(role, client, r: Run, content: str):
         )
     attempt = {"role": role, "content": content}
     r.writes.append(attempt)
-    out = client.memories.add(
-        f"{role}: {content}", container=r.container, title=f"{role} · ISSUE-212 · run {r.id}"
+    # The key's write target is Team: the one Memory it reaches.
+    out = with_learning(
+        client.memories.add(f"{role}: {content}", title=f"{role} · ISSUE-212 · run {r.id}")
     )
-    attempt.update(document_id=out.get("document_id"), status=out.get("status"))
+    attempt.update(document_id=out.get("id"), status=out.get("status"))
     return out, {
-        "document_id": out.get("document_id"),
+        "document_id": out.get("id"),
         "status": out.get("status"),
-        "learning_run": (out.get("learning_run") or {}).get("status"),
+        "learning": out["learning_status"],
     }
 
 
@@ -499,17 +502,17 @@ def feed(limit: int = 12) -> list[dict]:
     """What the Team Memory holds, newest first, with whether each is learned yet."""
     with client_for(config.require("MEMBASE_API_KEY", "the feed reads the Team Memory")) as c:
         container = team_container(c)
-        docs = c.documents.list(container=container)["documents"][:limit]
+        docs = [d for d in c.documents.list()["items"] if d.get("memory_name") == container]
         out = []
-        for d in docs:
-            # The list does not carry `learned`; one document read does.
-            full = c.documents.get(d["id"])
+        for d in docs[:limit]:
+            # The hosted list does not carry learning state; each document's own record does.
+            full = with_learning(c.documents.get(d["id"]))
             out.append(
                 {
                     "id": d["id"],
                     "title": d.get("title"),
                     "created_at": d.get("created_at"),
-                    "learned": bool(full.get("learned")),
+                    "learned": full["learned"],
                 }
             )
         return out

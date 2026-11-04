@@ -12,7 +12,8 @@ from __future__ import annotations
 import json
 import sys
 import threading
-from datetime import date
+import uuid
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -22,6 +23,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 from demokit import ROOT, Memory, Recall, llm, mode  # noqa: E402
 from demokit.config import DATA  # noqa: E402
+from demokit.dated import remember_sessions  # noqa: E402
 from demokit.web import create_app, run, sse  # noqa: E402
 from demokit.writes import BackgroundWriter  # noqa: E402
 
@@ -143,7 +145,7 @@ def unique(recall: Recall) -> list[dict]:
 
 
 def profile_facts(mem: Memory) -> list[str]:
-    return list(mem.profile().get("static") or [])
+    return mem.profile_facts()
 
 
 def memory_block(facts: list[str], hits: list[dict]) -> str:
@@ -264,11 +266,28 @@ def learn_facts(mem: Memory, message: str, reply: str) -> None:
 def write_follow_up(mem: Memory, loop: str, stamp: str) -> None:
     """One follow-up into the person's memory. The engine keeps its own rewrite of it ("On
     2026-10-14, the user noted…"); the notebook shows the line as Wren wrote it, so the app
-    records which memories this line became."""
-    out = mem.remember(
-        f"To follow up next time (noted {stamp}): {loop}", container=FOLLOW_UPS, title="Follow-up"
+    records which memories this line became. A write's receipt names the note, not the memories
+    it became, so on the local engine the follow-up goes in as a session dated now (the call
+    `memories.add` makes), which answers with its memory ids."""
+    text = f"To follow up next time (noted {stamp}): {loop}"
+    if mem.mode != "local":
+        mem.remember(text, container=FOLLOW_UPS, title="Follow-up")
+        return
+    from membase.local import LocalBackend  # noqa: PLC0415 - the local engine only
+
+    sid = f"follow-up-{uuid.uuid4().hex[:12]}"
+    ids = remember_sessions(
+        mem,
+        [
+            {
+                "session_id": sid,
+                "session_date": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "turns": LocalBackend._turns(text, "Follow-up"),  # noqa: SLF001 - as memories.add
+            }
+        ],
+        container=FOLLOW_UPS,
     )
-    keep_jots(mem, {m: {"text": loop, "day": stamp} for m in out.get("memory_ids") or []})
+    keep_jots(mem, {m: {"text": loop, "day": stamp} for m in ids[sid]})
 
 
 JOTS = "notebook.json"
@@ -344,7 +363,7 @@ def open_session(body: Who):
         hits = unique(Recall(recall.query, hits=recall.hits + recent.hits))
         mine = jots(mem)
         for h in hits:  # the line Wren wrote, for a follow-up she recalled
-            h["jot"] = mine.get(h["source"].removeprefix("episode:"))
+            h["jot"] = mine.get(h["source"])
         yield {
             "type": "memories",
             "hits": hits,

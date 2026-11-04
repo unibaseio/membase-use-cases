@@ -2,7 +2,7 @@
 
 The extension holds no Membase key. It sends what is on the page (title, URL, selected text, a
 main-text excerpt) to this server on 127.0.0.1, which holds the key, recalls from the user's
-memory and answers, or writes the page to the `Browsing` container once. Only the extension and
+memory and answers, or writes the page to the `Browsing` Memory once. Only the extension and
 this server's own page may call it: requests from any other origin are refused.
 """
 
@@ -84,7 +84,9 @@ class Page(BaseModel):
     selection: str = ""
     text: str = ""
     question: str = ""
-    icon: str = ""  # the page's own favicon URL, shown beside it in the panel
+    # The page's own favicon URL. Membase keeps no metadata on a document, so it is not saved;
+    # the panel shows Chrome's favicon for a remembered page's URL instead.
+    icon: str = ""
 
 
 def _page(body: Page) -> Page:
@@ -150,17 +152,19 @@ def _slug(text: str) -> str:
 
 
 def _page_for(link: str, docs: list[dict]) -> dict | None:
-    """The remembered page a memory's [[link]] names, or None.
+    """The remembered page a hit names, or None.
 
-    Search results carry no document id: a learned memory ends with a link to a page in the
-    Memory's own wiki, named by the learning run. Sometimes that is the document's custom_id
-    ("page:ab12..." as [[page-ab12...]]), sometimes a name taken from the title
-    ([[corvid-38-daypack]] for "Field test: the Corvid 38 daypack"). A link counts as a page's
-    only when it is the custom_id, or every word of it is in exactly one page's title."""
+    Search results carry no document id. A document passage is titled by the file it is in,
+    which its custom_id names (`page-http-127-0-0-1-… > Section`; local, the document's title).
+    A learned fact may end with a link to a page in the Memory's own wiki, named by the learning
+    run: sometimes the custom_id ([[page-…]]), sometimes a name taken from the title
+    ([[corvid-38-daypack]] for "Field test: the Corvid 38 daypack"). It counts as a page's
+    only when it is the custom_id or the title, or every word of it is in exactly one page's
+    title."""
     words = set(link.split("-"))
     by_title = []
     for d in docs:
-        if link == _slug(d.get("custom_id") or ""):
+        if link in (_slug(d.get("custom_id") or ""), _slug(d.get("title") or "")):
             return d
         if len(words) >= 2 and words <= set(_slug(d.get("title") or "").split("-")):
             by_title.append(d)
@@ -178,14 +182,12 @@ def with_pages(hits) -> list[dict]:
     for h in hits:
         row = h.as_dict()
         found = {link: _page_for(link, docs) for link in _LINK.findall(row["content"])}
+        named = list(found.values())
+        if h.type == "document" and h.title:
+            named.insert(0, _page_for(_slug(h.title.split(" > ")[0]), docs))
         row["pages"] = [
-            {
-                "title": d.get("title") or "",
-                "url": (d.get("metadata") or {}).get("url", ""),
-                "icon": (d.get("metadata") or {}).get("icon", ""),
-            }
-            for d in found.values()
-            if d
+            {"title": d.get("title") or "", "url": _url_of(d)}
+            for d in {d["id"]: d for d in named if d}.values()
         ]
         row["content"] = _LINK.sub(
             lambda m, found=found: "" if found.get(m.group(1)) else m.group(0), row["content"]
@@ -196,37 +198,44 @@ def with_pages(hits) -> list[dict]:
 
 def _row(doc: dict) -> dict:
     """The list endpoint does not say whether a document is learned; the single read does."""
-    one = mem.client.documents.get(doc["id"])
-    run = one.get("learning_run") or {}
+    one = mem.document(doc["id"])
     return {
         "id": doc["id"],
         "title": doc.get("title") or "",
-        "url": (doc.get("metadata") or {}).get("url", ""),
-        "icon": (doc.get("metadata") or {}).get("icon", ""),
-        "learned": bool(one.get("learned")),
-        # The container's latest learning run: queued, running, succeeded or failed. A run can
-        # end without the page counting as learned (failed, or more arrived mid-run).
-        "learning": run.get("status"),
-        "run_id": run.get("id"),
+        "url": _url_of(doc),
+        "learned": one["learned"],
+        # The page's own learning: pending (waiting for the next run), processing, succeeded
+        # or failed.
+        "learning": one["learning_status"],
         "created_at": doc.get("created_at"),
     }
 
 
-def _icon(url: str) -> str:
-    """A favicon is kept only as a short http(s) URL: never a data: blob in the metadata."""
-    url = url.strip()
-    return url if url.startswith(("http://", "https://")) and len(url) < 500 else ""
+# A custom_id is at most 200 characters.
+_CUSTOM_ID_MAX = 200
 
 
 def _custom_id(url: str) -> str:
-    return "page:" + hashlib.sha256(url.strip().encode()).hexdigest()[:16]
+    """A page's identity in memory, from its URL: the same URL twice is one document. Membase
+    keeps no metadata on a document, so the URL itself is the custom_id when it fits (the
+    panel links to it); a longer one is hashed and the page is listed without its link."""
+    url = url.strip()
+    if len("page:" + url) <= _CUSTOM_ID_MAX:
+        return "page:" + url
+    return "page:" + hashlib.sha256(url.encode()).hexdigest()[:16]
+
+
+def _url_of(doc: dict) -> str:
+    custom_id = doc.get("custom_id") or ""
+    return custom_id[5:] if custom_id.startswith(("page:http://", "page:https://")) else ""
 
 
 @app.post("/api/remember")
 def remember(body: Page) -> dict:
-    """The page into memory as one document: one hosted write, one learning run. The same URL
-    remembered twice is the same document, not a second write. Writes wait their turn behind
-    the container's current learning run (see demokit/writes.py)."""
+    """The page into memory as one document: one hosted write, which one learning run reads (a
+    write during a run is `pending`, and that run starts the next). The same URL remembered
+    twice is the same document, not a second write. Writes go out in order, off the request
+    path (see demokit/writes.py)."""
     page = _page(body)
     if not page.text and not page.selection:
         raise HTTPException(400, "The page has no text to remember.")
@@ -242,23 +251,17 @@ def remember(body: Page) -> dict:
     )
     return writer.submit(
         custom_id,
-        {"title": title, "url": page.url, "icon": _icon(page.icon)},
-        lambda: mem.client.add(
-            content,
-            container=mem.container(CONTAINER),
-            title=title,
-            custom_id=custom_id,
-            metadata={"url": page.url, "kind": "web-page", "icon": _icon(page.icon)},
-        ),
+        {"title": title, "url": page.url},
+        lambda: mem.add_document(content, container=CONTAINER, title=title, custom_id=custom_id),
     )
 
 
 @app.get("/api/pages")
 def pages() -> dict:
-    """The pages in the Browsing container, newest first, with whether each is learned yet."""
+    """The pages in the Browsing Memory, newest first, with whether each is learned yet."""
     try:
         docs = mem.documents(CONTAINER)
-    except ConfigError as e:  # hosted, and the container does not exist yet
+    except ConfigError as e:  # hosted, and the Memory does not exist yet
         return {"pages": [], "error": str(e)}
     with ThreadPoolExecutor(8) as pool:
         rows = list(pool.map(_row, docs))

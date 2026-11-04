@@ -43,7 +43,7 @@ flowchart LR
 | What | Where it lives | Written by | Read by |
 |---|---|---|---|
 | What was on each screen: app, activity, values, visible text, summary, and when it was taken | `Screens` memory, one memory per screenshot, dated with the capture time | the page, when a screenshot is added | the answer to each question |
-| The image and the memory ids its write returned (`screens:3`) | `data/13-screen-memory/me/screens/` and `screens.json` | the page, after the write | the library; turning a recalled memory back into its image |
+| The image and the memory ids its write returned (`mem_…`) | `data/13-screen-memory/me/screens/` and `screens.json` | the page, after the write | the library; turning a recalled memory back into its image |
 | Each sample's text layer: every word on it and its box | `samples/text.json`, written by `seed.py` when it renders the samples | `seed.py` | marking where the answer is on the screenshot |
 | Worked-out procedures (optional) | agent memory in `Procedures`: cases and skills | **Save as procedure** | the next similar task |
 
@@ -84,10 +84,11 @@ It is not in the video.
 - **A screenshot is a dated session.** The app writes the reading as a one-turn session whose
   `session_date` is the capture time, the same thing `memories.add` does but with the date given
   instead of now. The engine turns it into episodes stamped with that date (stored in SQLite and
-  FAISS) and returns their ids. This takes about 5 s, and the memory is searchable as soon as
+  FAISS), and `remember_sessions` returns their `mem_` ids, the ids the memory API gives them. This takes about 5 s, and the memory is searchable as soon as
   the call returns. There is no learning run to wait for.
-- **Search** is hybrid keyword and vector retrieval over the episodes. Each hit carries
-  `source: episode:<memory id>` and its `session_date`. The app maps the id to its screenshot.
+- **Search** is hybrid keyword and vector retrieval over the `Screens` episodes. Each hit carries
+  its episode and its `session_date`; `demokit.dated.recall` gives the episode as the same `mem_`
+  id the write returned, and the app maps the id to its screenshot.
 - **Model calls** (vision, answers, and the engine's own extraction and embeddings) use your
   `OPENAI_API_KEY`. Nothing else leaves the machine.
 - **Agent memory** (`agent_ingest`, `agent_search`, `agent_skills`) is a local-engine feature: a

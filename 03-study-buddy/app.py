@@ -18,8 +18,6 @@ from pydantic import BaseModel
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from membase.errors import MembaseError  # noqa: E402
-
 from demokit import ConfigError, Hit, Memory, llm  # noqa: E402
 from demokit.web import create_app, run, sse  # noqa: E402
 
@@ -50,27 +48,22 @@ def _cites(hit: Hit) -> list[str]:
 
 
 def is_memory(hit: Hit) -> bool:
-    """A quiz memory, not course material. Local: conversation memory comes back as
-    `episode:` hits and documents as `document:` hits. Hosted: every hit is a fact the
-    account's agent learned, and it cites the file it came from in `[[...]]`; a memory written
-    with `memories.add` is a `memory-...` file."""
-    if hit.source.startswith("document:"):
+    """A quiz memory, not course material. A lecture comes back as `document` passages and a
+    quiz memory (written with `memories.add`) as a learned fact, `memory`. A learned fact that
+    cites a lecture file in `[[...]]` rather than a `memory-...` note is course material."""
+    if hit.type != "memory":
         return False
-    if hit.source.startswith("episode:"):
-        return True
-    cites = _cites(hit)
-    return bool(cites) and all(c.startswith("memory-") for c in cites)
+    return all(c.startswith("memory-") for c in _cites(hit))
 
 
 def _is_quiz_doc(d: dict) -> bool:
-    """A quiz memory the page wrote (`memories.add`, titled "Quiz on …"), not a lecture."""
-    return (d.get("metadata") or {}).get("kind") == "memory" or str(
-        d.get("title") or ""
-    ).startswith("Quiz on ")
+    """A quiz memory the page wrote (`memories.add`: a `note`, titled "Quiz on …"), not a
+    lecture."""
+    return d.get("kind") == "note" or str(d.get("title") or "").startswith("Quiz on ")
 
 
 def course_docs() -> list[dict]:
-    """The lectures in the Study container (not the quiz memories), oldest first, each with
+    """The lectures in the Study Memory (not the quiz memories), oldest first, each with
     whether it has been learned yet."""
     with _mem():
         docs = mem.documents(CONTAINER)
@@ -78,42 +71,51 @@ def course_docs() -> list[dict]:
     for d in docs:
         if _is_quiz_doc(d):
             continue
-        learned, run = d.get("learned"), None
+        learned, run = True, None  # the local engine reads a document in as it is added
         if mem.mode == "hosted":
             # The hosted list does not carry learning state; each document's own record does.
-            got = mem.client.documents.get(d["id"])
-            learned, run = bool(got.get("learned")), (got.get("learning_run") or {}).get("status")
-        elif learned is None:
-            learned = d.get("status") == "learned"
+            got = mem.document(d["id"])
+            learned, run = got["learned"], got["learning_status"]
         out.append(
             {
                 "id": d["id"],
                 "title": d.get("title") or "",
                 "custom_id": d.get("custom_id") or "",
                 "learned": bool(learned),
-                # A run can end `failed` with the document unlearned for good, though search can
-                # still read the stored file; the page says so instead of waiting forever.
+                # Learning can end `failed` with the document unlearned for good, though search
+                # can still read the stored file; the page says so instead of waiting forever.
                 "learning": run,
-                "ready": bool(learned) or run not in ("queued", "running"),
+                "ready": bool(learned) or run not in ("processing", "pending"),
             }
         )
     out.sort(key=lambda d: d["title"])
     return out
 
 
+def _lecture_slugs(doc: dict) -> set[str]:
+    return {_slug(doc["custom_id"]), _slug(doc["title"])} - {""}
+
+
+def _passage_of(hit: Hit) -> str:
+    """The lecture a document passage is from, as a slug. Its title is the document and the
+    section (`… > Meiosis`): local, the document's title; hosted, the file its custom_id
+    names (`bio110-04-cell-division`)."""
+    return _slug((hit.title or "").split(" > ")[0])
+
+
 def _source_label(hit: Hit, docs: list[dict]) -> str:
-    if hit.source.startswith("document:"):
-        return hit.title or "Course"
-    by_slug = {_slug(d["custom_id"] or d["title"]): d["title"] for d in docs}
+    by_slug = {s: d["title"] for d in docs for s in _lecture_slugs(d)}
+    if hit.type == "document":
+        return by_slug.get(_passage_of(hit)) or hit.title or "Course"
     names = [by_slug.get(c, c) for c in _cites(hit) if not c.startswith("memory-")]
     return ", ".join(dict.fromkeys(names)) or "Course"
 
 
 def _belongs(hit: Hit, doc: dict) -> bool:
     """Whether a course passage comes from this lecture."""
-    if hit.source.startswith("document:"):
-        return (hit.title or "").startswith(doc["title"]) or doc["id"] in hit.source
-    return _slug(doc["custom_id"] or doc["title"]) in _cites(hit)
+    if hit.type == "document":
+        return _passage_of(hit) in _lecture_slugs(doc)
+    return bool(_lecture_slugs(doc) & set(_cites(hit)))
 
 
 def _clean(text: str) -> str:
@@ -121,7 +123,7 @@ def _clean(text: str) -> str:
 
 
 def _recall_many(queries: list[str], limit: int = 8) -> list[Hit]:
-    """Several searches of the Study container, merged, each passage once."""
+    """Several searches of the Study Memory, merged, each passage once."""
     if mem.mode == "hosted":
         with ThreadPoolExecutor(max_workers=4) as pool:
             recalls = list(
@@ -144,7 +146,7 @@ def _recall_many(queries: list[str], limit: int = 8) -> list[Hit]:
 
 def preferences() -> list[str]:
     with _mem():
-        return [str(s) for s in mem.profile().get("static", [])]
+        return mem.profile_facts()
 
 
 def _prefs_block(prefs: list[str]) -> str:
@@ -530,16 +532,8 @@ def write_quiz_memory(text: str, topic: str):
     """The one write a finished quiz makes, as page events."""
     yield {"type": "saving", "text": text}
     started = time.monotonic()
-    while (busy := learning_run_active()) is not None:
-        # A hosted write while the Memory is still learning starts a second run that fails
-        # ("Another learning run is active"), so the quiz memory waits its turn.
-        yield {
-            "type": "waiting",
-            "text": f"Waiting for learning run {busy['id']} to finish before writing",
-        }
-        if time.monotonic() - started > 600:
-            raise RuntimeError(f"learning run {busy['id']} still {busy['status']} after 10 minutes")
-        time.sleep(10)
+    # Hosted, the write answers at once; one made while a learning run is going is `pending`,
+    # and that run starts the next when it ends.
     with _mem():
         out = mem.remember(text, container=CONTAINER, title=f"Quiz on {topic}")
     yield {
@@ -547,7 +541,7 @@ def write_quiz_memory(text: str, topic: str):
         "text": text,
         "topic": topic,
         "seconds": round(time.monotonic() - started, 1),
-        "document_id": out.get("document_id"),
+        "document_id": out.get("id"),
         "learning": mem.mode == "hosted",
     }
 
@@ -566,32 +560,16 @@ def rewrite(body: Rewrite):
     return sse(write_quiz_memory(body.text, body.topic))
 
 
-def learning_run_active() -> dict | None:
-    """Hosted: the Study Memory's learning run, while it is still queued or running. Every
-    document in a container reports the container's latest run, so the newest one tells."""
-    if mem.mode != "hosted":
-        return None
-    docs = mem.documents(CONTAINER)
-    if not docs:
-        return None
-    newest = max(docs, key=lambda d: str(d.get("created_at") or ""))
-    run = mem.client.documents.get(newest["id"]).get("learning_run") or {}
-    return run if run.get("status") in ("queued", "running") else None
-
-
 @app.get("/api/learning/{document_id}")
 def learning(document_id: str) -> dict:
     """Hosted: whether the account's agent has learned a quiz memory yet."""
     if mem.mode != "hosted":
-        return {"learned": True, "run": None, "run_id": None, "done": True}
-    got = mem.client.documents.get(document_id)
-    run = got.get("learning_run") or {}
-    learned = bool(got.get("learned"))
+        return {"learned": True, "run": None, "done": True}
+    got = mem.document(document_id)
     return {
-        "learned": learned,
-        "run": run.get("status"),
-        "run_id": run.get("id"),
-        "done": learned or run.get("status") not in ("queued", "running"),
+        "learned": got["learned"],
+        "run": got["learning_status"],
+        "done": got["learned"] or got["learning_status"] not in ("processing", "pending"),
     }
 
 
@@ -602,27 +580,15 @@ def learning(document_id: str) -> dict:
 def course() -> dict:
     try:
         docs = course_docs()
-    except ConfigError as e:  # hosted, and the container does not exist yet
+    except ConfigError as e:  # hosted, and the Memory does not exist yet
         return {"documents": [], "preferences": [], "error": str(e)}
     return {"documents": docs, "preferences": preferences()}
 
 
 def record_fact(mem: Memory, text: str) -> str:
-    """A standing fact into the profile. Hosted, the write can come back 422 ("the assistant
-    reported the fact recorded but it is not in the profile") although the fact lands a few
-    seconds later; so on that error the profile itself is read until it shows the fact."""
-    try:
-        mem.remember_fact(text)
-        return "recorded"
-    except MembaseError as e:
-        if mem.mode != "hosted" or e.status != 422:
-            raise
-        deadline = time.monotonic() + 90
-        while time.monotonic() < deadline:
-            time.sleep(10)
-            if text in (mem.profile().get("static") or []):
-                return "recorded (the write reported 422, then the fact appeared in the profile)"
-        raise
+    """A standing fact into the profile (the account's, not the Study Memory's)."""
+    out = mem.remember_fact(text)
+    return "recorded" if out.get("created", True) else "already in your profile"
 
 
 class Preference(BaseModel):
@@ -634,14 +600,6 @@ def add_preference(body: Preference) -> dict:
     text = body.text.strip()
     if not text:
         raise ValueError("say how you like to learn")
-    started = time.monotonic()
-    while (busy := learning_run_active()) is not None:
-        # Same rule as quiz memories: no hosted write while the Memory is still learning.
-        if time.monotonic() - started > 300:
-            raise RuntimeError(
-                f"learning run {busy['id']} is still {busy['status']}; try again in a minute"
-            )
-        time.sleep(10)
     with _mem():
         status = record_fact(mem, text)
     return {"preferences": preferences(), "status": status}

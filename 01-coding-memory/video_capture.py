@@ -104,10 +104,9 @@ def wait_learned(mem: Memory, timeout: float = 600) -> dict:
     docs = mem.documents("Coding")
     doc = docs[0]["id"]
     while time.monotonic() < deadline:
-        got = mem.client.documents.get(doc)
-        run = got.get("learning_run") or {}
-        if run.get("status") not in ("queued", "running"):
-            return {"document": doc, "learned": got.get("learned"), "run": run}
+        got = mem.document(doc)
+        if got["learning_status"] not in ("processing", "pending"):
+            return {"document": doc, "learned": got["learned"], "status": got["learning_status"]}
         time.sleep(5)
     raise SystemExit("learning did not finish")
 
@@ -125,7 +124,6 @@ def main() -> None:
     env = {
         **os.environ,
         "MEMBASE_HOME": str(home),
-        "MEMBASE_CONTAINER": "Coding",
         "MEMBASE_MCP_URL": os.environ["MEMBASE_BASE_URL"].rstrip("/") + "/mcp-http",
         "MEMBASE_HOOK_PYTHON": sys.executable,
         "MEMBASE_RECALL_BUDGET": "30",

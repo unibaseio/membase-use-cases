@@ -2,7 +2,7 @@
 
     uv run 04-story-bible/seed.py
 
-The files in `bible/` go in together as one document in the `Story Bible` container: one
+The files in `bible/` go in together as one document in the `Story Bible` Memory: one
 hosted write, so one learning run reads all of it. All of it is original fiction written for
 this demo. Re-running does nothing once the bible is there (it carries a stable custom_id).
 """
@@ -41,23 +41,20 @@ def main() -> None:
         f"{out.get('status')} in {time.monotonic() - started:.1f}s"
     )
     if mem.mode == "hosted":
-        # Wait for the learning run, then check: a recording must not start on an unlearned
-        # bible, and a slow sync can drop the title.
+        # Wait until the bible is learned, then check: a recording must not start on an
+        # unlearned bible, and a slow sync can drop the title.
         while True:
             time.sleep(10)
-            docs = mem.documents(CONTAINER)
-            doc = next((d for d in docs if d.get("title") == TITLE), None)
-            newest = max(docs, key=lambda d: str(d.get("created_at") or "")) if docs else None
-            run = (
-                (mem.client.documents.get(newest["id"]).get("learning_run") or {}) if newest else {}
-            )
-            if run.get("status") not in ("queued", "running"):
+            learning = mem.document(out["id"])
+            if learning["learning_status"] not in ("processing", "pending"):
                 break
-        if doc is None or not mem.client.documents.get(doc["id"]).get("learned"):
+        doc = next((d for d in mem.documents(CONTAINER) if d.get("title") == TITLE), None)
+        if doc is None or not learning["learned"]:
             raise SystemExit(
-                f"the bible is not ready: title {'kept' if doc else 'lost'}, run {run}"
+                f"the bible is not ready: title {'kept' if doc else 'lost'}, "
+                f"learning {learning['learning_status']}"
             )
-        print(f"Learned in {time.monotonic() - started:.0f}s (run {run.get('id')}).")
+        print(f"Learned in {time.monotonic() - started:.0f}s.")
 
 
 if __name__ == "__main__":

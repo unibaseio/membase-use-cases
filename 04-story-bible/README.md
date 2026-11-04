@@ -86,14 +86,18 @@ flowchart LR
 
 - **One Memory, two doors.** The writing app uses the REST API with a developer key that can
   write. Chat apps and agents use MCP, the same tools on another wire, with a connection that
-  can only read: `list_containers`, `search_memories`, and `get_profile` if granted. A write
-  key is not needed to read canon.
+  can only read: `get_capabilities`, `search_memories`, `list_memories`, `list_documents`, and
+  `list_profile_facts` if granted. A write key is not needed to read canon.
+- **No request names a Memory.** A search covers every Memory the key reaches, and a write
+  lands in the one Memory its key reaches. So the app writes with a key that reaches only
+  `Story Bible` (`MEMBASE_KEY_FOR_STORY_BIBLE`, or `MEMBASE_API_KEY` when that key reaches it
+  alone).
 - **A write becomes canon only after learning.** **Add to canon** puts the scene in the
-  Memory's folder and returns at once. A learning run in the account's agent VM then reads it
-  into facts. Until that run finishes, neither the page nor a connected AI can find it, so the
-  binder shows "learning…" and waits. Each write waits for the previous learning run to finish.
-- **Every search is a recall turn** in that VM. It returns passages that cite the page they came
-  from. A warm search takes 5–16 s.
+  Memory's folder and returns at once. A learning run in the account's agent VM then reads it.
+  Until it has, the binder shows "learning…" and waits. A write never waits to be made: one
+  during a learning run is `pending`, and that run starts the next one when it ends.
+- **Every search is retrieval** over what the Memory holds: `document` passages from the bible
+  and the scenes, titled by file and section. A warm search takes a few seconds.
 - **On the local engine** the same calls are answered in-process by `unibaseio-membase-core`. The bible
   becomes a topic tree in SQLite and FAISS, a scene can be searched as soon as it is written,
   and no other AI can reach it, unless you run `membase --local mcp` on the same machine.
@@ -108,7 +112,10 @@ uv run 04-story-bible/app.py             # open http://127.0.0.1:8704
 ```
 
 **Hosted.** In the Membase app, create a Memory named `Story Bible` and a developer key that can
-write, and put it in `.env`. To try the MCP side, also create a key that can only read.
+write and reaches only `Story Bible` (a write lands in the one Memory its key reaches), and put
+it in `.env`. To try the MCP side, also create a key that can only read.
+`scripts/bootstrap_hosted.py --containers "Story Bible" --read-key` makes them on a throwaway
+account.
 
 Then, on the page:
 
@@ -164,7 +171,7 @@ through this page, or through an agent holding a key that can write.
 | `GET /api/canon` | Lists the documents in the memory with their learning state. |
 | `POST /api/check` | Takes `{text}`. Recalls the draft's topics and streams the passages, then the cited contradictions. |
 | `POST /api/continue` | Takes `{text}`. Recalls the topics and the style guide and streams the continuation. |
-| `POST /api/accept` | Takes `{text}`. Writes the scene once and waits its turn behind a running learning run. |
+| `POST /api/accept` | Takes `{text}`. Writes the scene once; Membase learns it after any run in flight. |
 | `GET /api/binder` | The binder's names, from the `bible/` files. |
 | `GET /api/connect` | Returns the MCP address another AI can use. |
 

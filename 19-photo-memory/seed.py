@@ -10,6 +10,7 @@ The Kyoto album is left for the page to add.
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import sys
 import time
@@ -24,6 +25,8 @@ from demokit import Memory  # noqa: E402
 
 DEMO = "19-photo-memory"
 CONTAINER = "Photos"
+# No request names a Memory: a media write lands in the local engine's write target.
+os.environ.setdefault("MEMBASE_WRITE_TARGET", CONTAINER)
 ADDED = ["lisbon", "home"]
 
 
@@ -44,11 +47,15 @@ def main() -> None:
         shutil.rmtree(mem.path)
         mem = Memory(DEMO, user="me", default_mode="local")
     started = time.monotonic()
+    have = {m.get("custom_id") for m in mem.client.media.list(limit=1000)["items"]}
     for key, r in PHOTOS.items():
         if r["album"] not in ADDED:
             continue
-        out = mem.client.media.add(fetch(key), container=CONTAINER, title=r["title"], custom_id=key)
-        print(f"  {r['title']:<20} {out.get('summary', 'in memory already')}")
+        if key in have:
+            print(f"  {r['title']:<20} in memory already")
+            continue
+        out = mem.client.media.add(fetch(key), title=r["title"], custom_id=key)
+        print(f"  {r['title']:<20} {out['summary']}")
     print(f"  added in {time.monotonic() - started:.0f}s")
     mem.close()
 

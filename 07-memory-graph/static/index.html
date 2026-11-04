@@ -399,7 +399,7 @@
     const count = sorted.filter((p) => p.date).length;
     $("#maphead").replaceChildren(el("b", {}, `${nodes.length - 1} people, places and things`), ` from ${count} notes`);
     $("#colophon").textContent = `Your notes are kept by Membase (${G.mode === "hosted" ? "hosted" : "local engine"}). Map made ${G.built_at.replace(" UTC", "")} UTC.`;
-    $("#howstats").textContent = `This map: ${G.profile.static} standing facts and ${G.profile.dynamic} latest notes; ${G.queries.length} broad questions; ${G.expanded.length} names followed (${G.expanded.join(", ")}). ${G.passages.length} passages from memory, read in ${G.seconds} s.`;
+    $("#howstats").textContent = `This map: ${G.profile.facts} standing facts and ${G.profile.recent} latest notes; ${G.queries.length} broad questions; ${G.expanded.length} names followed (${G.expanded.join(", ")}). ${G.passages.length} passages from memory, read in ${G.seconds} s.`;
   }
 
   function applyHidden() {

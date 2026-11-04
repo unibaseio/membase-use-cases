@@ -3,7 +3,7 @@
     uv run 10-quest-log/seed.py
 
 Writes every day from the Monday three weeks before the next planned Monday up to yesterday,
-one memory per day in the `Quest log` container, dated by that day (the days are written in
+one memory per day in the `Quest log` Memory, dated by that day (the days are written in
 parallel, about 20 s on the local engine). Re-running skips days already in memory.
 
 The history has habits to find. The 7:00 gym session is skipped on every Monday (late Sundays),

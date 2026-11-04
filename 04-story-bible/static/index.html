@@ -250,7 +250,7 @@
   const isScene = (d, s) => d.custom_id === s.custom_id || d.title === s.title || d.title.includes(s.custom_id.replace(":", "-"));
   const sceneState = (d) => d.learned ? ["ok", "in canon"]
     : ["failed", "write failed"].includes(d.learning) ? ["bad", "not learned"]
-    : ["queued", "running", "waiting"].includes(d.learning) ? ["", "learning…"]
+    : ["pending", "processing", "waiting"].includes(d.learning) ? ["", "learning…"]
     : ["bad", "not learned"];
   function consult(found) {
     const names = new Set(found.flatMap((h) => about(clean(h.content))));
@@ -270,7 +270,7 @@
         : bible.every((d) => d.learned) ? "Canon in memory" : "Canon still learning…");
       $("#canonline").textContent = bible.length ? `Canon: the Saltmarrow bible${scenes ? ` + ${scenes} scene${scenes > 1 ? "s" : ""}` : ""}` : "";
       renderBinder([...document.querySelectorAll(".item.consult")].reduce((s, n) => s.add(n.dataset.name), new Set()));
-      if (documents.some((d) => !d.learned && ["queued", "running", "waiting"].includes(d.learning))) poll = setTimeout(loadCanon, 15000);
+      if (documents.some((d) => !d.learned && ["pending", "processing", "waiting"].includes(d.learning))) poll = setTimeout(loadCanon, 15000);
     } catch (e) { $("#fBible").replaceChildren(); failed($("#fBible"), e); }
   }
 
@@ -451,7 +451,6 @@
   $("#accept").onclick = async () => {
     readText();
     const done = busy($("#accept"), "Filing…");
-    const prevRun = canonDocs.find(isBible)?.run_id;  // the run before this write: not the scene's
     const state = el("div", { class: "state", id: "acceptstate" }, el("span", { class: "busy" }), "Filing the scene in the binder…");
     const title = el("div", { class: "t" }, "Chapter Three: The Key");
     margin.replaceChildren(el("div", { class: "comment filed flow", id: "saved" },
@@ -459,7 +458,7 @@
     try {
       const doc = await api("/api/accept", { text: draft });
       title.textContent = doc.title.replace(/^Scene:\s*/, "");
-      newScene = { title: doc.title, custom_id: doc.custom_id, before: prevRun };
+      newScene = { title: doc.title, custom_id: doc.custom_id };
       if (doc.already) { state.className = "state ok"; state.replaceChildren(CHECK(), "Already canon."); }
       else watchLearned(newScene, state);
       await loadCanon();
@@ -475,8 +474,7 @@
         state.replaceChildren(CHECK(), "In canon. Every AI connected to the Story Bible can read it now.");
         return loadCanon();
       }
-      if (d && (d.learning === "failed" || d.learning === "write failed")) { state.textContent = `The learning run (${d.run_id}) failed, so the scene is stored but not learned.`; return loadCanon(); }
-      if (d && d.learning === "succeeded" && d.run_id !== scene.before) { state.textContent = `Learning run ${d.run_id} ended, but Membase does not count the scene as learned.`; return loadCanon(); }
+      if (d && (d.learning === "failed" || d.learning === "write failed")) { state.textContent = "Learning failed, so the scene is stored but not learned."; return loadCanon(); }
       state.replaceChildren(el("span", { class: "busy" }), "Membase is learning the scene…");
     } catch (e) { return failed(state, e); }
     setTimeout(() => watchLearned(scene, state), 10000);

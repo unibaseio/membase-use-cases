@@ -137,19 +137,16 @@ def main() -> None:
     # 2. Wait for learning.
     started = time.monotonic()
     while True:
-        doc = mem.client.documents.get(document)
-        run_info = doc.get("learning_run") or {}
-        if doc.get("learned") or run_info.get("status") not in (None, "queued", "running"):
+        doc = mem.document(document)
+        if doc["learned"] or doc["learning_status"] not in ("processing", "pending"):
             break
         assert time.monotonic() - started < 900, f"not learned after 15 minutes: {doc}"
         time.sleep(10)
-    if doc.get("learned"):
-        print(
-            f"learned after {time.monotonic() - started:.0f}s (run {run_info.get('id')} {run_info.get('status')})"
-        )
+    if doc["learned"]:
+        print(f"learned after {time.monotonic() - started:.0f}s ({doc['learning']})")
     else:
         print(
-            f"WARNING: learning run {run_info.get('id')} ended {run_info.get('status')!r} after "
+            f"WARNING: learning ended {doc['learning_status']!r} after "
             f"{time.monotonic() - started:.0f}s without learning {document}; testing recall anyway"
         )
 

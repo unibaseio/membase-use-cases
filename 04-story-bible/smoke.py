@@ -67,7 +67,7 @@ def wait_learned(client: TestClient, minutes: int = 20) -> list[dict]:
     while True:
         docs = client.get("/api/canon").json()["documents"]
         if docs and all(
-            d["learned"] or d["learning"] not in ("queued", "running", "waiting") for d in docs
+            d["learned"] or d["learning"] not in ("pending", "processing", "waiting") for d in docs
         ):
             stuck = [d for d in docs if not d["learned"]]
             if stuck:

@@ -110,9 +110,9 @@
         $("#docs").append(el("div", { class: "doc" },
           el("span", { class: "dot" + (d.learned ? " on" : "") }),
           el("span", {}, d.title),
-          el("span", { class: "muted small", style: "margin-left:auto;white-space:nowrap" }, d.learned ? "learned" : `learning (${d.run || "queued"})`)));
+          el("span", { class: "muted small", style: "margin-left:auto;white-space:nowrap" }, d.learned ? "learned" : `learning (${d.run || "pending"})`)));
       }
-      if (documents.some((d) => !d.learned && (d.run === "running" || d.run === "queued" || !d.run))) setTimeout(loadDocs, 8000);
+      if (documents.some((d) => !d.learned && (d.run === "processing" || d.run === "pending" || !d.run))) setTimeout(loadDocs, 8000);
     } catch (e) { showError($("#docs"), e); }
   }
   loadDocs();

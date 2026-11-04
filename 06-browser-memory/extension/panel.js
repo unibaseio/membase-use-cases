@@ -27,8 +27,8 @@ const svg = (markup, size = 16) => {
 const CHECK = () => svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>', 14);
 const dots = () => el("span", { class: "dots" }, el("i"), el("i"), el("i"));
 
-// Chrome's own favicon for a page it has shown (the "favicon" permission)
-// (the "favicon" permission), unless the page named its own icon when it was remembered
+// Chrome's own favicon for a page it has shown (the "favicon" permission), unless an icon is
+// given (the open tab's own)
 const favicon = (url, icon) => icon || chrome.runtime.getURL(`/_favicon/?pageUrl=${encodeURIComponent(url)}&size=32`);
 const host = (url) => { try { return new URL(url).host; } catch { return url; } };
 
@@ -292,15 +292,14 @@ $("#remember").onclick = async () => {
   }
 };
 
-// learned / learning (a run is queued or running) / waiting (the write waits behind the
-// container's current run) / failed / not learned (a run ended without counting this one:
-// more arrived while it ran).
+// learned / learning (a run is reading it) / waiting (the write is queued in the companion, or
+// waits for the next run: the one in flight starts it) / failed / not learned yet
 const state = (d) => d.learned ? ["learned", "Learned"]
-  : ["queued", "running"].includes(d.learning) ? ["learning", "Learning"]
-  : d.learning === "waiting" ? ["waiting", "Waiting"]
-  : d.learning === "failed" ? ["failed", "Couldn’t learn"]
+  : d.learning === "processing" ? ["learning", "Learning"]
+  : d.learning === "waiting" || d.learning === "pending" ? ["waiting", "Waiting"]
+  : d.learning === "failed" || d.learning === "write failed" ? ["failed", "Couldn’t learn"]
   : ["learning", "Not learned yet"];
-const pending = (d) => !d.learned && ["queued", "running", "waiting"].includes(d.learning);
+const pending = (d) => !d.learned && ["processing", "pending", "waiting"].includes(d.learning);
 const when = (iso) => {
   if (!iso) return "just now";
   const d = new Date(iso), days = Math.floor((Date.now() - d) / 864e5);
@@ -324,7 +323,7 @@ async function loadPages() {
       box.append(el("a", { class: "page-row", href: p.url || "#", target: "_blank", title: p.url },
         el("img", { class: "fav", src: p.url ? favicon(p.url, p.icon) : "", alt: "" }),
         el("div", { class: "page-text" }, el("div", { class: "t" }, p.title), el("div", { class: "h" }, `${host(p.url)} · ${when(p.created_at)}`)),
-        el("span", { class: "state", "data-state": cls, title: p.run_id || "" }, cls === "learned" ? CHECK() : cls === "failed" ? null : el("span", { class: "spin" }), label)));
+        el("span", { class: "state", "data-state": cls, title: p.error || "" }, cls === "learned" ? CHECK() : cls === "failed" ? null : el("span", { class: "spin" }), label)));
     }
     if (pages.some(pending)) poll = setTimeout(loadPages, 5000);
   } catch (e) {
