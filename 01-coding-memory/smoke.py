@@ -185,7 +185,7 @@ def real_claude(env: dict, project: Path) -> None:
     if not shutil.which("claude"):
         print("claude -p: skipped (claude is not installed)")
         return
-    base = os.environ.get("MEMBASE_BASE_URL", "https://api.app.membase.ai").rstrip("/")
+    base = os.environ.get("MEMBASE_BASE_URL", "https://api.app.membase.com").rstrip("/")
     env = {**env, "MEMBASE_MCP_URL": base + "/mcp-http"}
     question = (
         "How are new invoice numbers generated in this project, and what happens to old "

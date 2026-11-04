@@ -28,7 +28,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 PLUGIN = HERE / "claude-plugin"
 MEMBASE_HOME = Path(os.environ.get("MEMBASE_HOME") or Path.home() / ".membase").expanduser()
-PROD = "https://api.app.membase.ai"
+PROD = "https://api.app.membase.com"
 START, END = "<!-- membase-memory:start -->", "<!-- membase-memory:end -->"
 
 INSTRUCTIONS = f"""{START}

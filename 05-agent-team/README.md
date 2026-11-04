@@ -132,11 +132,11 @@ Codex can only read.
 
 ```bash
 # Claude Code: a key with Read & write
-claude mcp add --transport http membase https://api.app.membase.ai/mcp-http \
+claude mcp add --transport http membase https://api.app.membase.com/mcp-http \
   --header "Authorization: Bearer $MEMBASE_KEY_FIXER"
 
 # Codex: a Read key
-codex mcp add membase --url https://api.app.membase.ai/mcp-http --bearer-token-env-var MEMBASE_KEY_AUDITOR
+codex mcp add membase --url https://api.app.membase.com/mcp-http --bearer-token-env-var MEMBASE_KEY_AUDITOR
 ```
 
 Ask Claude Code to *"investigate ISSUE-212 and record the root cause in the Team memory"*. Once

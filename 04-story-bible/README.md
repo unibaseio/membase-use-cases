@@ -151,7 +151,7 @@ Rib Bridge. The video turns off Claude Code's own auto-memory
 
 ### From Claude or ChatGPT
 
-The connector address is `https://api.app.membase.ai/mcp-http`.
+The connector address is `https://api.app.membase.com/mcp-http`.
 
 - **Claude** (claude.ai and the desktop app): open **Customize → Connectors → + → Add custom
   connector**, paste the address, tick **Story Bible** on Membase's consent screen, and press
